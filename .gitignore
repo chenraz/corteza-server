@@ -17,5 +17,3 @@ profile.coverprofile
 # https://github.com/nektos/act
 /.act*
 /workflow
-
-/vendor
