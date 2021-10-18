@@ -91,3 +91,5 @@ require (
 	moul.io/zapfilter v1.6.1
 	rsc.io/qr v0.2.0
 )
+
+replace github.com/cortezaproject/corteza-locale => ../corteza-locale/
