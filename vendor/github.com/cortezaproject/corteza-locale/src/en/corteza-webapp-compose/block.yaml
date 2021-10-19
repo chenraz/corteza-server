@@ -54,16 +54,16 @@ calendar:
     titlePlaceholder: (No field)
   reminderFeed:
     colorLabel: Event color
-    optionLabel: Reminders
-  today: Today
+    optionLabel: תזכורות
+  today: היום
   view:
-    dayGridMonth: Month
+    dayGridMonth: חודש
     default: Default view
     enabled: Enabled views
     footnote: Make sure default is one of the available views
-    listMonth: Agenda
-    timeGridDay: Day
-    timeGridWeek: Week
+    listMonth: אגנדה
+    timeGridDay: יום
+    timeGridWeek: שבוע
   viewLabel: Calendar
 chart:
   add: New Chart
@@ -108,18 +108,18 @@ general:
   descriptionPlaceholder: Block description
   headerStyle: Block header style (color)
   label:
-    add: Add
-    back: Back
+    add: הוספה
+    back: חזרה
     edit: Edit
     general: General
-    import: Import
+    import: ייבוא
     next: Next
     none: None
     ok: Ok
     permissions: Permissions
     remove: Remove
-    save: Save
-    search: Search
+    save: שמירה
+    search: חיפוש
   module: Module
   style:
     danger: Danger variant
@@ -160,7 +160,7 @@ metric:
     modulePlaceholder: Pick a module
     numberFormat: Number format
     operationAvg: Avg
-    operationCountd: Count
+    operationCountd: ספירה
     operationLabel: Aggregation operation
     operationMax: Max
     operationMin: Min
@@ -199,7 +199,7 @@ record:
     untitled: Untitled
   recordDeleted: This record was deleted
 recordList:
-  addRecord: Add
+  addRecord: הוספה
   cancelSelection: Cancel
   editFields: Editable module fields
   export:
@@ -220,7 +220,7 @@ recordList:
       lastWeek: Last week
       thisMonth: This month
       thisWeek: This week
-      today: Today
+      today: היום
       updatedAt: Record updated
     inRange: Set date range
     includeQuery: Filter by search query
@@ -299,11 +299,11 @@ recordList:
   moduleFootnote: Modules without a {{0}} can only be used in a record list as an inline editor
   noRecords: לא נמצאו רשומות תואמות
   pagination:
-    next: Next
-    prev: Previous
-    showing: '{{from}} - {{to}} of {{count}} records'
-    single: One record
-    single_plural: '{{count}} records'
+    next: הבא
+    prev: הקודם
+    showing: '{{from}} - {{to}} מתוך {{count}} רשומות'
+    single: רשומה אחת
+    single_plural: '{{count}} רשומות'
   positionField:
     footnote: Records will be sorted based on this field
     label: Record sort field

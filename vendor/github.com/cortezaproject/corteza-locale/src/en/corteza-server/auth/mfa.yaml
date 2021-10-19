@@ -1,5 +1,5 @@
 template:
-  title: Multi-factor authentication
+  title: אימות רב-שלבי
 
   email:
     instructions: Check your inbox and enter the received code

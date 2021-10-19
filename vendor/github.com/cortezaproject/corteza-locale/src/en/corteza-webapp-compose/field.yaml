@@ -20,7 +20,7 @@ kind:
       futureValuesOnly: Only dates in the future will be saved
       pastValuesOnly: Only dates in the past will be saved
   email:
-    label: Email
+    label: אימייל
     preventToLink: Don't turn email into a link
   file:
     label: File
@@ -61,12 +61,12 @@ kind:
     queryFieldsLabel: Query fields on search
     recordFieldLabel: Record label from field
     recordFieldPlaceholder: Pick field
-    suggestionPlaceholder: Start typing to search for records
+    suggestionPlaceholder: החל להקליד כדי לחפש רשומות
   select:
     label: Select
     optionAdd: Add
     optionLabelPlaceholder: Label
-    optionNotSelected: No option selected
+    optionNotSelected: נא לבחור אפשרות
     optionRemove: Remove
     optionType:
       default: Single input
@@ -75,7 +75,7 @@ kind:
       multiple: Multiple select
     optionValuePlaceholder: Value
     optionsLabel: Options to select from
-    placeholder: Select an option by clicking here
+    placeholder: נא לבחור אפשרות
   string:
     label: String
     multiLine: Multi line
@@ -139,11 +139,11 @@ selector:
   systemField: (system field)
   unselectAll: Unselect all
 system:
-  createdAt: Created at
+  createdAt: נוצר בתאריך
   createdBy: Created by
   deletedAt: Deleted at
   deletedBy: Deleted by
-  ownedBy: בעלות
+  ownedBy: בבעלות
   updatedAt: Updated at
   updatedBy: Updated by
 validators:

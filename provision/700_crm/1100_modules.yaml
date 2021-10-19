@@ -2,7 +2,7 @@ namespace: crm
 modules:
   Account:
     (envoy): { onExisting: "skip" }
-    name: חשבונות
+    name: Account
     fields:
       AccountName:
         label: שם

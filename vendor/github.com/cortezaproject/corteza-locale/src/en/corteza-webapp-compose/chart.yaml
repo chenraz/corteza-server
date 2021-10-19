@@ -7,7 +7,7 @@ configure:
 general:
   label:
     title: Label
-    add: Add
+    add: הוספה
   value: Value
   placeholder:
     handle: handle (a - z, 0 - 9, underscore, dash)
@@ -43,7 +43,7 @@ edit:
     recordsCreatedThisYear: Records created this year
   loadData: Load data
   metric:
-    add: Add metric
+    add: הוספת מטריצה
     fieldLabel: Field
     fieldPlaceholder: Select metric field
     fillArea: Fill area below the line

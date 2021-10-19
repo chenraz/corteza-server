@@ -4,7 +4,7 @@ block:
     label:
       cancel: Cancel
       noHandle: No handle
-      pageBuilder: Page builder
+      pageBuilder: מחולל עמודים
       saveAndClose: Save and close
     placeholder:
       handle: handle (a - z, 0 - 9, underscore, dash)
@@ -28,7 +28,7 @@ label:
   cancel: Cancel
   description: Description
   handle: Handle
-  pageBuilder: Page builder
+  pageBuilder: מחולל עמודים
   permissions: Permissions
   saveAndClose: Save and close
 moduleEdit: Edit module
@@ -36,7 +36,7 @@ navigation:
   page: Pages
   viewPage: View Page
 newPlaceholder: Page title
-noBlock: No block added yet
+noBlock: טרם הוספו בלוקים
 noPages: No pages
 notification:
   deleteFailed: Could not delete this page

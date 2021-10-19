@@ -160,11 +160,12 @@ html[dir="rtl"] thead th,
 html[dir="rtl"] legend,
 html[dir="rtl"] label,
 html[dir="rtl"] a,
-html[dir="rtl"] .btn 
+html[dir="rtl"] .btn,
 html[dir="rtl"] strong,
 html[dir="rtl"] b,
 html[dir="rtl"] .font-weight-bold
-html[dir="rtl"] input:-webkit-autofill::first-line {
+html[dir="rtl"] input:-webkit-autofill::first-line
+ {
   font-family: 'Assistant', sans-serif;;
 
 }
@@ -177,4 +178,7 @@ html[dir="rtl"] body .float-right {
 }
 html[dir="rtl"] body .float-left {
   float: right !important
+}
+html[dir="rtl"] body .bi-chevron-double-right::before {
+  transform: rotate(180deg);
 }

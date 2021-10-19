@@ -1,24 +1,24 @@
 template:
-  title: Your session
+  title: סשנים פעילים
 
   list:
-    current: Current session
-    authorized-on: Authorized on
-    same-machine: This machine
-    ip-address: IP Address
-    same-browser: This browser
-    browser: Browser
+    current: סשן נוכחי
+    authorized-on: אושר בתאירך
+    same-machine: מחשב זה
+    ip-address: כתובת אי.פי
+    same-browser: דפדפן זה
+    browser: דפדפן
 
-    expires: Expires
-    expired: Expired
-    today: Today
-    tomorrow: In 1 day
-    soon: In {{days}} days
+    expires: בתוקף עד
+    expired: לא בתוקף
+    today: היום
+    tomorrow: מחר
+    soon: תוך {{days}} ימים
 
-    delete: Delete this session
+    delete: מחיקת הסשן
 
-  delete-all: Delete all sessions
+  delete-all: מחיקת כל הסשנים
 
 alerts:
-  session-deleted: Session deleted
-  delete-sessions-but-current: All but current sessions deleted
+  session-deleted: סשן נחק
+  delete-sessions-but-current: כל הסשנים למעט הנוכחי נמחקו

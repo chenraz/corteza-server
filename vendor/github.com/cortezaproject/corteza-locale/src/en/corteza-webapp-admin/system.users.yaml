@@ -35,14 +35,14 @@ editor:
         text: |-
           Email OTP protection is enabled for this user.
           User will receive email with the security code on each login.
-    title: Multi-factor authentication
+    title: אימות רב-שלבי
   new: New
   password:
     confirm: Confirm password
     length: The passwords must be at least {{length}} characters long!
     missmatch: The passwords must match
     new: New password
-    title: Password
+    title: סיסמה
     removePassword: Remove password
   permissions: Permissions
   roles:

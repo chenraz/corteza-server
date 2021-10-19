@@ -92,4 +92,4 @@ require (
 	rsc.io/qr v0.2.0
 )
 
-replace github.com/cortezaproject/corteza-locale => ../corteza-locale/
+replace github.com/cortezaproject/corteza-locale => ./corteza-locale

@@ -1,11 +1,11 @@
 template:
-  title: Authorized clients
+  title: קליינטים מאומתים
 
   list:
-    authorized-on: Authorized on
+    authorized-on: אומת באתריך
     buttons:
-      revoke: Revoke access
-    empty: No authorized clients found
+      revoke: חסימת גישה
+    empty: לא נמצאו קלייטנים מאומתים
 
 alerts:
-  removed: Client authorization removed
+  removed: אימות הלקיינט הוסר

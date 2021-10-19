@@ -8,11 +8,11 @@ template:
       label: Password
       placeholder: Password
     name:
-      label: Full name
-      placeholder: Your full name
+      label: שם מלא
+      placeholder: שמך המלא
     nickname:
       label: Short name, nickname or handle
-      placeholder: Short name, nickname or handle
+      placeholder: כינוי או שם חיבה
     button:
       sign-up: Submit
   log-in: Already have an account? <a href="{{link}}">Log in</a>

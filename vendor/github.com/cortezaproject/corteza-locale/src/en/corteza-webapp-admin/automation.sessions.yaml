@@ -17,7 +17,7 @@ editor:
 list:
   columns:
     actions: ""
-    createdAt: Created At
+    createdAt: Created at
     eventType: Event type
     sessionID: SessionID
     status: Status
