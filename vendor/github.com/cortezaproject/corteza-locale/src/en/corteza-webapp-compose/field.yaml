@@ -89,7 +89,7 @@ kind:
     trimToDomain: Trim Url down to domain only
   user:
     label: User
-    na: N/A
+    na: לא זמין
     presetWithCurrentUser: Preset with current user
     suggestionPlaceholder: Start typing to search for users by email or name
     roles:
@@ -132,7 +132,7 @@ sanitizers:
     placeholder: trim(value)
   label: Value sanitization
 selector:
-  search: Type here to search among all module fields
+  search: Type here to search among module fields
   available: Available fields
   selectAll: Select all
   selected: Selected fields
@@ -143,7 +143,7 @@ system:
   createdBy: Created by
   deletedAt: Deleted at
   deletedBy: Deleted by
-  ownedBy: Owned by
+  ownedBy: בעלות
   updatedAt: Updated at
   updatedBy: Updated by
 validators:

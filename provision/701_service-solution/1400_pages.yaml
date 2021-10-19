@@ -580,7 +580,7 @@ pages:
                 variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
               kind: Record
               xywh: [0, 0, 3, 11]
-            - title: Contact Address
+            - title:  כתובת
               options:
                 fields:
                 - name: AccountId
@@ -605,7 +605,7 @@ pages:
                 variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
               kind: Record
               xywh: [6, 0, 3, 11]
-            - title: Contact Twitter Feed
+            - title: פיד טוויטר
               options:
                 fields: []
                 profileSourceField: Twitter
@@ -715,9 +715,9 @@ pages:
     visible: true
   - handle: Products
     (envoy): { onExisting: "skip" }
-    title: Products
+    title: מוצרים
     blocks:
-    - title: Products
+    - title: מוצרים
       options:
         allowExport: true
         draggable: false
@@ -765,7 +765,7 @@ pages:
         module: Product
         title: Record page for module "Product"
         blocks:
-        - title: Product Description
+        - title: תאור מוצר
           options:
             fields:
             - name: ProductCode
@@ -840,7 +840,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [6, 18, 6, 7]
-        - title: Files
+        - title: קבצים
           options:
             fields:
             - name: Photo

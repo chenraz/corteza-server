@@ -712,7 +712,7 @@ modules:
           allowImages: false
           mode: list
       CaseId:
-        label: Case
+        label: קייס
         kind: Record
         options:
           labelField: Number
@@ -729,7 +729,7 @@ modules:
     name: Case
     fields:
       Status:
-        label: Status
+        label: סטאטוס
         kind: Select
         options:
           options:
@@ -743,7 +743,7 @@ modules:
         kind: String
         private: true
       ContactTitle:
-        label: Title
+        label: כותרת
         kind: String
         private: true
       ContactEmail:
@@ -769,7 +769,7 @@ modules:
           - RecordLabel
           selectType: default
       Subject:
-        label: Subject
+        label: נושא
         kind: String
       Escalated:
         label: Escalated
@@ -808,7 +808,7 @@ modules:
         options:
           onlyDate: true
       Priority:
-        label: Priority
+        label: עדיפות
         kind: Select
         options:
           options:
@@ -837,12 +837,12 @@ modules:
           - Title
           selectType: default
       Number:
-        label: Case Number
+        label: מס קייס
         kind: String
         expressions:
           valueExpr: "\"Ticket#\" + strftime(new.createdAt, \"%Y%m%d%H%M%S%b\")"
       ProductId:
-        label: Product
+        label: מוצר
         kind: Record
         options:
           labelField: Name
@@ -941,17 +941,17 @@ modules:
           multiLine: true
           useRichTextEditor: true
       DoNotCall:
-        label: Do Not Call
+        label: לא להתקשר
         kind: Bool
         options:
           falseLabel: "False"
-          trueLabel: Do Not Call
+          truelabel: לא להתקשר
       Email:
         label: Email
         kind: Email
         private: true
       HasOptedOutOfEmail:
-        label: Email Opt Out
+        label: לא לשלוח מיילים
         kind: Bool
         options:
           falseLabel: "No"
@@ -995,23 +995,23 @@ modules:
           - Other
           selectType: default
       MailingStreet:
-        label: Mailing Street
+        label:  רחוב
         kind: String
         private: true
       MailingCity:
-        label: Mailing City
+        label:  ישוב
         kind: String
         private: true
       MailingState:
-        label: Mailing State
+        label:  מחוז
         kind: String
         private: true
       MailingPostalCode:
-        label: Mailing Postal Code
+        label:  מיקוד
         kind: String
         private: true
       MailingCountry:
-        label: Mailing Country
+        label: מדינה
         kind: Select
         options:
           options:
@@ -1274,7 +1274,7 @@ modules:
         kind: String
         private: true
       LastName:
-        label: Last Name
+        label: שם משפחה
         kind: String
         private: true
       OtherStreet:
@@ -1566,7 +1566,7 @@ modules:
           - RecordLabel
           selectType: default
       Title:
-        label: Title
+        label: כותרת
         kind: String
         private: true
       Twitter:
@@ -1641,7 +1641,7 @@ modules:
           - AccountName
           selectType: default
       ProductId:
-        label: Product
+        label: מוצר
         kind: Record
         options:
           labelField: Name
@@ -1653,13 +1653,13 @@ modules:
         label: Entitlement Name
         kind: String
       StartDate:
-        label: Start Date
+        label: תאריך התחלה
         kind: DateTime
       EndDate:
-        label: End Date
+        label: תאריך סיום
         kind: DateTime
       Status:
-        label: Status
+        label: סטאטוס
         kind: Select
         options:
           options:
@@ -1738,7 +1738,7 @@ modules:
           precision: 0
           prefix: KB#
       Title:
-        label: Title
+        label: כותרת
         kind: String
       Content:
         label: Content
@@ -1759,7 +1759,7 @@ modules:
           falseLabel: "No"
           trueLabel: "Yes"
       Status:
-        label: Status
+        label: סטאטוס
         kind: Select
         options:
           options:
@@ -1803,7 +1803,7 @@ modules:
           selectType: multiple
         multi: true
       ProductId:
-        label: Product
+        label: מוצר
         kind: Record
         options:
           labelField: Name
@@ -1817,22 +1817,22 @@ modules:
     name: Product
     fields:
       IsActive:
-        label: Active
+        label: פעיל
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       ProductCode:
-        label: Product Code
+        label: קוד מוצר
         kind: String
       Description:
-        label: Product Description
+        label: תאור מוצר
         kind: String
         options:
           multiLine: true
           useRichTextEditor: true
       Family:
-        label: Product Family
+        label: משפחת מוצר
         kind: Select
         options:
           options:
@@ -1843,10 +1843,10 @@ modules:
           - Service
           selectType: default
       Name:
-        label: Product Name
+        label: שם מוצר
         kind: String
       Photo:
-        label: Photo
+        label: תמונה
         kind: File
         options:
           allowDocuments: false
@@ -1883,7 +1883,7 @@ modules:
           precision: 2
           prefix: $
       ProductSelect:
-        label: Products
+        label: מוצרים
         kind: Select
         options:
           options: []
@@ -1931,7 +1931,7 @@ modules:
     name: Update
     fields:
       CaseId:
-        label: Case
+        label: קייס
         kind: Record
         options:
           labelField: Number
@@ -1952,7 +1952,7 @@ modules:
           - Other
           selectType: default
       Subject:
-        label: Subject
+        label: נושא
         kind: String
       Content:
         label: Content

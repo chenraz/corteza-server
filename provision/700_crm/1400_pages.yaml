@@ -2,9 +2,9 @@ namespace: crm
 pages:
   - handle: Home
     (envoy): { onExisting: "skip" }
-    title: Home
+    title: דשבורד
     blocks:
-    - title: My New Leads
+    - title: לידים חדשים
       options:
         allowExport: true
         draggable: false
@@ -31,7 +31,7 @@ pages:
         variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
       kind: RecordList
       xywh: [0, 11, 4, 9]
-    - title: My Key Deals - Recent Opportunities
+    - title: הזדמנויות אחרונות
       options:
         allowExport: true
         draggable: false
@@ -57,7 +57,7 @@ pages:
         variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
       kind: RecordList
       xywh: [4, 11, 4, 9]
-    - title: My Tasks
+    - title: משימות אחרונות
       options:
         allowExport: true
         draggable: false
@@ -81,14 +81,14 @@ pages:
         variants: {border: primary, headerBg: white, headerText: primary}
       kind: RecordList
       xywh: [8, 11, 4, 9]
-    - title: Sales vs. Target
+    - title: מכירות מול יעדים
       options:
         chart: SalesVsTarget
       style:
         variants: {border: primary, headerBg: white, headerText: primary}
       kind: Chart
       xywh: [6, 0, 2, 4]
-    - title: New Leads
+    - title: לידים חדשים
       options:
         metrics:
         - filter: Status = 'New'
@@ -103,7 +103,7 @@ pages:
         variants: {border: primary, headerBg: white, headerText: primary}
       kind: Metric
       xywh: [0, 0, 2, 4]
-    - title: Converted Leads
+    - title: לידים מומרים
       options:
         metrics:
         - filter: Status = 'Converted'
@@ -117,7 +117,7 @@ pages:
         variants: {border: primary, headerBg: white, headerText: primary}
       kind: Metric
       xywh: [2, 0, 2, 4]
-    - title: Total Pipeline €
+    - title: סהכ בייצור ₪ 
       options:
         metrics:
         - filter: StageName != 'Closed Won' AND StageName != 'Closed Lost' AND
@@ -137,21 +137,21 @@ pages:
         variants: {border: primary, headerBg: white, headerText: primary}
       kind: Metric
       xywh: [4, 0, 2, 4]
-    - title: Leads per Month
+    - title: לידים פר חודש
       options:
         chart: LeadsPerMonth
       style:
         variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
       kind: Chart
       xywh: [0, 4, 4, 7]
-    - title: Monthly Sales
+    - title: מכירות חודשיות
       options:
         chart: MonthlySales
       style:
         variants: {border: primary, headerBg: white, headerText: primary}
       kind: Chart
       xywh: [4, 4, 4, 7]
-    - title: My Calendar
+    - title: אירועים
       options:
         defaultView: dayGridMonth
         feeds:
@@ -223,23 +223,23 @@ pages:
     visible: true
   - handle: Leads
     (envoy): { onExisting: "skip" }
-    title: Leads
+    title: לידים
     blocks:
-    - title: Leads by type
+    - title: לידים לפי סוג
       options:
         chart: LeadsByType
       style:
         variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
       kind: Chart
       xywh: [9, 0, 3, 8]
-    - title: New Leads Per Month
+    - title: לידים חדשים פר חודש
       options:
         chart: LeadsPerMonth
       style:
         variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
       kind: Chart
       xywh: [9, 8, 3, 8]
-    - title: Leads
+    - title: לידים
       options:
         allowExport: true
         draggable: false
@@ -271,9 +271,9 @@ pages:
       - handle: RecordPageForModuleLead
         (envoy): { onExisting: "skip" }
         module: Lead
-        title: Record page for module "Lead"
+        title: עמוד רשומה במודול "לידים"
         blocks:
-        - title: Personal Data
+        - title: מידע אישי
           options:
             fields:
             - name: FirstName
@@ -291,7 +291,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [0, 0, 3, 15]
-        - title: Twitter feed
+        - title: פיד טוויטר
           options:
             profileSourceField: Twitter
             profileUrl: ""
@@ -299,7 +299,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: SocialFeed
           xywh: [9, 0, 3, 31]
-        - title: Company Data
+        - title: מידע ארגוני
           options:
             fields:
             - name: Company
@@ -316,7 +316,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [3, 0, 3, 15]
-        - title: Other Information
+        - title: מידע נוסף
           options:
             fields:
             - name: Rating
@@ -333,7 +333,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [6, 0, 3, 15]
-        - title: Notes
+        - title: הערות 
           options:
             allowExport: true
             draggable: false
@@ -358,7 +358,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 15, 6, 8]
-        - title: Events
+        - title: אירועים 
           options:
             allowExport: true
             draggable: false
@@ -383,7 +383,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 23, 4, 8]
-        - title: Tasks
+        - title: משימות 
           options:
             allowExport: true
             draggable: false
@@ -409,16 +409,16 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [4, 23, 5, 8]
-        - title: Lead Actions
+        - title: פעולות על הליד
           options:
             buttons:
             - enabled: true
-              label: Convert this Lead into an Account
+              label: המרת ליד לחשבון
               resourceType: compose:record
               workflow: CRM-Lead-ToAccount
               stepID: 3
             - enabled: true
-              label: Convert this Lead into an Account and Opportunity
+              label: המרת ליד לחשבון והזדמנות
               resourceType: compose:record
               workflow: CRM-Lead-ToAccountAndOpportunity
               stepID: 77
@@ -430,9 +430,9 @@ pages:
         visible: true
       - handle: MyLeads
         (envoy): { onExisting: "skip" }
-        title: My Leads
+        title: הלידים שלי
         blocks:
-        - title: My Leads
+        - title: הלידים שלי
           options:
             allowExport: true
             draggable: false
@@ -466,9 +466,9 @@ pages:
         visible: true
       - handle: AllNewLeads
         (envoy): { onExisting: "skip" }
-        title: All New Leads
+        title: כל הלידים החדשים
         blocks:
-        - title: New Leads
+        - title: לידים חדשים
           options:
             allowExport: true
             draggable: false
@@ -503,9 +503,9 @@ pages:
     visible: true
   - handle: Accounts
     (envoy): { onExisting: "skip" }
-    title: Accounts
+    title: חשבונות
     blocks:
-    - title: All accounts
+    - title: כל החשבונות
       options:
         allowExport: true
         draggable: false
@@ -534,14 +534,14 @@ pages:
         variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
       kind: RecordList
       xywh: [0, 0, 9, 16]
-    - title: Account by Type
+    - title: חשבון לפי סוג
       options:
         chart: AccountsByType
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [9, 0, 3, 8]
-    - title: Accounts by Rating
+    - title: חשבונות לפי דירוג
       options:
         chart: AccountsByRating
       style:
@@ -552,9 +552,9 @@ pages:
       - handle: RecordPageForModuleAccount
         (envoy): { onExisting: "skip" }
         module: Account
-        title: Record page for module "Account"
+        title: עמוד רשומה במודול "חשבונות"
         blocks:
-        - title: Account Detail
+        - title: פרטי חשבון
           options:
             fields:
             - name: AccountName
@@ -569,7 +569,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [0, 0, 3, 12]
-        - title: Account Address
+        - title: כתובת חשבון
           options:
             fields:
             - name: BillingStreet
@@ -583,7 +583,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [3, 0, 3, 12]
-        - title: Other Information
+        - title: מידע נוסף
           options:
             fields:
             - name: Rating
@@ -596,7 +596,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [6, 0, 3, 12]
-        - title: Company Twitter Feed
+        - title: פיד מטוויטר
           options:
             profileSourceField: Twitter
             profileUrl: ""
@@ -604,7 +604,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: SocialFeed
           xywh: [9, 0, 3, 12]
-        - title: Opportunities
+        - title: הזדמנויות
           options:
             allowExport: true
             draggable: false
@@ -631,7 +631,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 17, 9, 7]
-        - title: Contacts
+        - title: אנשי קשר
           options:
             allowExport: true
             draggable: false
@@ -657,7 +657,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 24, 4, 8]
-        - title: Notes
+        - title: הערות 
           options:
             allowExport: true
             draggable: false
@@ -682,7 +682,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 32, 4, 8]
-        - title: Cases
+        - title: קייסים 
           options:
             allowExport: true
             draggable: false
@@ -708,7 +708,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [8, 24, 4, 8]
-        - title: Events
+        - title: אירועים 
           options:
             allowExport: true
             draggable: false
@@ -733,7 +733,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [4, 32, 4, 8]
-        - title: Tasks
+        - title: משימות 
           options:
             allowExport: true
             draggable: false
@@ -759,7 +759,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [8, 32, 4, 8]
-        - title: Contracts
+        - title: הסכמים
           options:
             allowExport: true
             draggable: false
@@ -786,21 +786,21 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [4, 24, 4, 8]
-        - title: Account Actions
+        - title: פעולות בחשבון
           options:
             buttons:
             - enabled: true
-              label: Create new Opportunity from this Account
+              label: יצירת הזדמנות חדשה
               resourceType: compose:record
               workflow: CRM-Account-CreateNewOpportunity
               stepID: 3
             - enabled: true
-              label: Create new Contract from this Account
+              label: יצירת הסכם חדש
               resourceType: compose:record
               workflow: CRM-Account-CreateNewContract
               stepID: 3
             - enabled: true
-              label: Create new Case from this Account
+              label: יצירת קייס חדש
               resourceType: compose:record
               workflow: CRM-Account-CreateNewCase
               stepID: 56
@@ -813,7 +813,7 @@ pages:
           - handle: RecordPageForModuleAccountContactRole
             (envoy): { onExisting: "skip" }
             module: AccountContactRole
-            title: Record page for module "AccountContactRole"
+            title: עמוד רשומה במודול "AccountContactRole"
             blocks:
             - title: Account Contact Role Details
               options:
@@ -829,9 +829,9 @@ pages:
     visible: true
   - handle: Contacts
     (envoy): { onExisting: "skip" }
-    title: Contacts
+    title: אנשי קשר
     blocks:
-    - title: List of Contacts
+    - title:  רשימת אנשי קשר
       options:
         allowExport: true
         draggable: false
@@ -857,14 +857,14 @@ pages:
         selectionButtons: []
       kind: RecordList
       xywh: [0, 0, 9, 16]
-    - title: Number of Contacts with Senior Title
+    - title: מספר אנשי קשר לפי תואר
       options:
         chart: ContactsPerSeniorLeveltitle
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [9, 0, 3, 8]
-    - title: Contacts per Country
+    - title: אנשי קשר פר מדינה
       options:
         chart: ContactsPerCountry
       style:
@@ -875,9 +875,9 @@ pages:
       - handle: RecordPageForModuleContact
         (envoy): { onExisting: "skip" }
         module: Contact
-        title: Record page for module "Contact"
+        title: עמוד רשומה במודול "אנשי קשר"
         blocks:
-        - title: Personal Data
+        - title: מידע אישי
           options:
             fields:
             - name: FirstName
@@ -893,7 +893,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [0, 0, 3, 13]
-        - title: Contact Address
+        - title:  כתובת
           options:
             fields:
             - name: AccountId
@@ -907,7 +907,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [3, 0, 3, 13]
-        - title: Other Information
+        - title: מידע נוסף
           options:
             fields:
             - name: ownedBy
@@ -920,7 +920,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [6, 0, 3, 13]
-        - title: Contact Twitter Feed
+        - title: פיד טוויטר
           options:
             profileSourceField: Twitter
             profileUrl: ""
@@ -928,7 +928,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: SocialFeed
           xywh: [9, 0, 3, 21]
-        - title: Notes
+        - title: הערות 
           options:
             allowExport: true
             draggable: false
@@ -954,7 +954,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 21, 4, 8]
-        - title: Events
+        - title: אירועים 
           options:
             allowExport: true
             draggable: false
@@ -979,7 +979,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [4, 21, 4, 8]
-        - title: Tasks
+        - title: משימות 
           options:
             allowExport: true
             draggable: false
@@ -1005,7 +1005,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [8, 21, 4, 8]
-        - title: Cases related with this Contact
+        - title: מקרים קשורים לאיש הקשר
           options:
             allowExport: true
             draggable: false
@@ -1032,11 +1032,11 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 13, 6, 8]
-        - title: Contact Actions
+        - title: פעולות על איש הקשר
           options:
             buttons:
             - enabled: true
-              label: Create a new Case for this Contact and Account
+              label: יצירת קייס חדש לאיש הקשר ולחשבון
               resourceType: compose:record
               workflow: CRM-Contact-CreateNewCase
               stepID: 3
@@ -1049,9 +1049,9 @@ pages:
     visible: true
   - handle: Opportunities
     (envoy): { onExisting: "skip" }
-    title: Opportunities
+    title: הזדמנויות
     blocks:
-    - title: List of Opportunities
+    - title: רשימת הזדמנויות
       options:
         allowExport: true
         draggable: false
@@ -1078,21 +1078,21 @@ pages:
         selectionButtons: []
       kind: RecordList
       xywh: [0, 0, 8, 16]
-    - title: Opportunity Pipeline
+    - title: הזדמנויות בצנרת
       options:
         chart: OpportunitySalesPipeline
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [8, 6, 4, 10]
-    - title: Sales vs. Target
+    - title: מכירות מול יעדים
       options:
         chart: SalesVsTarget
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [10, 0, 2, 6]
-    - title: Opportunities vs. Target
+    - title: הזדמנויות מול יעדים
       options:
         chart: NumberOfOpportunitiesVsTarget
       style:
@@ -1103,9 +1103,9 @@ pages:
       - handle: RecordPageForModuleOpportunity
         (envoy): { onExisting: "skip" }
         module: Opportunity
-        title: Record page for module "Opportunity"
+        title: עמוד רשומה במודול "הזדמנויות"
         blocks:
-        - title: Opportunity Detail
+        - title: פרטי הזדמנות
           options:
             fields:
             - name: Name
@@ -1117,7 +1117,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [0, 0, 4, 10]
-        - title: Additional Information
+        - title: מידע נוסף
           options:
             fields:
             - name: OwnerId
@@ -1130,7 +1130,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [8, 0, 4, 10]
-        - title: Contact Roles
+        - title: אנשי קשר
           options:
             allowExport: true
             draggable: false
@@ -1155,7 +1155,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [6, 26, 6, 8]
-        - title: Stage
+        - title: שלב
           options:
             fields:
             - name: StageName
@@ -1167,7 +1167,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [4, 0, 4, 10]
-        - title: Products
+        - title: מוצרים
           options:
             allowExport: true
             draggable: true
@@ -1205,7 +1205,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 18, 8, 8]
-        - title: Notes
+        - title: הערות 
           options:
             allowExport: true
             draggable: false
@@ -1230,7 +1230,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 34, 4, 8]
-        - title: Events
+        - title: אירועים 
           options:
             allowExport: true
             draggable: false
@@ -1255,7 +1255,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [4, 34, 4, 8]
-        - title: Tasks
+        - title: משימות 
           options:
             allowExport: true
             draggable: false
@@ -1281,7 +1281,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [8, 34, 4, 8]
-        - title: Quotes
+        - title: הצעות מחיר
           options:
             allowExport: true
             draggable: false
@@ -1309,17 +1309,16 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 26, 6, 8]
-        - title: Opportunity Actions
+        - title: פעולות על ההזדמנות
           options:
             buttons:
             - enabled: true
-              label: Update prices of Products by applying the selected Price
-                Book and inserted discounts
+              label: עדכון מחירים מספר מוצרים ונתוני הנחה
               resourceType: compose:record
               workflow: CRM-Opportunity-ApplyPriceBook
               stepID: 3
             - enabled: true
-              label: Create a new Quote for this Opportunity
+              label: יצירת הצעת מחיר חדשה להזדמנות
               resourceType: compose:record
               workflow: CRM-Opportunity-NewQuote
               stepID: 3
@@ -1332,7 +1331,7 @@ pages:
           - handle: RecordPageForModuleOpportunityContactRole
             (envoy): { onExisting: "skip" }
             module: OpportunityContactRole
-            title: Record page for module "OpportunityContactRole"
+            title: עמוד רשומה במודול "OpportunityContactRole"
             blocks:
             - title: Opportunity Contact Role Details
               options:
@@ -1347,7 +1346,7 @@ pages:
           - handle: RecordPageForModuleOpportunityLineItem
             (envoy): { onExisting: "skip" }
             module: OpportunityLineItem
-            title: Record page for module "OpportunityLineItem"
+            title: עמוד רשומה במודול "פריט הזדמנות"
             blocks:
             - title: Opportunity Line Item Details
               options:
@@ -1373,7 +1372,7 @@ pages:
                 variants: {border: primary, headerText: primary}
               kind: Record
               xywh: [4, 0, 4, 16]
-            - title: Other Information
+            - title: מידע נוסף
               options:
                 fields:
                 - name: createdAt
@@ -1388,7 +1387,7 @@ pages:
           - handle: RecordPageForModuleOpportunityCompetitor
             (envoy): { onExisting: "skip" }
             module: OpportunityCompetitor
-            title: Record page for module "OpportunityCompetitor"
+            title: עמוד רשומה במודול "OpportunityCompetitor"
             blocks:
             - title: Opportunity Competitor Details
               options:
@@ -1406,9 +1405,9 @@ pages:
     visible: true
   - handle: Quotes
     (envoy): { onExisting: "skip" }
-    title: Quotes
+    title: הצעות מחיר
     blocks:
-    - title: List of Quotes
+    - title: רשימת הצעות מחיר
       options:
         allowExport: true
         draggable: false
@@ -1438,14 +1437,14 @@ pages:
         variants: {border: primary, headerText: primary}
       kind: RecordList
       xywh: [0, 0, 9, 16]
-    - title: Quotes Status
+    - title: סטאטוס הצעות מחיר
       options:
         chart: QuotesByStatus
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [9, 0, 3, 8]
-    - title: Number of Quotes per Month
+    - title: מספר הצעות חודשי
       options:
         chart: QuotesPerMonth
       style:
@@ -1456,9 +1455,9 @@ pages:
       - handle: RecordPageForModuleQuote
         (envoy): { onExisting: "skip" }
         module: Quote
-        title: Record page for module "Quote"
+        title: עמוד רשומה במודול "הצעות מחיר"
         blocks:
-        - title: Quote Information
+        - title: נתוני הצעת מחיר
           options:
             fields:
             - name: QuoteNumber
@@ -1471,7 +1470,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [0, 0, 4, 12]
-        - title: Totals
+        - title: סיכום
           options:
             fields:
             - name: PricebookId
@@ -1485,7 +1484,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [8, 0, 4, 12]
-        - title: Primary contact data
+        - title: איש קשר ראשי
           options:
             fields:
             - name: AccountId
@@ -1498,7 +1497,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [4, 0, 4, 9]
-        - title: Bill To
+        - title: חשבונית עבור
           options:
             fields:
             - name: BillingName
@@ -1511,7 +1510,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [0, 20, 4, 9]
-        - title: Quote To
+        - title: הצעת מחיר עבור
           options:
             fields:
             - name: QuoteToName
@@ -1524,7 +1523,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [4, 20, 4, 9]
-        - title: Ship To
+        - title: משלוח עבור
           options:
             fields:
             - name: ShippingName
@@ -1537,7 +1536,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [8, 20, 4, 9]
-        - title: Quote Line Items
+        - title: פריטי הצעת המחיר
           options:
             allowExport: true
             draggable: true
@@ -1577,7 +1576,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 12, 12, 8]
-        - title: Notes
+        - title: הערות 
           options:
             allowExport: true
             draggable: false
@@ -1602,7 +1601,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 29, 4, 8]
-        - title: Events
+        - title: אירועים 
           options:
             allowExport: true
             draggable: false
@@ -1627,7 +1626,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [4, 29, 4, 8]
-        - title: Tasks
+        - title: משימות 
           options:
             allowExport: true
             draggable: false
@@ -1656,12 +1655,12 @@ pages:
         - options:
             buttons:
             - enabled: true
-              label: Send this Quote via email to the primary contact
+              label: שליחת הצעת המחיר במייל לאיש קשר ראשי
               resourceType: compose:record
               workflow: CRM-Quote-SendToPriContact
               stepID: 3
             - enabled: true
-              label: Send this Quote to a custom email
+              label: שליחת ההצעה למייל כלשהו
               resourceType: compose:record
               workflow: CRM-Quote-SendToCustomEmail
               stepID: 3
@@ -1674,7 +1673,7 @@ pages:
           - handle: RecordPageForModuleQuoteLineItem
             (envoy): { onExisting: "skip" }
             module: QuoteLineItem
-            title: Record page for module "QuoteLineItem"
+            title: עמוד רשומה במודול "פריט הזדמנות"
             blocks:
             - title: Quote Line Item Information
               options:
@@ -1698,9 +1697,9 @@ pages:
     visible: true
   - handle: Contracts
     (envoy): { onExisting: "skip" }
-    title: Contracts
+    title: הסכמים
     blocks:
-    - title: List of Contracts
+    - title: רשימת הסכמים
       options:
         allowExport: true
         draggable: false
@@ -1729,14 +1728,14 @@ pages:
         variants: {border: primary, headerText: primary}
       kind: RecordList
       xywh: [0, 0, 9, 18]
-    - title: Active Contracts by Strarting Month
+    - title: הסכמים פעילים לפי חודש התחלה
       options:
         chart: ContractsPerStartingMonth
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [9, 9, 3, 9]
-    - title: Contracts by Status
+    - title: הסכמים לפי סטאטוס
       options:
         chart: ContractsByStatus
       style:
@@ -1747,9 +1746,9 @@ pages:
       - handle: RecordPageForModuleContract
         (envoy): { onExisting: "skip" }
         module: Contract
-        title: Record page for module "Contract"
+        title: עמוד רשומה במודול "הסכמים"
         blocks:
-        - title: Contract Details
+        - title: פרטי הסכם
           options:
             fields:
             - name: AccountId
@@ -1762,7 +1761,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [0, 0, 3, 10]
-        - title: Contract Billing Address
+        - title: כתובת לחשבונית
           options:
             fields:
             - name: BillingStreet
@@ -1774,7 +1773,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [9, 0, 3, 10]
-        - title: Contract Description and Special Terms
+        - title: תאור הסכם ותנאים מיוחדים
           options:
             fields:
             - name: OwnerId
@@ -1785,7 +1784,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [3, 0, 3, 10]
-        - title: Other Information
+        - title: מידע נוסף
           options:
             fields:
             - name: createdAt
@@ -1796,7 +1795,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [6, 0, 3, 10]
-        - title: Contract Shipping Address
+        - title: כתובת למשלוח
           options:
             fields:
             - name: ShippingStreet
@@ -1808,7 +1807,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [9, 10, 3, 9]
-        - title: Notes
+        - title: הערות 
           options:
             allowExport: true
             draggable: false
@@ -1833,7 +1832,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 19, 4, 8]
-        - title: Events
+        - title: אירועים 
           options:
             allowExport: true
             draggable: false
@@ -1858,7 +1857,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [4, 19, 4, 8]
-        - title: Tasks
+        - title: משימות 
           options:
             allowExport: true
             draggable: false
@@ -1884,7 +1883,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [8, 19, 4, 8]
-        - title: Contacts related to the Contract
+        - title: אנשי קשר
           options:
             allowExport: true
             draggable: false
@@ -1909,7 +1908,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: RecordList
           xywh: [6, 10, 3, 9]
-        - title: Contract Line Items
+        - title: פריטי הסכם
           options:
             allowExport: true
             draggable: true
@@ -1951,7 +1950,7 @@ pages:
           - handle: RecordPageForModuleContractContactRole
             (envoy): { onExisting: "skip" }
             module: ContractContactRole
-            title: Record page for module "ContractContactRole"
+            title: עמוד רשומה במודול "ContractContactRole"
             blocks:
             - title: Contract Contact Role Details
               options:
@@ -1966,7 +1965,7 @@ pages:
           - handle: RecordPageForModuleEntitlement
             (envoy): { onExisting: "skip" }
             module: Entitlement
-            title: Record page for module "Entitlement"
+            title: עמוד רשומה במודול "Entitlement"
             blocks:
             - title: Entitlement Details
               options:
@@ -1982,7 +1981,7 @@ pages:
                 - name: Status
               kind: Record
               xywh: [0, 0, 4, 13]
-            - title: Other Information
+            - title: מידע נוסף
               options:
                 fields:
                 - name: AccountId
@@ -1993,7 +1992,7 @@ pages:
                 - name: LastModifiedDate
               kind: Record
               xywh: [4, 0, 4, 13]
-            - title: Notes
+            - title: הערות 
               options:
                 fields:
                 - name: Title
@@ -2033,7 +2032,7 @@ pages:
               - handle: RecordPageForModuleEntitlementContact
                 (envoy): { onExisting: "skip" }
                 module: EntitlementContact
-                title: Record page for module "EntitlementContact"
+                title: עמוד רשומה במודול "EntitlementContact"
                 blocks:
                 - title: Entitlement Contact Details
                   options:
@@ -2047,7 +2046,7 @@ pages:
               - handle: RecordPageForModuleEntitlementTemplate
                 (envoy): { onExisting: "skip" }
                 module: EntitlementTemplate
-                title: Record page for module "EntitlementTemplate"
+                title: עמוד רשומה במודול "EntitlementTemplate"
                 blocks:
                 - title: Entitlement Template Details
                   options:
@@ -2065,7 +2064,7 @@ pages:
           - handle: RecordPageForModuleContractLineItem
             (envoy): { onExisting: "skip" }
             module: ContractLineItem
-            title: Record page for module "ContractLineItem"
+            title: עמוד רשומה במודול "ContractLineItem"
             blocks:
             - title: Contract Line Item Details
               options:
@@ -2087,7 +2086,7 @@ pages:
                 - name: TotalPrice
               kind: Record
               xywh: [4, 0, 4, 11]
-            - title: Notes
+            - title: הערות 
               options:
                 fields:
                 - name: Title
@@ -2104,9 +2103,9 @@ pages:
     visible: true
   - handle: Campaigns
     (envoy): { onExisting: "skip" }
-    title: Campaigns
+    title: קמפיינים
     blocks:
-    - title: List of Campaigns
+    - title: רשימת קמפיינים
       options:
         allowExport: true
         draggable: false
@@ -2134,21 +2133,21 @@ pages:
         variants: {border: primary, headerText: primary}
       kind: RecordList
       xywh: [0, 4, 8, 12]
-    - title: Campaign Costs vs. Revenue
+    - title: עלויות קמפיין מול הכנסות
       options:
         chart: CampaignCostVsRevenue
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [8, 4, 4, 7]
-    - title: Active Campaigns per Type
+    - title: קמפיינים פעילים פר סוג
       options:
         chart: ActiveCampaignsByType
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [8, 11, 4, 5]
-    - title: Number of Leads in Campaigns
+    - title: מספר לידים בקמפיין
       options:
         metrics:
         - labelStyle: {}
@@ -2162,7 +2161,7 @@ pages:
         variants: {border: primary, headerText: primary}
       kind: Metric
       xywh: [0, 0, 2, 4]
-    - title: Number of Accounts in Campaigns
+    - title: מספר חשבונות בקמפיין
       options:
         metrics:
         - labelStyle: {}
@@ -2176,7 +2175,7 @@ pages:
         variants: {border: primary, headerText: primary}
       kind: Metric
       xywh: [2, 0, 2, 4]
-    - title: Number of Contacts in Campaigns
+    - title: מספר אנשי קשר בקמפיין
       options:
         metrics:
         - labelStyle: {}
@@ -2190,7 +2189,7 @@ pages:
         variants: {border: primary, headerText: primary}
       kind: Metric
       xywh: [4, 0, 2, 4]
-    - title: Number of Opp. in Campaigns
+    - title: מספר הזדמנויות בקמפיין
       options:
         metrics:
         - labelStyle: {}
@@ -2204,14 +2203,14 @@ pages:
         variants: {border: primary, headerText: primary}
       kind: Metric
       xywh: [6, 0, 2, 4]
-    - title: Campaign Opps. vs. Target
+    - title: הזדמנויות בקמפיין מול יעדים
       options:
         chart: CampaignAmountAllOpportunitiesVsTarget
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [8, 0, 2, 4]
-    - title: Campaign Won Opps. vs. Target
+    - title: הזדמנויות מוצלחות בקמפיין מול יעדים
       options:
         chart: CampaignAmountAllWonOpportunitiesVsTarget
       style:
@@ -2222,9 +2221,9 @@ pages:
       - handle: RecordPageForModuleCampaign
         (envoy): { onExisting: "skip" }
         module: Campaigns
-        title: Record page for module "Campaign"
+        title: עמוד רשומה במודול "קמפיין"
         blocks:
-        - title: Campaign Details
+        - title: פרטי הקמפיין
           options:
             fields:
             - name: Name
@@ -2235,7 +2234,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Record
           xywh: [0, 0, 3, 10]
-        - title: Campaign Planning
+        - title: תכנון קמפיין
           options:
             fields:
             - name: BudgetedCost
@@ -2246,7 +2245,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Record
           xywh: [3, 0, 3, 10]
-        - title: Campaign Results
+        - title: תוצאות קמפיין
           options:
             fields:
             - name: NumberOfLeads
@@ -2260,7 +2259,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Record
           xywh: [6, 0, 3, 10]
-        - title: Generated Opportunities
+        - title: הזדמנויות בקמפיין
           options:
             allowExport: true
             draggable: false
@@ -2286,7 +2285,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: RecordList
           xywh: [6, 19, 6, 9]
-        - title: Campaign Status
+        - title: סטאטוס קמפיין
           options:
             fields:
             - name: ownedBy
@@ -2297,7 +2296,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Record
           xywh: [9, 0, 3, 10]
-        - title: Leads in Campaign
+        - title: לידים בקמפיין
           options:
             allowExport: true
             draggable: false
@@ -2324,7 +2323,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: RecordList
           xywh: [0, 10, 6, 9]
-        - title: Contacts in Campaign
+        - title: אנשי קשר בקמפיין
           options:
             allowExport: true
             draggable: false
@@ -2350,7 +2349,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: RecordList
           xywh: [6, 10, 6, 9]
-        - title: Accounts in Campaign
+        - title: חשבונות בקמפיין
           options:
             allowExport: true
             draggable: false
@@ -2380,9 +2379,9 @@ pages:
     visible: true
   - handle: Products
     (envoy): { onExisting: "skip" }
-    title: Products
+    title: מוצרים
     blocks:
-    - title: List of Products
+    - title: רשימת מוצרים
       options:
         allowExport: true
         draggable: false
@@ -2407,14 +2406,14 @@ pages:
         selectionButtons: []
       kind: RecordList
       xywh: [0, 0, 9, 16]
-    - title: Products per Product Family
+    - title: מוצרים לפי משפחת מוצר
       options:
         chart: ProductsPerFamily
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [9, 0, 3, 8]
-    - title: Products added per Month
+    - title: מוצרים נוספים פר חודש
       options:
         chart: ProductsAddedPerMonth
       style:
@@ -2425,9 +2424,9 @@ pages:
       - handle: RecordPageForModuleProduct
         (envoy): { onExisting: "skip" }
         module: Product
-        title: Record page for module "Product"
+        title: עמוד רשומה במודול "מוצר"
         blocks:
-        - title: Product Description
+        - title: תאור מוצר
           options:
             fields:
             - name: Name
@@ -2438,7 +2437,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Record
           xywh: [0, 0, 4, 10]
-        - title: Appears in the following Price Books
+        - title: מופיע בספרי מחיר
           options:
             allowExport: true
             draggable: false
@@ -2463,7 +2462,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: RecordList
           xywh: [0, 10, 6, 9]
-        - title: Related Cases
+        - title: קייסים קשורים
           options:
             allowExport: true
             draggable: false
@@ -2489,7 +2488,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: RecordList
           xywh: [6, 10, 6, 9]
-        - title: Notes
+        - title: הערות 
           options:
             allowExport: true
             draggable: false
@@ -2514,7 +2513,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: RecordList
           xywh: [0, 19, 12, 9]
-        - title: Files
+        - title: קבצים
           options:
             fields:
             - name: Photo
@@ -2523,7 +2522,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Record
           xywh: [4, 0, 4, 10]
-        - title: Record Information
+        - title: נתוני רשומה
           options:
             fields:
             - name: IsActive
@@ -2538,9 +2537,9 @@ pages:
         visible: false
       - handle: PriceBook
         (envoy): { onExisting: "skip" }
-        title: Price book
+        title: ספר מחיר
         blocks:
-        - title: Price Books
+        - title: ספר מחירים
           options:
             allowExport: true
             draggable: false
@@ -2566,14 +2565,14 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: RecordList
           xywh: [0, 0, 9, 16]
-        - title: Price Books created per Month
+        - title: ספרי מחיר פר חודש
           options:
             chart: PriceBooksCreatedPerMonth
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [9, 0, 3, 8]
-        - title: Price Book Entries per Month
+        - title: פרטי ספרי מחיר פר חודש
           options:
             chart: PriceBookEntriesPerMonth
           style:
@@ -2584,9 +2583,9 @@ pages:
           - handle: RecordPageForModulePricebook
             (envoy): { onExisting: "skip" }
             module: Pricebook
-            title: Record page for module "Pricebook"
+            title: עמוד רשומה במודול "ספר מחירים"
             blocks:
-            - title: Price Book Details
+            - title: נתוני ספר מחיר
               options:
                 fields:
                 - name: Name
@@ -2595,7 +2594,7 @@ pages:
                 - name: IsActive
               kind: Record
               xywh: [0, 0, 6, 14]
-            - title: Price Book Entries
+            - title: מוצרים בספר מחיר
               options:
                 allowExport: true
                 draggable: true
@@ -2625,7 +2624,7 @@ pages:
                 variants: {border: primary, headerText: primary}
               kind: RecordList
               xywh: [6, 0, 6, 14]
-            - title: Notes
+            - title: הערות 
               options:
                 draggable: false
                 editFields: []
@@ -2651,7 +2650,7 @@ pages:
               - handle: RecordPageForModulePricebookEntry
                 (envoy): { onExisting: "skip" }
                 module: PricebookEntry
-                title: Record page for module "PricebookEntry"
+                title: עמוד רשומה במודול "פריט ספר מחירים"
                 blocks:
                 - title: Details
                   options:
@@ -2669,9 +2668,9 @@ pages:
     visible: true
   - handle: Events
     (envoy): { onExisting: "skip" }
-    title: Events
+    title: אירועים 
     blocks:
-    - title: List of Events
+    - title: רשימת אירועים
       options:
         allowExport: true
         draggable: false
@@ -2696,21 +2695,21 @@ pages:
         variants: {border: primary, headerText: primary}
       kind: RecordList
       xywh: [0, 0, 3, 16]
-    - title: Events per Type
+    - title: אירועים לפי סוג
       options:
         chart: EventsPerType
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [9, 0, 3, 8]
-    - title: Events per Month
+    - title: אירועים פר חודש
       options:
         chart: EventsPerMonth
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [9, 8, 3, 8]
-    - title: Event Calendar
+    - title: לוח אירועים
       options:
         defaultView: dayGridMonth
         feeds:
@@ -2783,9 +2782,9 @@ pages:
       - handle: RecordPageForModuleEvent
         (envoy): { onExisting: "skip" }
         module: Event
-        title: Record page for module "Event"
+        title: עמוד רשומה במודול "אירוע"
         blocks:
-        - title: Event Data
+        - title: פרטי אירוע
           options:
             fields:
             - name: Subject
@@ -2796,7 +2795,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Record
           xywh: [0, 0, 3, 16]
-        - title: Other Information
+        - title: מידע נוסף
           options:
             fields:
             - name: LeadId
@@ -2812,7 +2811,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Record
           xywh: [9, 0, 3, 16]
-        - title: Event Date and Time
+        - title: מועדי אירוע
           options:
             fields:
             - name: ActivityDate
@@ -2822,7 +2821,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Record
           xywh: [3, 0, 3, 16]
-        - title: Assigned To
+        - title: שוייך ל
           options:
             fields:
             - name: OwnerId
@@ -2834,9 +2833,9 @@ pages:
     visible: true
   - handle: Tasks
     (envoy): { onExisting: "skip" }
-    title: Tasks
+    title: משימות 
     blocks:
-    - title: List of Tasks
+    - title: רשימת משימות
       options:
         allowExport: true
         draggable: false
@@ -2866,14 +2865,14 @@ pages:
         variants: {border: primary, headerText: primary}
       kind: RecordList
       xywh: [0, 0, 9, 16]
-    - title: Tasks by Status
+    - title: משימות לפי סטאטוס
       options:
         chart: TasksByStatus
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [9, 0, 3, 8]
-    - title: Tasks per Month
+    - title: משימות פר חודש
       options:
         chart: TasksPerMonth
       style:
@@ -2884,9 +2883,9 @@ pages:
       - handle: RecordPageForModuleTask
         (envoy): { onExisting: "skip" }
         module: Task
-        title: Record page for module "Task"
+        title: עמוד רשומה במודול "משימה"
         blocks:
-        - title: Task Details
+        - title: פרטי משימה
           options:
             fields:
             - name: Subject
@@ -2896,7 +2895,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [0, 0, 3, 16]
-        - title: Related To
+        - title: רשומות קשורות
           options:
             fields:
             - name: LeadId
@@ -2909,7 +2908,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [9, 0, 3, 16]
-        - title: Task Status
+        - title: סטאטוס משימה
           options:
             fields:
             - name: Status
@@ -2919,7 +2918,7 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
           xywh: [3, 0, 3, 16]
-        - title: Assigned To
+        - title: שוייך ל
           options:
             fields:
             - name: OwnerId
@@ -2933,65 +2932,65 @@ pages:
     visible: true
   - handle: Dashboards
     (envoy): { onExisting: "skip" }
-    title: Dashboards
+    title: מרכז בקרה
     blocks:
-    - title: Leads per day
+    - title: לידים פר יום
       options:
         chart: LeadsPerMonth
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [0, 0, 6, 7]
-    - title: Leads By Type
+    - title: לידים לפי סוג
       options:
         chart: LeadsByType
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [6, 0, 3, 7]
-    - title: Leads by Country
+    - title: לידים לפי מדינה
       options:
         chart: LeadsByCountry
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [6, 7, 6, 7]
-    - title: Lead Funnel
+    - title: משפך לידים
       options:
         chart: LeadFunnel
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [9, 0, 3, 7]
-    - title: Monthly Sales
+    - title: מכירות חודשיות
       options:
         chart: MonthlySales
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [0, 7, 6, 7]
-    - title: Sales Pipeline
+    - title: צנרת מכירות
       options:
         chart: OpportunityStatusFunnel
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [9, 14, 3, 7]
-    - title: Sales vs. Target
+    - title: מכירות מול יעדים
       options:
         chart: SalesVsTarget
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [0, 14, 3, 7]
-    - title: Number of Opportunities vs. Target
+    - title: הזדמנויות מול ידעים
       options:
         chart: NumberOfOpportunitiesVsTarget
       style:
         variants: {border: primary, headerText: primary}
       kind: Chart
       xywh: [3, 14, 3, 7]
-    - title: Accounts by Rating
+    - title: חשבונות לפי דירוג
       options:
         chart: AccountsByRating
       style:
@@ -3001,9 +3000,9 @@ pages:
     pages:
       - handle: LeadFunnelDashboard
         (envoy): { onExisting: "skip" }
-        title: Lead Funnel Dashboard
+        title: דשבורד משפך לידים
         blocks:
-        - title: Number of Leads in Campaigns
+        - title: מספר לידים בקמפיין
           options:
             metrics:
             - labelStyle: {}
@@ -3017,7 +3016,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Metric
           xywh: [0, 0, 3, 4]
-        - title: Number of Accounts in Campaigns
+        - title: מספר חשבונות בקמפיין
           options:
             metrics:
             - label: Number of Accounts in Campaigns
@@ -3032,7 +3031,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Metric
           xywh: [3, 0, 3, 4]
-        - title: Number of Contacts in Campaigns
+        - title: מספר אנשי קשר בקמפיין
           options:
             metrics:
             - labelStyle: {}
@@ -3046,7 +3045,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Metric
           xywh: [6, 0, 3, 4]
-        - title: Number of Opp. in Campaigns
+        - title: מספר הזדמנויות בקמפיין
           options:
             metrics:
             - labelStyle: {}
@@ -3060,77 +3059,77 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Metric
           xywh: [9, 0, 3, 4]
-        - title: Campaign Opps. vs. Target
+        - title: הזדמנויות בקמפיין מול יעדים
           options:
             chart: CampaignAmountAllOpportunitiesVsTarget
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [3, 4, 3, 6]
-        - title: Campaign Won Opps. vs. Target
+        - title: הזדמנויות מוצלחות בקמפיין מול יעדים
           options:
             chart: CampaignAmountAllWonOpportunitiesVsTarget
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [6, 4, 3, 6]
-        - title: Active Campaigns per Type
+        - title: קמפיינים פעילים פר סוג
           options:
             chart: ActiveCampaignsByType
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [0, 4, 3, 6]
-        - title: Campaign Costs vs. Revenue
+        - title: עלויות קמפיין מול הכנסות
           options:
             chart: CampaignCostVsRevenue
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [0, 10, 6, 8]
-        - title: New Leads Per Month
+        - title: לידים חדשים פר חודש
           options:
             chart: LeadsPerMonth
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [6, 10, 6, 8]
-        - title: Leads by type
+        - title: לידים לפי סוג
           options:
             chart: LeadsByType
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [0, 18, 3, 7]
-        - title: Leads by Source
+        - title: לידים לפי מקור
           options:
             chart: LeadsBySource
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [3, 18, 3, 7]
-        - title: Lead by Country
+        - title: לידים לפי מדינה
           options:
             chart: LeadsByCountry
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [0, 25, 12, 8]
-        - title: Lead Funnel
+        - title: משפך לידים
           options:
             chart: LeadFunnel
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [9, 4, 3, 6]
-        - title: Leads by Rating
+        - title: לידים לפי דירוג
           options:
             chart: LeadsByRating
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [6, 18, 3, 7]
-        - title: Accounts by Rating
+        - title: חשבונות לפי דירוג
           options:
             chart: AccountsByRating
           style:
@@ -3156,28 +3155,28 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [6, 6, 6, 8]
-        - title: Monthly Sales
+        - title: מכירות חודשיות
           options:
             chart: MonthlySales
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [0, 14, 6, 8]
-        - title: Opportunity Pipeline
+        - title: הזדמנויות בצנרת
           options:
             chart: OpportunityStatusFunnel
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [9, 0, 3, 6]
-        - title: Opportunities vs. Target
+        - title: הזדמנויות מול יעדים
           options:
             chart: NumberOfOpportunitiesVsTarget
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [0, 0, 3, 6]
-        - title: Sales vs. Target
+        - title: מכירות מול יעדים
           options:
             chart: SalesVsTarget
           style:
@@ -3203,7 +3202,7 @@ pages:
         (envoy): { onExisting: "skip" }
         title: KPIs and Sales Activities Dashboard
         blocks:
-        - title: New Leads
+        - title: לידים חדשים
           options:
             metrics:
             - filter: Status = 'New'
@@ -3217,7 +3216,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Metric
           xywh: [0, 0, 2, 4]
-        - title: Converted Leads
+        - title: לידים מומרים
           options:
             metrics:
             - filter: Status = 'Converted'
@@ -3245,7 +3244,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Metric
           xywh: [4, 0, 2, 4]
-        - title: Number of Leads in Campaigns
+        - title: מספר לידים בקמפיין
           options:
             metrics:
             - labelStyle: {}
@@ -3259,7 +3258,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Metric
           xywh: [0, 4, 2, 4]
-        - title: Number of Accounts in Campaigns
+        - title: מספר חשבונות בקמפיין
           options:
             metrics:
             - labelStyle: {}
@@ -3273,7 +3272,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Metric
           xywh: [2, 4, 2, 4]
-        - title: Number of Contacts in Campaigns
+        - title: מספר אנשי קשר בקמפיין
           options:
             metrics:
             - labelStyle: {}
@@ -3287,7 +3286,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Metric
           xywh: [4, 4, 2, 4]
-        - title: Number of Opp. in Campaigns
+        - title: מספר הזדמנויות בקמפיין
           options:
             metrics:
             - labelStyle: {}
@@ -3322,28 +3321,28 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [8, 0, 2, 4]
-        - title: Sales vs. Target
+        - title: מכירות מול יעדים
           options:
             chart: SalesVsTarget
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [10, 0, 2, 4]
-        - title: Campaign Opps. vs. Target
+        - title: הזדמנויות בקמפיין מול יעדים
           options:
             chart: CampaignAmountAllOpportunitiesVsTarget
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [8, 4, 2, 4]
-        - title: Campaign Won Opps. vs. Target
+        - title: הזדמנויות מוצלחות בקמפיין מול יעדים
           options:
             chart: CampaignAmountAllWonOpportunitiesVsTarget
           style:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [10, 4, 2, 4]
-        - title: Leads per Month
+        - title: לידים פר חודש
           options:
             chart: LeadsPerMonth
           style:
@@ -3390,7 +3389,7 @@ pages:
         (envoy): { onExisting: "skip" }
         title: Executive Daily View Dashboard
         blocks:
-        - title: Sales Pipeline
+        - title: צנרת מכירות
           options:
             chart: OpportunitySalesPipeline
           style:
@@ -3460,7 +3459,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [3, 15, 3, 7]
-        - title: Lead Funnel
+        - title: משפך לידים
           options:
             chart: LeadFunnel
           style:
@@ -3481,7 +3480,7 @@ pages:
             variants: {border: primary, headerText: primary}
           kind: Chart
           xywh: [6, 15, 3, 7]
-        - title: Tasks by Status
+        - title: משימות לפי סטאטוס
           options:
             chart: TasksByStatus
           style:
@@ -3492,7 +3491,7 @@ pages:
     visible: true
   - handle: More
     (envoy): { onExisting: "skip" }
-    title: More
+    title: עמודים נוספים
     blocks:
     - title: Additional CRM modules
       options:
@@ -3502,7 +3501,7 @@ pages:
     pages:
       - handle: Notes
         (envoy): { onExisting: "skip" }
-        title: Notes
+        title: הערות 
         blocks:
         - title: List of Notes
           options:
@@ -3537,7 +3536,7 @@ pages:
           - handle: RecordPageForModuleNote
             (envoy): { onExisting: "skip" }
             module: Note
-            title: Record page for module "Note"
+            title: עמוד רשומה במודול "הערה"
             blocks:
             - title: Note
               options:
@@ -3550,7 +3549,7 @@ pages:
                 variants: {border: primary, headerText: primary}
               kind: Record
               xywh: [0, 0, 4, 20]
-            - title: Files
+            - title: קבצים
               options:
                 fields:
                 - name: Files
@@ -3576,7 +3575,7 @@ pages:
         visible: true
       - handle: Cases
         (envoy): { onExisting: "skip" }
-        title: Cases
+        title: קייסים 
         blocks:
         - title: List of Cases
           options:
@@ -3645,7 +3644,7 @@ pages:
           - handle: RecordPageForModuleCase
             (envoy): { onExisting: "skip" }
             module: Case
-            title: Record page for module "Case"
+            title: עמוד רשומה במודול "Case"
             blocks:
             - title: Case Main Information
               options:
@@ -3688,7 +3687,7 @@ pages:
                 variants: {border: primary, headerText: primary}
               kind: Record
               xywh: [9, 0, 3, 12]
-            - title: Notes
+            - title: הערות 
               options:
                 allowExport: true
                 draggable: false
@@ -3713,7 +3712,7 @@ pages:
                 variants: {border: primary, headerText: primary}
               kind: RecordList
               xywh: [0, 21, 4, 8]
-            - title: Events
+            - title: אירועים 
               options:
                 allowExport: true
                 draggable: false
@@ -3738,7 +3737,7 @@ pages:
                 variants: {border: primary, headerText: primary}
               kind: RecordList
               xywh: [4, 21, 4, 8]
-            - title: Tasks
+            - title: משימות 
               options:
                 allowExport: true
                 draggable: false
@@ -3830,7 +3829,7 @@ pages:
               - handle: RecordPageForModuleCaseUpdate
                 (envoy): { onExisting: "skip" }
                 module: CaseUpdate
-                title: Record page for module "CaseUpdate"
+                title: עמוד רשומה במודול "CaseUpdate"
                 blocks:
                 - title: Case Update
                   options:
@@ -3851,7 +3850,7 @@ pages:
         visible: true
       - handle: Solutions
         (envoy): { onExisting: "skip" }
-        title: Solutions
+        title: פתרונות
         blocks:
         - title: List of Solutions
           options:
@@ -3898,7 +3897,7 @@ pages:
           - handle: RecordPageForModuleSolution
             (envoy): { onExisting: "skip" }
             module: Solution
-            title: Record page for module "Solution"
+            title: עמוד רשומה במודול "Solution"
             blocks:
             - title: Solution Details
               options:
@@ -3917,11 +3916,11 @@ pages:
         visible: true
       - handle: DefaultSettings
         (envoy): { onExisting: "skip" }
-        title: Default Settings
+        title: הגדרות
         description: A list of defaults values which are called upon in automation
           processes.
         blocks:
-        - title: Default settings
+        - title: הגדרות
           options:
             draggable: false
             editFields: []
@@ -3947,7 +3946,7 @@ pages:
           - handle: RecordPageForModuleDefaultSettings
             (envoy): { onExisting: "skip" }
             module: Settings
-            title: Record page for module "DefaultSettings"
+            title: עמוד רשומה במודול "DefaultSettings"
             blocks:
             - title: Quote Settings
               options:
@@ -4003,7 +4002,7 @@ pages:
       - handle: RecordPageForModuleQuestion
         (envoy): { onExisting: "skip" }
         module: Question
-        title: Record page for module "Question"
+        title: עמוד רשומה במודול "Question"
         blocks:
         - title: Question Details
           options:
@@ -4064,7 +4063,7 @@ pages:
           - handle: RecordPageForModuleReply
             (envoy): { onExisting: "skip" }
             module: Reply
-            title: Record page for module "Reply"
+            title: עמוד רשומה במודול "Reply"
             blocks:
             - title: Reply Details
               options:
@@ -4094,7 +4093,7 @@ pages:
           - handle: RecordPageForModuleVote
             (envoy): { onExisting: "skip" }
             module: Vote
-            title: Record page for module "Vote"
+            title: עמוד רשומה במודול "Vote"
             blocks:
             - title: Vote Score
               options:
@@ -4146,7 +4145,7 @@ pages:
           - handle: RecordPageForModuleIdea
             (envoy): { onExisting: "skip" }
             module: Idea
-            title: Record page for module "Idea"
+            title: עמוד רשומה במודול "Idea"
             blocks:
             - title: Idea Details
               options:
@@ -4209,7 +4208,7 @@ pages:
           - handle: RecordPageForModuleEmailTemplate
             (envoy): { onExisting: "skip" }
             module: EmailTemplate
-            title: Record page for module "EmailTemplate"
+            title: עמוד רשומה במודול "EmailTemplate"
             blocks:
             - title: Email Template Details
               options:

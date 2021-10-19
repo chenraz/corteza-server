@@ -17,13 +17,13 @@ charts:
           field: count
           fill: true
           fixTooltips: false
-          label: Number of Accounts
+          label: סהכ חשבונות
           lineTension: 0.4
           type: line
         module: Account
         renderer: {}
         yAxis:
-          label: Accounts
+          label: חשבונות
       colorScheme: tableau.Tableau10
   AccountsByType:
     (envoy): { onExisting: "skip" }
@@ -121,29 +121,29 @@ charts:
         metrics:
         - aggregate: SUM
           field: BudgetedCost
-          label: Budgeted Cost
+          label: עלות מתוקצבת
           type: bar
         - aggregate: SUM
           field: ActualCost
-          label: Actual Cost
+          label: עלות בפועל
           type: bar
         - aggregate: SUM
           field: ExpectedRevenue
-          label: Expected Revenue
+          label: צפי הכנסות
           type: bar
         - aggregate: SUM
           field: AmountAllOpportunities
-          label: Amount All Opportunities
+          label: סכום כל ההזדמנויות
           type: bar
         - aggregate: SUM
           field: AmountWonOpportunities
-          label: Amount All Won Opportunities
+          label: סכום כל ההזדמנויות המוצלחות
           type: bar
         module: Campaigns
         renderer: {}
         yAxis:
           beginAtZero: true
-          label: Euro
+          label: שח
       colorScheme: tableau.Tableau10
   CampaignCosts:
     (envoy): { onExisting: "skip" }
@@ -258,7 +258,7 @@ charts:
         - field: count
           fill: true
           fx: m?m+n:n
-          label: Cumulative number of cases
+          label: מספר קייסים מצטבר
           type: line
         module: Case
         renderer: {}
@@ -281,14 +281,14 @@ charts:
         metrics:
         - field: count
           fill: true
-          label: Contacts per country
+          label: אנשי קשר לפי מדינה
           lineTension: 0.4
           type: line
         module: Contact
         renderer: {}
         yAxis:
           beginAtZero: true
-          label: Contacts
+          label: אנשי קשר 
       colorScheme: tableau.Tableau20
   ContactsPerSeniorLeveltitle:
     (envoy): { onExisting: "skip" }
@@ -344,19 +344,19 @@ charts:
         metrics:
         - field: count
           fill: true
-          label: Activated contract per month
+          label: הסכמים פר חודש
           lineTension: 0.4
           type: bar
         - field: count
           fill: true
           fx: m?m+n:n
-          label: Cumulative number of contracts
+          label: מספר הסכמים מצטבר
           type: line
         module: Contract
         renderer: {}
         yAxis:
           beginAtZero: true
-          label: Activated contracts
+          label: הסכמים חדשים
       colorScheme: tableau.Tableau20
   Dealsize:
     (envoy): { onExisting: "skip" }
@@ -391,7 +391,7 @@ charts:
         renderer: {}
         yAxis:
           beginAtZero: true
-          label: Euro
+          label: שח
       colorScheme: tableau.Tableau10
   EventsPerMonth:
     (envoy): { onExisting: "skip" }
@@ -414,7 +414,7 @@ charts:
         renderer: {}
         yAxis:
           beginAtZero: true
-          label: Events
+          label: אירועים
       colorScheme: tableau.Tableau10
   EventsPerType:
     (envoy): { onExisting: "skip" }
@@ -443,13 +443,13 @@ charts:
           field: Status
           meta:
             fields:
-            - text: New
+            - text: חדש
               value: New
-            - text: Assigned
+            - text: שוייך
               value: Assigned
-            - text: In Progress
+            - text: בטיפול
               value: In Progress
-            - text: Converted
+            - text: הומר
               value: Converted
           modifier: (no grouping / buckets)
         filter: ""
@@ -482,7 +482,7 @@ charts:
         yAxis:
           axisType: linear
           beginAtZero: true
-          label: Leads per country
+          label: משפך פר מדינה
       colorScheme: tableau.Tableau10
   LeadsByRating:
     (envoy): { onExisting: "skip" }
@@ -548,7 +548,7 @@ charts:
       colorScheme: tableau.Tableau10
   LeadsPerMonth:
     (envoy): { onExisting: "skip" }
-    name: Leads per month
+    name: לידים פר חודש
     config:
       reports:
       - dimensions:
@@ -559,20 +559,20 @@ charts:
         filter: ""
         metrics:
         - field: count
-          label: Leads per month
+          label: לידים פר חודש
           type: bar
         - field: count
           fill: true
           fixTooltips: null
           fx: m?m+n:n
-          label: Cumulative number of leads
+          label: מספר לידים מצטבר
           lineTension: 0.4
           type: line
         module: Lead
         renderer: {}
         yAxis:
           beginAtZero: true
-          label: Leads
+          label: לידים
       colorScheme: tableau.Tableau20
   MonthlySales:
     (envoy): { onExisting: "skip" }
@@ -593,20 +593,20 @@ charts:
           fill: true
           fixTooltips: null
           fx: ""
-          label: Monthly Sales
+          label: מכירות חודשיות
           type: bar
         - aggregate: SUM
           field: Amount
           fill: true
           fx: m?m+n:n
-          label: Cumulative Sales
+          label: מכירות מצטברות
           lineTension: 0.4
           type: line
         module: Opportunity
         renderer: {}
         yAxis:
           beginAtZero: true
-          label: Euro
+          label: שח
           max: ""
       colorScheme: tableau.Tableau20
   NumberOfOpportunitiesVsTarget:
@@ -645,7 +645,7 @@ charts:
         - field: count
           fill: true
           fx: m?m+n:n
-          label: Cumulative number of opportunities
+          label: מספר הזדמנויות מצטבר
           lineTension: 0.4
           type: line
         - field: count
@@ -689,15 +689,15 @@ charts:
           field: StageName
           meta:
             fields:
-            - text: Qualification
+            - text: בדיקת התאמה
               value: Qualification
-            - text: Need Analysis
+            - text: ניתוח
               value: Need Analysis
-            - text: Proposal
+            - text: הצעת מחיר
               value: Proposal
-            - text: Negotiation
+            - text: מו"מ
               value: Negotiation
-            - text: Closed Won
+            - text: הומר בהצלחה
               value: Closed Won
           modifier: (no grouping / buckets)
         filter: YEAR(created_at) = YEAR(NOW()) AND Amount IS NOT NULL
@@ -718,15 +718,15 @@ charts:
           field: StageName
           meta:
             fields:
-            - text: Qualification
+            - text: בדיקת התאמה
               value: Qualification
-            - text: Need Analysis
+            - text: ניתוח
               value: Need Analysis
-            - text: Proposal
+            - text: הצעת מחיר
               value: Proposal
-            - text: Negotiation
+            - text: מו"מ
               value: Negotiation
-            - text: Closed Won
+            - text: הומר בהצלחה
               value: Closed Won
           modifier: (no grouping / buckets)
         filter: YEAR(created_at) = YEAR(NOW())
@@ -750,14 +750,14 @@ charts:
         metrics:
         - field: count
           fill: true
-          label: Price book entries
+          label: מוצרים בספר מחיר
           lineTension: 0.4
           type: line
         module: PricebookEntry
         renderer: {}
         yAxis:
           beginAtZero: true
-          label: Price book entries
+          label: מוצרים בספר מחיר
       colorScheme: tableau.Tableau10
   PriceBooksCreatedPerMonth:
     (envoy): { onExisting: "skip" }
@@ -773,14 +773,14 @@ charts:
         metrics:
         - field: count
           fill: true
-          label: Number of Price Books
+          label: מספר ספרי מחיר
           lineTension: 0.4
           type: line
         module: Pricebook
         renderer: {}
         yAxis:
           beginAtZero: true
-          label: Price books
+          label: ספרי מחיר
       colorScheme: tableau.Tableau10
   ProductsAddedPerMonth:
     (envoy): { onExisting: "skip" }
@@ -802,7 +802,7 @@ charts:
         renderer: {}
         yAxis:
           beginAtZero: true
-          label: Products
+          label: מוצרים
       colorScheme: tableau.Tableau10
   ProductsPerFamily:
     (envoy): { onExisting: "skip" }
@@ -855,20 +855,20 @@ charts:
         metrics:
         - field: count
           fill: true
-          label: Quotes per month
+          label: מספר הצעות חודשי
           lineTension: 0.4
           type: bar
         - field: count
           fill: true
           fx: m?m+n:n
-          label: Cumulative number of quotes
+          label: מספר הצעות מחיר מצטבר
           lineTension: 0.4
           type: line
         module: Quote
         renderer: {}
         yAxis:
           beginAtZero: true
-          label: Quotes
+          label: הצעות מחיר
       colorScheme: tableau.Tableau20
   SalesVsTarget:
     (envoy): { onExisting: "skip" }
@@ -988,12 +988,12 @@ charts:
         metrics:
         - field: count
           fill: true
-          label: Tasks per month
+          label: משימות פר חודש
           lineTension: 0.4
           type: line
         module: Task
         renderer: {}
         yAxis:
           beginAtZero: true
-          label: Tasks
+          label: משימות
       colorScheme: tableau.Tableau10

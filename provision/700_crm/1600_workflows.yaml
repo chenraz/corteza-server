@@ -3781,7 +3781,7 @@ workflows:
     CRM-Opportunity-ApplyPriceBook:
         meta:
             name: CRM - Opportunity - Apply Price Book
-            description: Update prices of Products by applying the selected Price Book and inserted discounts
+            description: עדכון מחרים מספר מחירים ונתוני הנחה
         enabled: true
         keepSessions: 0
         triggers:

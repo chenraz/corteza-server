@@ -3,7 +3,7 @@ label:
   active: Active
   add: Add
   addNew: Add new
-  addValue: Add new value
+  addValue:  הוספת ערך חדש
   attachmentFileInfo: '(File size: {{0}}, uploaded {{1}})'
   attributes: Attributes
   back: Back

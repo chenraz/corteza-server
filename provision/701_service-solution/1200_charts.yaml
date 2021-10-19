@@ -97,7 +97,7 @@ charts:
         - backgroundColor: '#f50d23'
           field: count
           fixTooltips: true
-          label: Priority
+          label: עדיפות
           relativeValue: true
           type: doughnut
         module: Case

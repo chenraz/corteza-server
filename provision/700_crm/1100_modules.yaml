@@ -2,80 +2,80 @@ namespace: crm
 modules:
   Account:
     (envoy): { onExisting: "skip" }
-    name: Account
+    name: חשבונות
     fields:
       AccountName:
-        label: Account Name
+        label: שם
         kind: String
         required: true
       OwnerId:
-        label: Account Owner
+        label: בעל החשבון
         kind: User
         options:
           presetWithAuthenticated: true
           selectType: default
       AccountSource:
-        label: Account Source
+        label: מקור
         kind: Select
         options:
           options:
-          - text: Customer Referral
+          - text: הפניית לקוח
             value: Customer Referral
-          - text: Direct
+          - text: ישיר
             value: Direct
-          - text: Employee Referral
+          - text: הפניית מועסק
             value: Employee Referral
-          - text: Event
+          - text: אירוע
             value: Event
-          - text: Existing Customer
+          - text: לקוח קיים
             value: Existing Customer
-          - text: Inbound Call
+          - text: שיחה נכנסת
             value: Inbound Call
-          - text: Outbound List
+          - text: רשימת תפוצה
             value: Outbound List
-          - text: Partner Referral
+          - text: הפנייה משותף
             value: Partner Referral
-          - text: Seminar
+          - text: כנס
             value: Seminar
-          - text: Social Media
+          - text: מדיה חברתית
             value: Social Media
-          - text: Webinar
+          - text: וובינר
             value: Webinar
-          - text: Website (Organic)
+          - text: אתר (אורגני)
             value: Website (Organic)
-          - text: Website (PPC)
+          - text: אתר (ממומן)
             value: Website (PPC)
-          - text: Word of Mouth
+          - text: פה לאוזן
             value: Word of Mouth
-          - text: Other
+          - text: אחר
             value: Other
           selectType: default
       BillingStreet:
-        label: Billing Street
+        label: רחוב (חיוב)
         kind: String
         expressions:
           sanitizers:
             - "trim(value)"
       BillingCity:
-        label: Billing City
+        label: ישוב (חיוב)
         kind: String
         expressions:
           sanitizers:
             - "trim(value)"
       BillingState:
-        label: Billing State
+        label: מחוז (חיוב)
         kind: String
         expressions:
           sanitizers:
             - "trim(value)"
       BillingPostalCode:
-        label: Billing Postal Code
+        label: מיקוד (חיוב)
         kind: String
         expressions:
           sanitizers:
             - "trim(value)"
       BillingCountry:
-        label: Billing Country
+        label: מדינה (חיוב)
         kind: Select
         options:
           options:
@@ -291,7 +291,7 @@ modules:
             value: Ireland
           - text: Isle Of Man
             value: Isle Of Man
-          - text: Israel
+          - text: ישראל
             value: Israel
           - text: Italy
             value: Italy
@@ -569,28 +569,28 @@ modules:
             value: Zimbabwe
           selectType: default
       GeneratedBillingAddress:
-        label: Generated Billing Address
+        label: כתובת (חיוב)
         kind: String
         private: true
         expressions:
           valueExpr: trim(trim(trim(BillingStreet?BillingStreet:"") + "\n" + trim(trim(trim(BillingPostalCode?BillingPostalCode:"") + " " + trim(BillingCity?BillingCity:"")) + " " + trim(BillingState?BillingState:""))) + "\n" + trim(BillingCountry?BillingCountry:""))
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
           useRichTextEditor: true
       NumberOfEmployees:
-        label: Employees
+        label: שכירים
         kind: Number
         options:
           format: "0"
           precision: 0
       Fax:
-        label: Fax
+        label: פקס
         kind: String
       Industry:
-        label: Industry
+        label: ענף
         kind: Select
         options:
           options:
@@ -644,7 +644,7 @@ modules:
             value: Media
           - text: Not For Profit
             value: Not For Profit
-          - text: Other
+          - text: אחר
             value: Other
           - text: Recreation
             value: Recreation
@@ -662,7 +662,7 @@ modules:
             value: Utilities
           selectType: default
       Ownership:
-        label: Ownership
+        label: מבנה בעלות
         kind: Select
         options:
           options:
@@ -672,7 +672,7 @@ modules:
             value: Private
           selectType: default
       ParentId:
-        label: Parent Account
+        label: חשבון אם
         kind: Record
         options:
           labelField: AccountName
@@ -681,10 +681,10 @@ modules:
           - AccountName
           selectType: default
       Phone:
-        label: Phone
+        label: טלפון
         kind: String
       Rating:
-        label: Rating
+        label: דירוג
         kind: Select
         options:
           options:
@@ -702,37 +702,37 @@ modules:
             value: ★★★★★
           selectType: default
       Sic:
-        label: SIC Code
+        label: SIC קוד
         kind: String
       SicDesc:
-        label: SIC Description
+        label: SIC תאור
         kind: String
       ShippingStreet:
-        label: Shipping Street
+        label: רחוב (משלוח)
         kind: String
         expressions:
           sanitizers:
             - "trim(value)"
       ShippingCity:
-        label: Shipping City
+        label: ישוב (משלוח)
         kind: String
         expressions:
           sanitizers:
             - "trim(value)"
       ShippingState:
-        label: Shipping State
+        label: מחוז (משלוח)
         kind: String
         expressions:
           sanitizers:
             - "trim(value)"
       ShippingPostalCode:
-        label: Shipping Postal Code
+        label: מיקוד (משלוח)
         kind: String
         expressions:
           sanitizers:
             - "trim(value)"
       ShippingCountry:
-        label: Shipping Country
+        label: מדינה (משלוח)
         kind: Select
         options:
           options:
@@ -948,7 +948,7 @@ modules:
             value: Ireland
           - text: Isle Of Man
             value: Isle Of Man
-          - text: Israel
+          - text: ישראל
             value: Israel
           - text: Italy
             value: Italy
@@ -1226,13 +1226,13 @@ modules:
             value: Zimbabwe
           selectType: default
       GeneratedShippingAddress:
-        label: Generated Shipping Address
+        label: כתובת (משלוח)
         kind: String
         private: true
         expressions:
           valueExpr: trim(trim(trim(ShippingStreet?ShippingStreet:"") + "\n" + trim(trim(trim(ShippingPostalCode?ShippingPostalCode:"") + " " + trim(ShippingCity?ShippingCity:"")) + " " + trim(ShippingState?ShippingState:""))) + "\n" + trim(ShippingCountry?ShippingCountry:""))
       Type:
-        label: Type
+        label: סוג
         kind: Select
         options:
           options:
@@ -1250,11 +1250,11 @@ modules:
             value: Prospect
           - text: Technology Partner
             value: Technology Partner
-          - text: Other
+          - text: אחר
             value: Other
           selectType: default
       AnnualRevenue:
-        label: Annual Revenue
+        label: הכנסות שנתיות
         kind: Select
         options:
           options:
@@ -1278,20 +1278,20 @@ modules:
             value: 100 To 500 Million
           selectType: default
       Website:
-        label: Website
+        label: אתר
         kind: Url
         multi: true
       Twitter:
-        label: Twitter
+        label: טוויטר
         kind: Url
       LinkedIn:
-        label: LinkedIn
+        label: לינקדאין
         kind: Url
       Facebook:
-        label: Facebook
+        label: פייסבוק
         kind: Url
       CampaignId:
-        label: Campaign
+        label: קמפיין
         kind: Record
         options:
           labelField: Name
@@ -1305,7 +1305,7 @@ modules:
     name: AccountContactRole
     fields:
       AccountId:
-        label: Account
+        label: חשבון
         kind: Record
         options:
           labelField: AccountName
@@ -1314,7 +1314,7 @@ modules:
           - AccountName
           selectType: ""
       ContactId:
-        label: Contact
+        label: איש קשר
         kind: Record
         options:
           labelField: MasterRecordId
@@ -1324,13 +1324,13 @@ modules:
           - MasterRecordId
           selectType: ""
       IsPrimary:
-        label: Primary
+        label: ראשי
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       Role:
-        label: Role
+        label: תפקיד
         kind: Select
         options:
           options:
@@ -1354,7 +1354,7 @@ modules:
             value: Project Manager
           - text: Technical Buyer
             value: Technical Buyer
-          - text: Other
+          - text: אחר
             value: Other
           selectType: default
   Campaigns:
@@ -1362,27 +1362,27 @@ modules:
     name: Campaigns
     fields:
       IsActive:
-        label: Active
+        label: פעיל
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       ActualCost:
-        label: Actual Cost
+        label: עלות בפועל
         kind: Number
         options:
           format: "0.00"
           precision: 2
           suffix: €
       BudgetedCost:
-        label: Budgeted Cost
+        label: עלות מתוקצבת
         kind: Number
         options:
           format: "0.00"
           precision: 2
           suffix: €
       Name:
-        label: Campaign Name
+        label: שם קמפיין
         kind: String
       NumberOfConvertedLeads:
         label: Converted Leads in Campaign
@@ -1391,12 +1391,12 @@ modules:
           format: "0"
           precision: 0
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
       EndDate:
-        label: End Date
+        label: תאריך סיום
         kind: DateTime
         options:
           onlyDate: true
@@ -1408,26 +1408,26 @@ modules:
           precision: 2
           suffix: '%'
       ExpectedRevenue:
-        label: Expected Revenue
+        label: צפי הכנסות
         kind: Number
         options:
           format: "0.00"
           precision: 2
           suffix: €
       NumberOfLeads:
-        label: Leads in Campaign
+        label: לידים בקמפיין
         kind: Number
         options:
           format: "0"
           precision: 0
       NumberOfOpportunities:
-        label: Opportunities in Campaign
+        label: הזדמנויות בקמפיין
         kind: Number
         options:
           format: "0"
           precision: 0
       ParentId:
-        label: Parent Campaign
+        label: קמפיין אב
         kind: Record
         options:
           labelField: ""
@@ -1442,88 +1442,88 @@ modules:
           format: "0"
           precision: 0
       StartDate:
-        label: Start Date
+        label: תאריך התחלה
         kind: DateTime
         options:
           onlyDate: true
       Status:
-        label: Status
+        label: סטאטוס
         kind: Select
         options:
           options:
-          - text: Aborted
+          - text: הופסק
             value: Aborted
-          - text: Completed
+          - text: הושלם
             value: Completed
-          - text: In Progress
+          - text: בטיפול
             value: In Progress
-          - text: Planned
+          - text: מתוכנן
             value: Planned
-          - text: Tentative
+          - text: על תנאי
             value: Tentative
           selectType: default
       Type:
-        label: Type
+        label: סוג
         kind: Select
         options:
           options:
-          - text: Lead Generation - Direct Mail
+          - text: לידים - אימייל
             value: Lead Generation - Direct Mail
-          - text: Lead Generation - Conference
+          - text: לידים - כנס
             value: Lead Generation - Conference
-          - text: Lead Generation - Email Blast
+          - text: לידים - Email Blast
             value: Lead Generation - Email Blast
-          - text: Lead Generation - PPC
+          - text: לידים - ממומן
             value: Lead Generation - PPC
-          - text: Lead Generation - Seminar
+          - text: לידים - סמינר
             value: Lead Generation - Seminar
-          - text: Lead Generation - Trade Show
+          - text: לידים - ועידה
             value: Lead Generation - Trade Show
-          - text: Lead Generation - Webinar
+          - text: לידים - וובינר
             value: Lead Generation - Webinar
-          - text: Lead Generation - Website
+          - text: לידים - אתר אינטרנט
             value: Lead Generation - Website
-          - text: Brand Building - Print advertisement
+          - text: פיתוח עסקי - פרסום דפוס
             value: Brand Building - Print advertisement
-          - text: Brand Building - Radio advertisement
+          - text: פיתוח עסקי - פרסום ברדיו
             value: Brand Building - Radio advertisement
-          - text: Brand Building - TV advertisement
+          - text: פיתוח עסקי - פרסום בטלויזיה
             value: Brand Building - TV advertisement
-          - text: Brand Building - Sponsoring
+          - text: פיתוח עסקי - חסויות
             value: Brand Building - Sponsoring
-          - text: Brand Building - Social Media
+          - text: פיתוח עסקי - מדיה חברתית
             value: Brand Building - Social Media
-          - text: Lead Generation - Contacting personal network
+          - text: לידים - רשת מכרים אישית
             value: Lead Generation - Contacting personal network
           selectType: default
       AmountAllOpportunities:
-        label: Value Opportunities in Campaign
+        label: ערך הזדמנויות בקמפיין
         kind: Number
         options:
           format: "0.00"
           precision: 2
           suffix: €
       AmountWonOpportunities:
-        label: Value Won Opportunities in Campaign
+        label: ערך הזדמנויות מוצלחות בקמפיין
         kind: Number
         options:
           format: "0.00"
           precision: 2
           suffix: €
       NumberOfWonOpportunities:
-        label: Won Opportunities in Campaign
+        label: הזדמנויות שהומרו בהצלחה בקמפיין
         kind: Number
         options:
           format: "0"
           precision: 0
       NumberOfAccounts:
-        label: Accounts in Campaign
+        label: חשבונות בקמפיין
         kind: Number
         options:
           format: ""
           precision: 0
       NumberOfContacts:
-        label: Contacts in Campaign
+        label: אנשי קשר בקמפיין
         kind: Number
         options:
           format: ""
@@ -1533,7 +1533,7 @@ modules:
     name: Case
     fields:
       AccountId:
-        label: Account Name
+        label: שם
         kind: Record
         options:
           labelField: AccountName
@@ -1542,19 +1542,19 @@ modules:
           - AccountName
           selectType: ""
       SuppliedEmail:
-        label: Contact Email
+        label: איש קשר Email
         kind: Email
         private: true
       SuppliedName:
-        label: Contact Name
+        label: שם איש קשר
         kind: String
         private: true
       SuppliedPhone:
-        label: Contact Phone
+        label: איש קשר Phone
         kind: String
         private: true
       CaseNumber:
-        label: Case Number
+        label: מס קייס
         kind: Number
         options:
           format: "0000000"
@@ -1564,7 +1564,7 @@ modules:
         kind: Select
         options:
           options:
-          - text: Email
+          - text: אימייל
             value: Email
           - text: Messaging
             value: Messaging
@@ -1572,7 +1572,7 @@ modules:
             value: Phone
           - text: Web
             value: Web
-          - text: Other
+          - text: אחר
             value: Other
           selectType: default
       Reason:
@@ -1586,7 +1586,7 @@ modules:
             value: Software bug
           - text: User didn't attend training
             value: User didn't attend training
-          - text: Other
+          - text: אחר
             value: Other
           selectType: default
       IsClosed:
@@ -1602,7 +1602,7 @@ modules:
           falseLabel: "No"
           trueLabel: "Yes"
       ContactId:
-        label: Contact Name
+        label: שם איש קשר
         kind: Record
         options:
           labelField: RecordLabel
@@ -1614,7 +1614,7 @@ modules:
         label: Date/Time Closed
         kind: DateTime
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
@@ -1636,24 +1636,24 @@ modules:
           - CaseNumber
           - Subject
           selectType: ""
-      Priority:
-        label: Priority
+      Priority: 
+        label: עדיפות
         kind: Select
         options:
           options:
-          - text: Low
+          - text: נמוכה
             value: Low
           - text: Medium
             value: Medium
-          - text: High
+          - text: גבוהה
             value: High
           selectType: default
       Status:
-        label: Status
+        label: סטאטוס
         kind: Select
         options:
           options:
-          - text: New
+          - text: חדש
             value: New
           - text: Working
             value: Working
@@ -1663,10 +1663,10 @@ modules:
             value: Closed
           selectType: default
       Subject:
-        label: Subject
+        label: נושא
         kind: String
       Type:
-        label: Type
+        label: סוג
         kind: Select
         options:
           options:
@@ -1676,11 +1676,11 @@ modules:
             value: Feature Request
           - text: Question
             value: Question
-          - text: Other
+          - text: אחר
             value: Other
           selectType: default
       ProductId:
-        label: Product
+        label: מוצר
         kind: Record
         options:
           labelField: Name
@@ -1744,7 +1744,7 @@ modules:
     name: CaseUpdate
     fields:
       CaseId:
-        label: Case
+        label: קייס
         kind: Record
         options:
           labelField: Subject
@@ -1754,13 +1754,13 @@ modules:
           - CaseNumber
           - Subject
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
           useRichTextEditor: true
       Type:
-        label: Type
+        label: סוג
         kind: Select
         options:
           options:
@@ -1788,7 +1788,7 @@ modules:
     name: Contact
     fields:
       AccountId:
-        label: Account Name
+        label: שם
         kind: Record
         options:
           labelField: AccountName
@@ -1806,7 +1806,7 @@ modules:
         kind: DateTime
         private: true
       MasterRecordId:
-        label: Contact
+        label: איש קשר
         kind: Record
         options:
           labelField: Email
@@ -1817,33 +1817,33 @@ modules:
         label: Department
         kind: String
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
           useRichTextEditor: true
       DoNotCall:
-        label: Do Not Call
+        label: לא להתקשר
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       Email:
-        label: Email
+        label: אימייל
         kind: Email
         private: true
       HasOptedOutOfEmail:
-        label: Email Opt Out
+        label: לא לשלוח מיילים
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       Fax:
-        label: Fax
+        label: פקס
         kind: String
         private: true
       HasOptedOutOfFax:
-        label: Fax Opt Out
+        label: פקס Opt Out
         kind: Bool
         options:
           falseLabel: "No"
@@ -1853,59 +1853,59 @@ modules:
         kind: String
         private: true
       LeadSource:
-        label: Lead Source
+        label: מקור ליד
         kind: Select
         options:
           options:
-          - text: Customer Referral
+          - text: הפניית לקוח
             value: Customer Referral
-          - text: Direct
+          - text: ישיר
             value: Direct
-          - text: Employee Referral
+          - text: הפניית מועסק
             value: Employee Referral
-          - text: Event
+          - text: אירוע
             value: Event
-          - text: Existing Customer
+          - text: לקוח קיים
             value: Existing Customer
-          - text: Inbound Call
+          - text: שיחה נכנסת
             value: Inbound Call
-          - text: Outbound List
+          - text: רשימת תפוצה
             value: Outbound List
-          - text: Partner Referral
+          - text: הפנייה משותף
             value: Partner Referral
-          - text: Seminar
+          - text: כנס
             value: Seminar
-          - text: Social Media
+          - text: מדיה חברתית
             value: Social Media
-          - text: Webinar
+          - text: וובינר
             value: Webinar
-          - text: Website (Organic)
+          - text: אתר (אורגני)
             value: Website (Organic)
-          - text: Website (PPC)
+          - text: אתר (ממומן)
             value: Website (PPC)
-          - text: Word of Mouth
+          - text: פה לאוזן
             value: Word of Mouth
-          - text: Other
+          - text: אחר
             value: Other
           selectType: default
       MailingStreet:
-        label: Mailing Street
+        label:  רחוב
         kind: String
         private: true
       MailingCity:
-        label: Mailing City
+        label:  ישוב
         kind: String
         private: true
       MailingState:
-        label: Mailing State
+        label:  מחוז
         kind: String
         private: true
       MailingPostalCode:
-        label: Mailing Postal Code
+        label:  מיקוד
         kind: String
         private: true
       MailingCountry:
-        label: Mailing Country
+        label: מדינה
         kind: Select
         options:
           options:
@@ -2121,7 +2121,7 @@ modules:
             value: Ireland
           - text: Isle Of Man
             value: Isle Of Man
-          - text: Israel
+          - text: ישראל
             value: Israel
           - text: Italy
             value: Italy
@@ -2400,19 +2400,19 @@ modules:
           selectType: default
         private: true
       MobilePhone:
-        label: Mobile
+        label: נייד
         kind: String
         private: true
       Salutation:
-        label: Salutation
+        label: תואר
         kind: String
         private: true
       FirstName:
-        label: First Name
+        label: שם פרטי
         kind: String
         private: true
       LastName:
-        label: Last Name
+        label: שם משפחה
         kind: String
         private: true
       OtherStreet:
@@ -2648,7 +2648,7 @@ modules:
             value: Ireland
           - text: Isle Of Man
             value: Isle Of Man
-          - text: Israel
+          - text: ישראל
             value: Israel
           - text: Italy
             value: Italy
@@ -2931,7 +2931,7 @@ modules:
         kind: String
         private: true
       Phone:
-        label: Phone
+        label: טלפון
         kind: String
         private: true
       ReportsToId:
@@ -2947,23 +2947,23 @@ modules:
           - LastName
           selectType: default
       Title:
-        label: Title
+        label: כותרת
         kind: String
         private: true
       Twitter:
-        label: Twitter
+        label: טוויטר
         kind: Url
         private: true
       Facebook:
-        label: Facebook
+        label: פייסבוק
         kind: Url
         private: true
       LinkedIn:
-        label: LinkedIn
+        label: לינקדאין
         kind: Url
         private: true
       IsPrimary:
-        label: Primary contact for account
+        label: איש קשר ראשי לחשבון
         kind: Bool
         options:
           falseLabel: "No"
@@ -2973,13 +2973,13 @@ modules:
         kind: String
         private: true
       OwnerId:
-        label: Contact Owner
+        label: בעל איש הקשר
         kind: User
         options:
           presetWithAuthenticated: true
           selectType: default
       Photo:
-        label: Photo
+        label: תמונה
         kind: File
         options:
           allowDocuments: true
@@ -2988,7 +2988,7 @@ modules:
           mode: single
         private: true
       CampaignId:
-        label: Campaign
+        label: קמפיין
         kind: Record
         options:
           labelField: Name
@@ -3002,7 +3002,7 @@ modules:
     name: Contract
     fields:
       AccountId:
-        label: Account Name
+        label: שם
         kind: Record
         options:
           labelField: AccountName
@@ -3026,23 +3026,23 @@ modules:
         label: Activated Date
         kind: DateTime
       BillingStreet:
-        label: Billing Street
+        label: רחוב (חיוב)
         kind: String
         private: true
       BillingCity:
-        label: Billing City
+        label: ישוב (חיוב)
         kind: String
         private: true
       BillingState:
-        label: Billing State
+        label: מחוז (חיוב)
         kind: String
         private: true
       BillingPostalCode:
-        label: Billing Postal Code
+        label: מיקוד (חיוב)
         kind: String
         private: true
       BillingCountry:
-        label: Billing Country
+        label: מדינה (חיוב)
         kind: Select
         options:
           options:
@@ -3258,7 +3258,7 @@ modules:
             value: Ireland
           - text: Isle Of Man
             value: Isle Of Man
-          - text: Israel
+          - text: ישראל
             value: Israel
           - text: Italy
             value: Italy
@@ -3549,32 +3549,32 @@ modules:
         label: Company Signed Date
         kind: DateTime
       EndDate:
-        label: End Date
+        label: תאריך סיום
         kind: DateTime
         options:
           onlyDate: true
       Name:
-        label: Contract Name
+        label: שם הסכם
         kind: String
       ContractNumber:
-        label: Contract Number
+        label: מספר הסכם
         kind: Number
         options:
           format: "0000000"
           precision: 0
       OwnerId:
-        label: Contract Owner
+        label: בעל ההסכם
         kind: User
         options:
           presetWithAuthenticated: true
           selectType: default
       StartDate:
-        label: Start Date
+        label: תאריך התחלה
         kind: DateTime
         options:
           onlyDate: true
       ContractTerm:
-        label: Term (months)
+        label: תקופה (חודשים)
         kind: Number
         options:
           format: "0"
@@ -3595,7 +3595,7 @@ modules:
         label: Customer Signed Title
         kind: String
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
@@ -3638,23 +3638,23 @@ modules:
             value: 365 Days
           selectType: default
       ShippingStreet:
-        label: Shipping Street
+        label: רחוב (משלוח)
         kind: String
         private: true
       ShippingCity:
-        label: Shipping City
+        label: ישוב (משלוח)
         kind: String
         private: true
       ShippingState:
-        label: Shipping State
+        label: מחוז (משלוח)
         kind: String
         private: true
       ShippingPostalCode:
-        label: Shipping Postal Code
+        label: מיקוד (משלוח)
         kind: String
         private: true
       ShippingCountry:
-        label: Shipping Country
+        label: מדינה (משלוח)
         kind: Select
         options:
           options:
@@ -3870,7 +3870,7 @@ modules:
             value: Ireland
           - text: Isle Of Man
             value: Isle Of Man
-          - text: Israel
+          - text: ישראל
             value: Israel
           - text: Italy
             value: Italy
@@ -4149,17 +4149,17 @@ modules:
           selectType: default
         private: true
       SpecialTerms:
-        label: Special Terms
+        label: תנאים מיוחדים
         kind: String
         options:
           multiLine: true
           useRichTextEditor: true
       Status:
-        label: Status
+        label: סטאטוס
         kind: Select
         options:
           options:
-          - text: Draft
+          - text: טיוטה
             value: Draft
           - text: Activated
             value: Activated
@@ -4174,7 +4174,7 @@ modules:
         label: Record Label
         kind: String
       Files:
-        label: Files
+        label: קבצים
         kind: File
         options:
           allowDocuments: true
@@ -4187,7 +4187,7 @@ modules:
     name: ContractContactRole
     fields:
       ContactId:
-        label: Contact
+        label: איש קשר
         kind: Record
         options:
           labelField: RecordLabel
@@ -4199,7 +4199,7 @@ modules:
           - LastName
           selectType: ""
       ContractId:
-        label: Contract
+        label: הסכם
         kind: Record
         options:
           labelField: Name
@@ -4210,13 +4210,13 @@ modules:
           - ContractNumber
           selectType: ""
       IsPrimary:
-        label: Primary
+        label: ראשי
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       Role:
-        label: Role
+        label: תפקיד
         kind: Select
         options:
           options:
@@ -4240,7 +4240,7 @@ modules:
             value: Project Manager
           - text: Technical Buyer
             value: Technical Buyer
-          - text: Other
+          - text: אחר
             value: Other
           selectType: default
   ContractLineItem:
@@ -4248,19 +4248,19 @@ modules:
     name: ContractLineItem
     fields:
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
       Discount:
-        label: Discount
+        label: הנחה
         kind: Number
         options:
           format: "0.00"
           precision: 2
           prefix: $
       EndDate:
-        label: End Date
+        label: תאריך סיום
         kind: DateTime
         options:
           onlyDate: true
@@ -4271,7 +4271,7 @@ modules:
           multiLine: false
           useRichTextEditor: false
       ListPrice:
-        label: List Price
+        label: מחיר רשום
         kind: Number
         options:
           format: "0.00"
@@ -4288,25 +4288,25 @@ modules:
           - Name
           selectType: ""
       Quantity:
-        label: Quantity
+        label: כמות
         kind: Number
         options:
           format: "0"
           precision: 0
       UnitPrice:
-        label: Sales Price
+        label: מחיר מכירה
         kind: Number
         options:
           format: "0.00"
           precision: 2
           suffix: €
       StartDate:
-        label: Start Date
+        label: תאריך התחלה
         kind: DateTime
         options:
           onlyDate: true
       Status:
-        label: Status
+        label: סטאטוס
         kind: Select
         options:
           options:
@@ -4325,7 +4325,7 @@ modules:
           precision: 2
           suffix: €
       TotalPrice:
-        label: Total Price
+        label: סה"כ מחיר
         kind: Number
         options:
           format: "0.00"
@@ -4344,7 +4344,7 @@ modules:
           selectType: ""
         required: true
       ProductId:
-        label: Product
+        label: מוצר
         kind: Record
         options:
           labelField: Name
@@ -4369,12 +4369,12 @@ modules:
           falseLabel: "No"
           trueLabel: "Yes"
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
       Body:
-        label: Body
+        label: תוכן
         kind: String
         options:
           multiLine: true
@@ -4383,7 +4383,7 @@ modules:
         label: Email Template Name
         kind: String
       Subject:
-        label: Subject
+        label: נושא
         kind: String
       Markup:
         label: Markup
@@ -4418,7 +4418,7 @@ modules:
     name: Entitlement
     fields:
       AccountId:
-        label: Account Name
+        label: שם
         kind: Record
         options:
           labelField: AccountName
@@ -4444,7 +4444,7 @@ modules:
           - ContractId
           selectType: ""
       EndDate:
-        label: End Date
+        label: תאריך סיום
         kind: DateTime
       Name:
         label: Entitlement Name
@@ -4468,10 +4468,10 @@ modules:
           format: "0"
           precision: 0
       StartDate:
-        label: Start Date
+        label: תאריך התחלה
         kind: DateTime
       Status:
-        label: Status
+        label: סטאטוס
         kind: Select
         options:
           options:
@@ -4483,7 +4483,7 @@ modules:
             value: Inactive
           selectType: default
       Type:
-        label: Type
+        label: סוג
         kind: Select
         options:
           options:
@@ -4501,7 +4501,7 @@ modules:
     name: EntitlementContact
     fields:
       ContactId:
-        label: Contact Name
+        label: שם איש קשר
         kind: Record
         options:
           labelField: RecordLabel
@@ -4553,7 +4553,7 @@ modules:
           format: 0
           precision: 0
       Type:
-        label: Type
+        label: סוג
         kind: Select
         options:
           options:
@@ -4566,7 +4566,7 @@ modules:
     name: Event
     fields:
       IsAllDayEvent:
-        label: All-Day Event
+        label: אירוע כל היום
         kind: Bool
         options:
           falseLabel: "No"
@@ -4578,16 +4578,16 @@ modules:
           falseLabel: "No"
           trueLabel: "Yes"
       OwnerId:
-        label: Assigned To
+        label: שוייך ל
         kind: User
         options:
           presetWithAuthenticated: true
           selectType: default
       ActivityDate:
-        label: Start
+        label: מתחיל
         kind: DateTime
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
@@ -4598,10 +4598,10 @@ modules:
           format: "0"
           precision: 0
       EndDateTime:
-        label: End
+        label: סיום
         kind: DateTime
       Location:
-        label: Location
+        label: מיקום
         kind: String
       IsPrivate:
         label: Private
@@ -4619,26 +4619,26 @@ modules:
           falseLabel: "No"
           trueLabel: "Yes"
       Subject:
-        label: Subject
+        label: נושא
         kind: String
       Type:
-        label: Type
+        label: סוג
         kind: Select
         options:
           options:
-          - text: Call
+          - text: שיחה
             value: Call
-          - text: Email
+          - text: אימייל
             value: Email
-          - text: Meeting
+          - text: פגישה
             value: Meeting
-          - text: Send Letter / Quote
+          - text: שליחת הצעת/מידע
             value: Send Letter / Quote
-          - text: Other
+          - text: אחר
             value: Other
           selectType: default
       LeadId:
-        label: Lead
+        label: ליד
         kind: Record
         options:
           labelField: RecordLabel
@@ -4647,7 +4647,7 @@ modules:
           - RecordLabel
           selectType: ""
       AccountId:
-        label: Account
+        label: חשבון
         kind: Record
         options:
           labelField: AccountName
@@ -4656,7 +4656,7 @@ modules:
           - AccountName
           selectType: ""
       ContactId:
-        label: Contact
+        label: איש קשר
         kind: Record
         options:
           labelField: RecordLabel
@@ -4665,7 +4665,7 @@ modules:
           - RecordLabel
           selectType: ""
       OpportunityId:
-        label: Opportunity
+        label: הזדמנות
         kind: Record
         options:
           labelField: RecordLabel
@@ -4675,7 +4675,7 @@ modules:
           - Name
           selectType: ""
       QuoteId:
-        label: Quote
+        label: הצעת מחיר
         kind: Record
         options:
           labelField: Name
@@ -4686,7 +4686,7 @@ modules:
           - QuoteNumber
           selectType: ""
       ContractId:
-        label: Contract
+        label: הסכם
         kind: Record
         options:
           labelField: Name
@@ -4697,7 +4697,7 @@ modules:
           - ContractNumber
           selectType: ""
       CaseId:
-        label: Case
+        label: קייס
         kind: Record
         options:
           labelField: Subject
@@ -4753,15 +4753,15 @@ modules:
           - Title
           selectType: ""
       Status:
-        label: Status
+        label: סטאטוס
         kind: Select
         options:
           options:
-          - text: New
+          - text: חדש
             value: New
           - text: Under Consideration
             value: Under Consideration
-          - text: Accepted
+          - text: התקבלה
             value: Accepted
           - text: Implemented
             value: Implemented
@@ -4769,7 +4769,7 @@ modules:
             value: Duplicate
           selectType: default
       Title:
-        label: Title
+        label: כותרת
         kind: String
       VoteScore:
         label: Vote Score
@@ -4788,35 +4788,35 @@ modules:
     name: Lead
     fields:
       Street:
-        label: Address Street
+        label: רחוב
         kind: String
         private: true
         expressions:
           sanitizers:
             - "trim(value)"
       City:
-        label: Address City
+        label: ישוב
         kind: String
         private: true
         expressions:
           sanitizers:
             - "trim(value)"
       State:
-        label: Address State
+        label: מחוז
         kind: String
         private: true
         expressions:
           sanitizers:
             - "trim(value)"
       PostalCode:
-        label: Address Postal Code
+        label: מיקוד
         kind: String
         private: true
         expressions:
           sanitizers:
             - "trim(value)"
       Country:
-        label: Address Country
+        label: מדינה
         kind: Select
         options:
           options:
@@ -5032,7 +5032,7 @@ modules:
             value: Ireland
           - text: Isle Of Man
             value: Isle Of Man
-          - text: Israel
+          - text: ישראל
             value: Israel
           - text: Italy
             value: Italy
@@ -5317,7 +5317,7 @@ modules:
         expressions:
           valueExpr: trim(trim(trim(Street?Street:"") + "\n" + trim(trim(trim(PostalCode?PostalCode:"") + " " + trim(City?City:"")) + " " + trim(State?State:""))) + "\n" + trim(Country?Country:""))
       AnnualRevenue:
-        label: Annual Revenue
+        label: הכנסות שנתיות
         kind: Select
         options:
           options:
@@ -5341,7 +5341,7 @@ modules:
             value: 100 To 500 Million
           selectType: default
       Company:
-        label: Company
+        label: ארגון
         kind: String
         required: true
       IsConverted:
@@ -5351,7 +5351,7 @@ modules:
           falseLabel: "No"
           trueLabel: "Yes"
       ConvertedAccountId:
-        label: Converted Account
+        label: חשבון מומר
         kind: Record
         options:
           labelField: AccountName
@@ -5360,7 +5360,7 @@ modules:
           - AccountName
           selectType: each
       ConvertedContactId:
-        label: Converted Contact
+        label: איש קשר מומר
         kind: Record
         options:
           labelField: RecordLabel
@@ -5369,10 +5369,10 @@ modules:
           - RecordLabel
           selectType: each
       ConvertedDate:
-        label: Converted Date
+        label: תאריך המרה
         kind: DateTime
       ConvertedOpportunityId:
-        label: Converted Opportunity
+        label: הזדמנות מומרת
         kind: Record
         options:
           labelField: Name
@@ -5381,39 +5381,39 @@ modules:
           - AccountId,Name
           selectType: default
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
           useRichTextEditor: true
       DoNotCall:
-        label: Do Not Call
+        label: לא להתקשר
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       Email:
-        label: Email
+        label: אימייל
         kind: String
         private: true
       HasOptedOutOfEmail:
-        label: Email Opt Out
+        label: לא לשלוח מיילים
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       Fax:
-        label: Fax
+        label: פקס
         kind: String
         private: true
       HasOptedOutOfFax:
-        label: Fax Opt Out
+        label: פקס Opt Out
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       Industry:
-        label: Industry
+        label: ענף
         kind: Select
         options:
           options:
@@ -5467,7 +5467,7 @@ modules:
             value: Media
           - text: Not For Profit
             value: Not For Profit
-          - text: Other
+          - text: אחר
             value: Other
           - text: Recreation
             value: Recreation
@@ -5485,7 +5485,7 @@ modules:
             value: Utilities
           selectType: default
       MasterRecordId:
-        label: Lead
+        label: ליד
         kind: Record
         options:
           labelField: RecordLabel
@@ -5494,92 +5494,92 @@ modules:
           - RecordLabel
           selectType: default
       OwnerId:
-        label: Lead Owner
+        label: בעל הליד
         kind: User
         options:
           presetWithAuthenticated: true
           selectType: each
       LeadSource:
-        label: Lead Source
+        label: מקור ליד
         kind: Select
         options:
           options:
-          - text: Customer Referral
+          - text: הפניית לקוח
             value: Customer Referral
-          - text: Direct
+          - text: ישיר
             value: Direct
-          - text: Employee Referral
+          - text: הפניית מועסק
             value: Employee Referral
-          - text: Event
+          - text: אירוע
             value: Event
-          - text: Existing Customer
+          - text: לקוח קיים
             value: Existing Customer
-          - text: Inbound Call
+          - text: שיחה נכנסת
             value: Inbound Call
-          - text: Outbound List
+          - text: רשימת תפוצה
             value: Outbound List
-          - text: Partner Referral
+          - text: הפנייה משותף
             value: Partner Referral
-          - text: Seminar
+          - text: כנס
             value: Seminar
-          - text: Social Media
+          - text: מדיה חברתית
             value: Social Media
-          - text: Webinar
+          - text: וובינר
             value: Webinar
-          - text: Website (Organic)
+          - text: אתר (אורגני)
             value: Website (Organic)
-          - text: Website (PPC)
+          - text: אתר (ממומן)
             value: Website (PPC)
-          - text: Word of Mouth
+          - text: פה לאוזן
             value: Word of Mouth
-          - text: Other
+          - text: אחר
             value: Other
           selectType: default
       Status:
-        label: Lead Status
+        label: סטאטוס
         kind: Select
         options:
           options:
-          - text: New
+          - text: חדש
             value: New
-          - text: Assigned
+          - text: שוייך
             value: Assigned
-          - text: In Progress
+          - text: בטיפול
             value: In Progress
-          - text: Converted
+          - text: הומר
             value: Converted
-          - text: Recycled
+          - text: שוחזר
             value: Recycled
-          - text: Dead
+          - text: לא רלוונטי
             value: Dead
           selectType: default
       MobilePhone:
-        label: Mobile
+        label: נייד
         kind: String
       Salutation:
-        label: Salutation
+        label: תואר
         kind: String
       FirstName:
-        label: First Name
+        label: שם פרטי
         kind: String
         private: true
       LastName:
-        label: Last Name
+        label: שם משפחה
         kind: String
         private: true
         required: true
       NumberOfEmployees:
-        label: No. of Employees (exact)
+        label: מס מועסקים (מדוייק)
         kind: Number
         options:
           format: "0"
           precision: 0
       Phone:
-        label: Phone
+        label: טלפון
         kind: String
         private: true
       Rating:
-        label: Rating
+        label: דירוג
         kind: Select
         options:
           options:
@@ -5597,7 +5597,7 @@ modules:
             value: ★★★★★
           selectType: default
       Title:
-        label: Title
+        label: כותרת
         kind: String
       IsUnreadByOwner:
         label: Unread By Owner
@@ -5606,22 +5606,22 @@ modules:
           falseLabel: "No"
           trueLabel: "Yes"
       Website:
-        label: Website
+        label: אתר
         kind: Url
       Twitter:
-        label: Twitter
+        label: טוויטר
         kind: Url
         private: true
       Facebook:
-        label: Facebook
+        label: פייסבוק
         kind: Url
         private: true
       LinkedIn:
-        label: LinkedIn
+        label: לינקדאין
         kind: Url
         private: true
       NumberOfEmployeesRange:
-        label: No. of Employees (range)
+        label: מס מועסקים (טווח)
         kind: Select
         options:
           options:
@@ -5645,11 +5645,11 @@ modules:
             value: 2500 - 4999
           - text: 5000 - 9999
             value: 5000 - 9999
-          - text: Over 10000
+          - text: מעל 10000
             value: Over 10000
           selectType: default
       SICCode:
-        label: SIC Code
+        label: SIC קוד
         kind: Number
         options:
           format: "0"
@@ -5661,7 +5661,7 @@ modules:
         expressions:
           valueExpr: "trim((FirstName ? FirstName : \"\") + \" \" + (LastName ? LastName : \"\"))"
       CampaignId:
-        label: Campaign
+        label: קמפיין
         kind: Record
         options:
           labelField: Name
@@ -5675,7 +5675,7 @@ modules:
     name: Note
     fields:
       Body:
-        label: Body
+        label: תוכן
         kind: String
         options:
           multiLine: true
@@ -5687,10 +5687,10 @@ modules:
           falseLabel: "No"
           trueLabel: "Yes"
       Title:
-        label: Title
+        label: כותרת
         kind: String
       AccountContactRoleId:
-        label: Account Contact Role
+        label: חשבון Contact Role
         kind: Record
         options:
           labelField: Role
@@ -5711,7 +5711,7 @@ modules:
           - ContractId
           selectType: ""
       ContractId:
-        label: Contract
+        label: הסכם
         kind: Record
         options:
           labelField: Name
@@ -5722,7 +5722,7 @@ modules:
           - ContractNumber
           selectType: ""
       AccountId:
-        label: Account
+        label: חשבון
         kind: Record
         options:
           labelField: AccountName
@@ -5731,7 +5731,7 @@ modules:
           - AccountName
           selectType: ""
       CampaignId:
-        label: Campaign
+        label: קמפיין
         kind: Record
         options:
           labelField: Name
@@ -5749,7 +5749,7 @@ modules:
           - Name
           selectType: ""
       CaseId:
-        label: Case
+        label: קייס
         kind: Record
         options:
           labelField: Subject
@@ -5769,7 +5769,7 @@ modules:
           - Subject
           selectType: ""
       OpportunityId:
-        label: Opportunity
+        label: הזדמנות
         kind: Record
         options:
           labelField: Name
@@ -5806,7 +5806,7 @@ modules:
           - Name
           selectType: ""
       LeadId:
-        label: Lead
+        label: ליד
         kind: Record
         options:
           labelField: RecordLabel
@@ -5824,7 +5824,7 @@ modules:
           - CompetitorName
           selectType: ""
       ContactId:
-        label: Contact
+        label: איש קשר
         kind: Record
         options:
           labelField: RecordLabel
@@ -5833,7 +5833,7 @@ modules:
           - RecordLabel
           selectType: ""
       ProductId:
-        label: Product
+        label: מוצר
         kind: Record
         options:
           labelField: Name
@@ -5853,7 +5853,7 @@ modules:
           - Name
           selectType: ""
       PricebookId:
-        label: Pricebook
+        label: ספר מחירים
         kind: Record
         options:
           labelField: Name
@@ -5892,7 +5892,7 @@ modules:
           - Subject
           selectType: ""
       QuoteId:
-        label: Quote
+        label: הצעת מחיר
         kind: Record
         options:
           labelField: Name
@@ -5903,7 +5903,7 @@ modules:
           - QuoteNumber
           selectType: ""
       Files:
-        label: Files
+        label: קבצים
         kind: File
         options:
           allowDocuments: true
@@ -5916,7 +5916,7 @@ modules:
     name: Opportunity
     fields:
       AccountId:
-        label: Account Name
+        label: שם
         kind: Record
         options:
           labelField: AccountName
@@ -5925,14 +5925,14 @@ modules:
           - AccountName
           selectType: each
       Amount:
-        label: Amount
+        label: סכום
         kind: Number
         options:
           format: "0.00"
           precision: 2
           suffix: €
       CloseDate:
-        label: Close Date
+        label: תאריך סגירה
         kind: DateTime
       IsClosed:
         label: Closed
@@ -5941,7 +5941,7 @@ modules:
           falseLabel: "No"
           trueLabel: "Yes"
       ContractId:
-        label: Contract
+        label: הסכם
         kind: Record
         options:
           labelField: Name
@@ -5952,13 +5952,13 @@ modules:
           - ContractNumber
           selectType: default
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
           useRichTextEditor: true
       ExpectedRevenue:
-        label: Expected Revenue
+        label: צפי הכנסות
         kind: Number
         options:
           format: "0"
@@ -5977,7 +5977,7 @@ modules:
           format: "0"
           precision: 0
       ForecastCategory:
-        label: Forecast Category
+        label: קטגורית תחזית
         kind: Select
         options:
           options:
@@ -5995,56 +5995,56 @@ modules:
           falseLabel: "No"
           trueLabel: "Yes"
       LeadSource:
-        label: Lead Source
+        label: מקור ליד
         kind: Select
         options:
           options:
-          - text: Customer Referral
+          - text: הפניית לקוח
             value: Customer Referral
-          - text: Direct
+          - text: ישיר
             value: Direct
-          - text: Employee Referral
+          - text: הפניית מועסק
             value: Employee Referral
-          - text: Event
+          - text: אירוע
             value: Event
-          - text: Existing Customer
+          - text: לקוח קיים
             value: Existing Customer
-          - text: Inbound Call
+          - text: שיחה נכנסת
             value: Inbound Call
-          - text: Outbound List
+          - text: רשימת תפוצה
             value: Outbound List
-          - text: Partner Referral
+          - text: הפנייה משותף
             value: Partner Referral
-          - text: Seminar
+          - text: כנס
             value: Seminar
-          - text: Social Media
+          - text: מדיה חברתית
             value: Social Media
-          - text: Webinar
+          - text: וובינר
             value: Webinar
-          - text: Website (Organic)
+          - text: אתר (אורגני)
             value: Website (Organic)
-          - text: Website (PPC)
+          - text: אתר (ממומן)
             value: Website (PPC)
-          - text: Word of Mouth
+          - text: פה לאוזן
             value: Word of Mouth
-          - text: Other
+          - text: אחר
             value: Other
           selectType: default
         multi: true
       NextStep:
-        label: Next Step
+        label: שלב הבא
         kind: String
       Name:
-        label: Opportunity Name
+        label: שם ההזדמנות
         kind: String
       OwnerId:
-        label: Opportunity Owner
+        label: בעל ההזדמנות
         kind: User
         options:
           presetWithAuthenticated: true
           selectType: default
       PricebookId:
-        label: Price Book
+        label: ספר מחיר
         kind: Record
         options:
           labelField: Name
@@ -6053,7 +6053,7 @@ modules:
           - Name
           selectType: default
       CampaignId:
-        label: Primary Campaign Source
+        label: מקור קמפיין ראשי
         kind: Record
         multi: true
         options:
@@ -6069,44 +6069,44 @@ modules:
           falseLabel: "No"
           trueLabel: "Yes"
       Probability:
-        label: Probability (%)
+        label: סיכוי (%)
         kind: Number
         options:
           format: "0"
           precision: 0
           suffix: '%'
       TotalOpportunityQuantity:
-        label: Quantity
+        label: כמות
         kind: Number
         options:
           format: "0"
           precision: 0
       StageName:
-        label: Stage
+        label: שלב
         kind: Select
         options:
           options:
-          - text: Qualification
+          - text: בדיקת התאמה
             value: Qualification
-          - text: Need Analysis
+          - text: ניתוח
             value: Need Analysis
-          - text: Proposal
+          - text: הצעת מחיר
             value: Proposal
-          - text: Negotiation
+          - text: מו"מ
             value: Negotiation
-          - text: Closed Won
+          - text: הומר בהצלחה
             value: Closed Won
-          - text: Closed Lost
+          - text: נכשל
             value: Closed Lost
           selectType: default
       Type:
-        label: Type
+        label: סוג
         kind: Select
         options:
           options:
-          - text: Exisiting Business
+          - text: עסק קיים
             value: Exisiting Business
-          - text: New Business
+          - text: עסק חדש
             value: New Business
           selectType: default
       IsWon:
@@ -6144,7 +6144,7 @@ modules:
         label: Record Label
         kind: String
       Files:
-        label: Files
+        label: קבצים
         kind: File
         options:
           allowDocuments: true
@@ -6160,7 +6160,7 @@ modules:
         label: Competitor Name
         kind: String
       OpportunityId:
-        label: Opportunity
+        label: הזדמנות
         kind: Record
         options:
           labelField: Name
@@ -6185,7 +6185,7 @@ modules:
     name: OpportunityContactRole
     fields:
       ContactId:
-        label: Contact
+        label: איש קשר
         kind: Record
         options:
           labelField: RecordLabel
@@ -6193,20 +6193,20 @@ modules:
           queryFields:
           - RecordLabel
       OpportunityId:
-        label: Opportunity
+        label: הזדמנות
         kind: Record
         options:
           labelField: Name
           module: Opportunity
           queryFields: []
       IsPrimary:
-        label: Primary
+        label: ראשי
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       Role:
-        label: Role
+        label: תפקיד
         kind: Select
         options:
           options:
@@ -6229,7 +6229,7 @@ modules:
         label: Date
         kind: DateTime
       Discount:
-        label: Discount
+        label: הנחה
         kind: Number
         options:
           format: "0.00"
@@ -6239,14 +6239,14 @@ modules:
         label: Line Description
         kind: String
       ListPrice:
-        label: List Price
+        label: מחיר רשום
         kind: Number
         options:
           format: "0.00"
           precision: 2
           suffix: €
       OpportunityId:
-        label: Opportunity
+        label: הזדמנות
         kind: Record
         options:
           labelField: Name
@@ -6269,7 +6269,7 @@ modules:
           - Name
           selectType: ""
       ProductId:
-        label: Product
+        label: מוצר
         kind: Record
         options:
           labelField: Name
@@ -6277,16 +6277,16 @@ modules:
           queryFields: []
           selectType: ""
       ProductCode:
-        label: Product Code
+        label: קוד מוצר
         kind: String
       Quantity:
-        label: Quantity
+        label: כמות
         kind: Number
         options:
           format: "0"
           precision: 0
       UnitPrice:
-        label: Sales Price
+        label: מחיר מכירה
         kind: Number
         options:
           format: "0.00"
@@ -6299,14 +6299,14 @@ modules:
           format: "0"
           precision: 0
       Subtotal:
-        label: Subtotal
+        label: סכום
         kind: Number
         options:
           format: "0.00"
           precision: 2
           suffix: €
       TotalPrice:
-        label: Total Price
+        label: סה"כ מחיר
         kind: Number
         options:
           format: "0.00"
@@ -6317,44 +6317,44 @@ modules:
     name: Pricebook
     fields:
       IsActive:
-        label: Active
+        label: פעיל
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
       IsStandard:
-        label: Is Standard Price Book
+        label: ספר מחיר סטנדרטי
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       Name:
-        label: Price Book Name
+        label: שם ספר מחיר
         kind: String
   PricebookEntry:
     (envoy): { onExisting: "skip" }
     name: PricebookEntry
     fields:
       IsActive:
-        label: Active
+        label: פעיל
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       UnitPrice:
-        label: List Price
+        label: מחיר רשום
         kind: Number
         options:
           format: "0.00"
           precision: 2
           suffix: €
       PricebookId:
-        label: Price Book
+        label: ספר מחיר
         kind: Record
         options:
           labelField: Name
@@ -6363,7 +6363,7 @@ modules:
           - Name
           selectType: ""
       ProductId:
-        label: Product
+        label: מוצר
         kind: Record
         options:
           labelField: Name
@@ -6373,10 +6373,10 @@ modules:
           - Name
           selectType: ""
       ProductCode:
-        label: Product Code
+        label: קוד מוצר
         kind: String
       Name:
-        label: Product Name
+        label: שם מוצר
         kind: String
       UseStandardPrice:
         label: Use Standard Price
@@ -6395,35 +6395,35 @@ modules:
     name: Product
     fields:
       IsActive:
-        label: Active
+        label: פעיל
         kind: Bool
         options:
           falseLabel: "No"
           trueLabel: "Yes"
       ProductCode:
-        label: Product Code
+        label: קוד מוצר
         kind: String
       Description:
-        label: Product Description
+        label: תאור מוצר
         kind: String
         options:
           multiLine: true
           useRichTextEditor: true
       Family:
-        label: Product Family
+        label: משפחת מוצר
         kind: Select
         options:
           options:
           - text: Services
             value: Services
-          - text: Products
+          - text: מוצרים
             value: Products
           selectType: default
       Name:
-        label: Product Name
+        label: שם מוצר
         kind: String
       Photo:
-        label: Photo
+        label: תמונה
         kind: File
         options:
           allowDocuments: true
@@ -6431,7 +6431,7 @@ modules:
           maxSize: 0
           mode: single
       File:
-        label: Files
+        label: קבצים
         kind: File
         options:
           allowDocuments: true
@@ -6492,7 +6492,7 @@ modules:
     name: Quote
     fields:
       AccountId:
-        label: Account Name
+        label: שם
         kind: Record
         options:
           labelField: AccountName
@@ -6729,7 +6729,7 @@ modules:
             value: Ireland
           - text: Isle Of Man
             value: Isle Of Man
-          - text: Israel
+          - text: ישראל
             value: Israel
           - text: Italy
             value: Italy
@@ -7010,19 +7010,19 @@ modules:
         label: Additional To Name
         kind: String
       BillingStreet:
-        label: Bill To Street
+        label: רחוב לחשובנית
         kind: String
       BillingCity:
-        label: Bill To City
+        label: ישוב לחשובנית
         kind: String
       BillingState:
-        label: Bill To State
+        label: מחוז לחשובנית
         kind: String
       BillingPostalCode:
-        label: Bill To Postal Code
+        label: מיקוד לחשובנית
         kind: String
       BillingCountry:
-        label: Bill To Country
+        label: מדינה לחשובנית
         kind: Select
         options:
           options:
@@ -7238,7 +7238,7 @@ modules:
             value: Ireland
           - text: Isle Of Man
             value: Isle Of Man
-          - text: Israel
+          - text: ישראל
             value: Israel
           - text: Italy
             value: Italy
@@ -7519,7 +7519,7 @@ modules:
         label: Bill To Name
         kind: String
       ContactId:
-        label: Contact Name
+        label: שם איש קשר
         kind: Record
         options:
           labelField: RecordLabel
@@ -7528,12 +7528,12 @@ modules:
           - RecordLabel
           selectType: ""
       Description:
-        label: Description
+        label: תאור
         kind: String
         options:
           multiLine: true
       Discount:
-        label: Additional Discount
+        label: הנחה נוספת
         kind: Number
         options:
           format: "0.00"
@@ -7544,13 +7544,13 @@ modules:
             - test: "value < 0"
               error: Discount can not be a negative number
       Email:
-        label: Email
+        label: אימייל
         kind: Email
       ExpirationDate:
-        label: Expiration Date
+        label: תאריך תפוגה
         kind: DateTime
       Fax:
-        label: Fax
+        label: פקס
         kind: String
       LineItemCount:
         label: Line Items
@@ -7559,7 +7559,7 @@ modules:
           format: "0"
           precision: 0
       OpportunityId:
-        label: Opportunity Name
+        label: שם ההזדמנות
         kind: Record
         options:
           labelField: Name
@@ -7569,10 +7569,10 @@ modules:
           - Name
           selectType: ""
       Phone:
-        label: Phone
+        label: טלפון
         kind: String
       PricebookId:
-        label: Pricebook
+        label: ספר מחירים
         kind: Record
         options:
           labelField: Name
@@ -7581,28 +7581,28 @@ modules:
           - Name
           selectType: ""
       Name:
-        label: Quote Name
+        label: שם הצעה
         kind: String
       QuoteNumber:
-        label: Quote Number
+        label: מספר הצעה
         kind: Number
         options:
           format: "0000000"
           precision: 0
       QuoteToStreet:
-        label: Quote To Street
+        label: רחוב להצעת מחיר
         kind: String
       QuoteToCity:
-        label: Quote To City
+        label: ישוב להצעת מחיר
         kind: String
       QuoteToState:
-        label: Quote To State
+        label: מחוז להצעת מחיר
         kind: String
       QuoteToPostalCode:
-        label: Quote To Postal Code
+        label: מיקוד להצעת מחיר
         kind: String
       QuoteToCountry:
-        label: Quote To Country
+        label: מדינה להצעת מחיר
         kind: Select
         options:
           options:
@@ -7818,7 +7818,7 @@ modules:
             value: Ireland
           - text: Isle Of Man
             value: Isle Of Man
-          - text: Israel
+          - text: ישראל
             value: Israel
           - text: Italy
             value: Italy
@@ -8096,22 +8096,22 @@ modules:
             value: Zimbabwe
           selectType: default
       QuoteToName:
-        label: Quote To Name
+        label: שם להצעת מחיר
         kind: String
       ShippingStreet:
-        label: Ship To Street
+        label: רחוב למשלוח
         kind: String
       ShippingCity:
-        label: Ship To City
+        label: ישוב למשלוח
         kind: String
       ShippingState:
-        label: Ship To State
+        label: מחוז למשלוח
         kind: String
       ShippingPostalCode:
-        label: Ship To Postal Code
+        label: מיקוד למשלוח
         kind: String
       ShippingCountry:
-        label: Ship To Country
+        label: מדינה למשלוח
         kind: Select
         options:
           options:
@@ -8327,7 +8327,7 @@ modules:
             value: Ireland
           - text: Isle Of Man
             value: Isle Of Man
-          - text: Israel
+          - text: ישראל
             value: Israel
           - text: Italy
             value: Italy
@@ -8605,10 +8605,10 @@ modules:
             value: Zimbabwe
           selectType: default
       ShippingName:
-        label: Ship To Name
+        label: שם למשלוח
         kind: String
       ShippingHandling:
-        label: Shipping and Handling
+        label: אריזה ומשלוח
         kind: Number
         options:
           format: "0"
@@ -8620,29 +8620,29 @@ modules:
               error: Shipping and Handling can not be a negative number
 
       Status:
-        label: Status
+        label: סטאטוס
         kind: Select
         options:
           options:
-          - text: Draft
+          - text: טיוטה
             value: Draft
-          - text: Needs Review
+          - text: נדרשת בדיקה
             value: Needs Review
-          - text: In Review
+          - text: בבדיקה
             value: In Review
-          - text: Approved
+          - text: אושרה
             value: Approved
-          - text: Rejected
+          - text: נדחתה
             value: Rejected
-          - text: Presented
+          - text: הוצגה
             value: Presented
-          - text: Accepted
+          - text: התקבלה
             value: Accepted
-          - text: Denied
+          - text: נדחתה
             value: Denied
           selectType: default
       Subtotal:
-        label: Subtotal (calculated)
+        label: מחיר לפני מסים
         kind: Number
         options:
           format: "0.00"
@@ -8653,7 +8653,7 @@ modules:
             - test: "value < 0"
               error: Sub total can not be a negative number
       Tax:
-        label: Tax
+        label: מסים
         kind: Number
         options:
           format: "0.00"
@@ -8664,7 +8664,7 @@ modules:
             - test: "value < 0"
               error: Tax can not be a negative number
       TotalPrice:
-        label: Total Price (calculated)
+        label: סה"כ מחיר
         kind: Number
         options:
           format: "0.00"
@@ -8673,7 +8673,7 @@ modules:
         expressions:
           valueExpr: max(max((Subtotal?Subtotal:0) - (Discount?Discount:0), 0) + (ShippingHandling?ShippingHandling:0))
       GrandTotal:
-        label: Grand Total (calculated)
+        label: סה"כ כולל מסים
         kind: Number
         options:
           format: "0.00"
@@ -8692,7 +8692,7 @@ modules:
         label: Date
         kind: DateTime
       Discount:
-        label: Discount
+        label: הנחה
         kind: Number
         options:
           format: "0.00"
@@ -8702,14 +8702,14 @@ modules:
         label: Line Description
         kind: String
       ListPrice:
-        label: List Price
+        label: מחיר רשום
         kind: Number
         options:
           format: "0.00"
           precision: 2
           suffix: €
       QuoteId:
-        label: Quote
+        label: הצעת מחיר
         kind: Record
         options:
           labelField: Name
@@ -8730,7 +8730,7 @@ modules:
           - Name
           selectType: ""
       ProductId:
-        label: Product
+        label: מוצר
         kind: Record
         options:
           labelField: Name
@@ -8740,16 +8740,16 @@ modules:
           - Name
           selectType: ""
       ProductCode:
-        label: Product Code
+        label: קוד מוצר
         kind: String
       Quantity:
-        label: Quantity
+        label: כמות
         kind: Number
         options:
           format: "0"
           precision: 0
       UnitPrice:
-        label: Sales Price
+        label: מחיר מכירה
         kind: Number
         options:
           format: "0.00"
@@ -8762,14 +8762,14 @@ modules:
           format: "0"
           precision: 0
       Subtotal:
-        label: Subtotal
+        label: סכום
         kind: Number
         options:
           format: "0.00"
           precision: 2
           suffix: €
       TotalPrice:
-        label: Total Price
+        label: סה"כ מחיר
         kind: Number
         options:
           format: "0.00"
@@ -8853,17 +8853,17 @@ modules:
           format: "0"
           precision: 0
       OpportunityProbability:
-        label: Probability
+        label: סיכוי
         kind: Number
         options:
           format: "0"
           precision: 0
           suffix: '%'
       OpportunityForecaseCategory:
-        label: Forecast Category
+        label: קטגורית תחזית
         kind: String
       OpportunityStagename:
-        label: Stage
+        label: שלב
         kind: String
       ContractNextNumber:
         label: Next number for a contract (updates after saving a new contract)
@@ -8993,15 +8993,15 @@ modules:
         label: Solution Title
         kind: String
       Status:
-        label: Status
+        label: סטאטוס
         kind: Select
         options:
           options:
-          - text: New
+          - text: חדש
             value: New
           - text: Pending review
             value: Pending review
-          - text: Accepted
+          - text: התקבלה
             value: Accepted
           - text: Obsolete
             value: Obsolete
@@ -9009,7 +9009,7 @@ modules:
             value: Duplicate
           selectType: default
       CaseId:
-        label: Case
+        label: קייס
         kind: Record
         options:
           labelField: Subject
@@ -9020,7 +9020,7 @@ modules:
           - Subject
           selectType: ""
       ProductId:
-        label: Product
+        label: מוצר
         kind: Record
         options:
           labelField: Name
@@ -9043,7 +9043,7 @@ modules:
     name: Task
     fields:
       AccountId:
-        label: Account
+        label: חשבון
         kind: Record
         options:
           labelField: AccountName
@@ -9052,7 +9052,7 @@ modules:
           - AccountName
           selectType: default
       OwnerId:
-        label: Assigned To
+        label: שוייך ל
         kind: User
         options:
           presetWithAuthenticated: true
@@ -9094,18 +9094,18 @@ modules:
           multiLine: true
           useRichTextEditor: true
       ActivityDate:
-        label: Due Date
+        label: תאריך יעד
         kind: DateTime
       Priority:
-        label: Priority
+        label: עדיפות
         kind: Select
         options:
           options:
-          - text: High
+          - text: גבוהה
             value: High
-          - text: Normal
+          - text: רגילה
             value: Normal
-          - text: Low
+          - text: נמוכה
             value: Low
           selectType: default
       ReminderDateTime:
@@ -9118,38 +9118,38 @@ modules:
           falseLabel: "No"
           trueLabel: "Yes"
       Status:
-        label: Status
+        label: סטאטוס
         kind: Select
         options:
           options:
-          - text: Open
+          - text: פתוחה
             value: Open
-          - text: Completed
+          - text: הושלמה
             value: Completed
           selectType: default
       Subject:
-        label: Subject
+        label: נושא
         kind: String
       Type:
-        label: Type
+        label: סוג
         kind: Select
         options:
           options:
-          - text: Call
+          - text: שיחה
             value: Call
-          - text: Email
+          - text: אימייל
             value: Email
-          - text: Send letter
+          - text: משלוח מידע
             value: Send letter
-          - text: Send Quote
+          - text: משלוח הצעת מחיר
             value: Send Quote
-          - text: Send Message
+          - text: שליחת הודעה
             value: Send Message
-          - text: Other
+          - text: אחר
             value: Other
           selectType: default
       LeadId:
-        label: Lead
+        label: ליד
         kind: Record
         options:
           labelField: RecordLabel
@@ -9158,7 +9158,7 @@ modules:
           - RecordLabel
           selectType: default
       ContactId:
-        label: Contact
+        label: איש קשר
         kind: Record
         options:
           labelField: RecordLabel
@@ -9167,7 +9167,7 @@ modules:
           - RecordLabel
           selectType: default
       OpportunityId:
-        label: Opportunity
+        label: הזדמנות
         kind: Record
         options:
           labelField: Name
@@ -9177,7 +9177,7 @@ modules:
           - Name
           selectType: default
       QuoteId:
-        label: Quote
+        label: הצעת מחיר
         kind: Record
         options:
           labelField: Name
@@ -9188,7 +9188,7 @@ modules:
           - QuoteNumber
           selectType: default
       ContractId:
-        label: Contract
+        label: הסכם
         kind: Record
         options:
           labelField: Name
@@ -9199,7 +9199,7 @@ modules:
           - ContractNumber
           selectType: default
       CaseId:
-        label: Case
+        label: קייס
         kind: Record
         options:
           labelField: Subject
