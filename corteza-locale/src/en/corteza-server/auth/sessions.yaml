@@ -1,0 +1,24 @@
+template:
+  title: סשנים פעילים
+
+  list:
+    current: סשן נוכחי
+    authorized-on: אושר בתאירך
+    same-machine: מחשב זה
+    ip-address: כתובת אי.פי
+    same-browser: דפדפן זה
+    browser: דפדפן
+
+    expires: בתוקף עד
+    expired: לא בתוקף
+    today: היום
+    tomorrow: מחר
+    soon: תוך {{days}} ימים
+
+    delete: מחיקת הסשן
+
+  delete-all: מחיקת כל הסשנים
+
+alerts:
+  session-deleted: סשן נחק
+  delete-sessions-but-current: כל הסשנים למעט הנוכחי נמחקו

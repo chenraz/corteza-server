@@ -1,0 +1,11 @@
+template:
+  title: קליינטים מאומתים
+
+  list:
+    authorized-on: אומת באתריך
+    buttons:
+      revoke: חסימת גישה
+    empty: לא נמצאו קלייטנים מאומתים
+
+alerts:
+  removed: אימות הלקיינט הוסר

@@ -1,0 +1,24 @@
+template:
+  title: יצירת חשבון
+  form:
+    email:
+      label: אימייל
+      placeholder: email@domain.ltd
+    password:
+      label: סיסמה
+      placeholder: סיסמה
+    name:
+      label: שם מלא
+      placeholder: שמך המלא
+    nickname:
+      label: כינוי
+      placeholder: כינוי או שם חיבה
+    button:
+      sign-up: יצירת חשבון
+  log-in: כבר יש לך חשבון? <a href="{{link}}">התחברות</a>
+
+alerts:
+  signup-successful: חשבון נוצר בהצלחה.
+  email-confirmed-logged-in: אימייל מאומת, התחברות בוצעה בהצלחה.
+  invalid-expired-token: טוקן אימות מייל לא תקין או פג תוקף, נא לשלוח מייל אימות שנית.
+  signup-disabled: Signup disabled

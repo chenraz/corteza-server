@@ -1,0 +1,27 @@
+template:
+  title: אבטחה
+
+  password:
+    title: סיסמה
+    change-link: שינוי סיסמה
+
+  mfa:
+    title: אימות רב-שלבי
+    totp:
+      title: אבטחת אפליקציית מובייל בסיסמה חד פעמית
+      enforced: נדרש בשלב התחברות.
+      disabled: כרגע מנותק.
+      configure: קונפיגורציה
+      disable: כיבוי
+
+    email:
+      title: Additional security with one-time-password over email
+      enforced: Enabled and required on login.
+      disabled: כרגע מנותק.
+      enable: קונפיגורציה
+      disable: כיבוי
+
+    all-disabled: כל שיטות האימות הרב שלבי כרגע מנותקות, נא לפנות לאדמינסטרטור.
+
+alerts:
+  topt-disabled: אימות דו-שלבי עם TOTP מנותק.

@@ -1,0 +1,14 @@
+template:
+  title: אימות
+  form:
+    greeting-paragraph: שלום
+    question-for-client: מבקשת לבצע פעולות על שרת זה בשמך.
+    buttons:
+      allow: לאפשר
+      deny: לדחות
+  links:
+    mistake: אם זו טעות, אנא <a href="{{link}}">התנתקו</a>.
+  errors:
+    invalid-user: לא ניתן להמשיך מבלי לאמת את האימייל, יש לפתור את הבעיה בעמוד  <a href="{{link}}">פרופיל אישי</a>.
+alerts:
+  denied: לא ניתן לאמת את {{client}}, אין הרשאות.

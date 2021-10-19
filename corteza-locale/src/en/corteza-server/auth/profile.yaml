@@ -1,0 +1,20 @@
+template:
+  title: פרופיל אישי
+  form:
+    email:
+      label: אימייל
+      placeholder: email@domain.ltd
+      resend-confirmation-link: אימייל טרם אומת, <a href="{{link}}?resend">שליחה מחדש של מייל אימות</a>
+    name:
+      label: שם מלא
+      placeholder: שמך המלא
+    handle:
+      label: כינוי
+      placeholder: כינוי או שם חיבה
+    preferred-language:
+      label: שפה מועדפת
+    buttons:
+      submit: עדכון פרופיל
+alerts:
+  profile-updated: פרופיל עודכן בהצלחה.
+  profile-update-fail: לא ניתן לעדכן את הפרופיל בשל שגיאות בקלט

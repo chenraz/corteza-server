@@ -1,0 +1,7 @@
+template:
+  authorize-client: השלם אימות של 
+  class:
+    your-profile: פרופיל אישי
+    security: אבטחה
+    login-session: סשנים
+    authorized-clients: קליינטים מאומתים

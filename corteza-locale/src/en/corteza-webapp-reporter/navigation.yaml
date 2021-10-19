@@ -1,0 +1,10 @@
+help:
+  documentation: Documentation
+  feedback: Send feedback
+  forum: Help
+  version: 'Version:'
+userSettings:
+  changePassword: שינוי סיסמה
+  loggedInAs: משתמש מחובר {{user}}
+  logout: התנתקות
+  profile: פרופיל אישי
