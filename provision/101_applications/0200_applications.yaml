@@ -1,5 +1,5 @@
 applications:
-  - name: Low Code
+  - name: קוד נמוך
     (envoy): { skipIf: "!missing" }
     enabled: true
     unify:
@@ -8,7 +8,7 @@ applications:
       logo: applications/low-code-platform.png
       url: compose/
 
-  - name: CRM Suite
+  - name: מערכת ניהול לקוחות
     (envoy): { skipIf: "!missing" }
     enabled: true
     unify:
@@ -17,7 +17,7 @@ applications:
       logo: applications/low-code-crm-app.png
       url: compose/ns/crm/pages
 
-  - name: Case Management
+  - name: ניהול קייסים
     (envoy): { skipIf: "!missing" }
     enabled: true
     unify:
@@ -26,7 +26,7 @@ applications:
       logo: applications/low-code-service-solution-app.png
       url: compose/ns/service-solution/pages
 
-  - name: Jitsi Bridge
+  - name: שיחות וידאו
     (envoy): { skipIf: "!missing" }
     enabled: true
     unify:
@@ -35,7 +35,7 @@ applications:
       logo: applications/video-conference.png
       url: bridge/jitsi/
 
-  - name: Admin Area
+  - name: אזור ניהול
     (envoy): { skipIf: "!missing" }
     enabled: true
     unify:
@@ -44,7 +44,7 @@ applications:
       logo: applications/admin-area.png
       url: admin/
 
-  - name: Workflows
+  - name: אוטומציה
     (envoy): { skipIf: "!missing" }
     enabled: true
     unify:
@@ -53,7 +53,7 @@ applications:
       logo: applications/workflows.png
       url: workflow/
 
-  - name: Reporter
+  - name: מחולל דו"חות
     (envoy): { skipIf: "!missing" }
     enabled: true
     unify:
