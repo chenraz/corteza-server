@@ -1,5 +1,5 @@
 .idea
 .dev
-build
+#build
 codegen
 var
