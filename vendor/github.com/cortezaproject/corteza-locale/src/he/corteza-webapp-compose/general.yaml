@@ -2,93 +2,93 @@ label:
   actions: Actions
   active: Active
   add: הוספה
-  addNew: Add new
+  addNew: הוספה
   addValue:  הוספת ערך חדש
-  attachmentFileInfo: '(File size: {{0}}, uploaded {{1}})'
-  attributes: Attributes
+  attachmentFileInfo: '(גודל קובץ: {{0}}, נטען {{1}})'
+  attributes: מאפיינים
   back: חזרה
-  backWithoutSave: Back (without saving changes)
+  backWithoutSave: חזרה (מבלי לשמור שינויים)
   browse: Browse
   buttons: Buttons
-  cancel: Cancel
-  clone: Clone
-  close: Close
-  create: Create
-  delete: Delete
-  description: Description
-  download: Download
+  cancel: ביטול
+  clone: שכפול
+  close: סגירה
+  create: יצירה
+  delete: מחיקה
+  description: תאור
+  download: הורדה
   dropFiles: הקלק כאן או גרור ומשוך קבצים
-  edit: Edit
-  enabled: Enabled
+  edit: עריכה
+  enabled: אפשור
   export: ייצוא
-  fileTypeNotAllowed: File type not allowed
-  general: General
+  fileTypeNotAllowed: סוג קובץ לא חוקי
+  general: כללי
   handle: Handle
-  here: here
-  import: Import
-  importPlaceholder: Upload files to import
-  loading: Loading
-  makeDefault: Make default
-  module: Module
-  moduleName: Module name
+  here: כאן
+  import: ייבוא
+  importPlaceholder: העלאת קבצים לייבוא
+  loading: טוען
+  makeDefault: קביעה כברירת מחדל
+  module: מודול
+  moduleName: שם מודול
 
-  multi: Multi value
-  name: Name
-  next: Next
-  "no": "No"
+  multi: רב ערכי
+  name: שם
+  next: הבא
+  "no": "לא"
   noHandle: No handle
   none: None
   ok: Ok
   openBookmarks: Open bookmarks
   pageBuilder: מחולל עמודים
-  permissions: Permissions
-  private: Private
-  processing: Processing...
-  record: Record
-  recordPage: Record page
-  field: Field
-  remove: Remove
+  permissions: הרשאות
+  private: פרטי
+  processing: מעבד...
+  record: רשומה
+  recordPage: עמוד רשומה
+  field: שדה
+  remove: מחיקה
   removeDefault: Remove default
-  required: Required
+  required: נדרש
   save: שמירה
-  saveAndClose: Save and close
-  status: Status
+  saveAndClose: שמירה וסגירה
+  status: סטאטוס
   timeHour: '{{t}}h'
-  timeMinute: '{{t}}min'
-  title: Title
-  type: Type
-  updatedAt: Updated at
-  uploadError: 'Issue with file upload: "{{message}}"'
-  uploading: Uploading
+  timeMinute: '{{t}}דקות'
+  title: כותרת
+  type: סוג
+  updatedAt: עודכן בתאריך
+  uploadError: 'בעיות בטעינת קובץ: "{{message}}"'
+  uploading: טוען
   urlPlaceholder: https://example.tld
-  validation: Validation
+  validation: ולידציה
   view: View
-  "yes": "Yes"
+  "yes": "כן"
 navigation:
-  chart: Charts
+  chart: תרשימים
   namespace: Namespaces
-  module: Modules
-  page: Pages
+  module: מודולים
+  page: עמודים
 placeholder:
   handle: handle (a - z, 0 - 9, underscore, dash)
-  sample: Sample
+  sample: דוגמא
 reminder:
   add: הוספת תזכורת
   dismiss: Dismiss
   edit:
     assigneeLabel: Assignee
     assigneePlaceholder: Myself (default)
-    notesLabel: Notes
-    notesPlaceholder: Notes
-    remindAtLabel: Notify me
-    remindAtNone: Never
-    titleLabel: Title
-    titlePlaceholder: Title
+    notesLabel: הערות
+    notesPlaceholder: הערות
+    remindAtLabel: תזכר אותי
+    remindAtNone: לעולם לא
+    titleLabel: כותרת
+    titlePlaceholder: כותרת
   listLabel: תזכורות
   routesTo: 'Includes link to:'
   snooze: Snooze
 tooltip:
-  dragAndDrop: Drag and drop to change order
+  dragAndDrop: ניתן לשנות סדר בגרירה-וזריקה
 fieldKinds:
   Bool:
     label: Checkbox (Y/N)

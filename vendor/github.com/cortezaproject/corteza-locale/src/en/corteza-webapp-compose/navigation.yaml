@@ -13,8 +13,8 @@ namespace: Namespaces
 noPageTitle: No page title
 page: Pages
 userSettings:
-  changePassword: שינוי סיסמה
-  loggedInAs: משתמש מחובר {{user}}
-  logout: התנתקות
-  profile: פרופיל אישי
+  changePassword: Change password
+  loggedInAs: Logged in as {{user}}
+  logout: Logout
+  profile: Profile
 viewPage: View Page

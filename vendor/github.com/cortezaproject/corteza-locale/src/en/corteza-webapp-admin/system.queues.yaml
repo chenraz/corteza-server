@@ -21,7 +21,7 @@ list:
   columns:
     actions: Actions
     consumer: Consumer
-    createdAt: Created at
+    createdAt: Created At
     queue: Queue
   filterForm:
     deleted:

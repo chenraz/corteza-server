@@ -19,4 +19,4 @@ template:
 
 alerts:
   logged-in: התחברת בהצלחה.
-  local-disabled: Local accounts disabled
+  local-disabled: האפשרויות ליצירת חשבונות כבויה.

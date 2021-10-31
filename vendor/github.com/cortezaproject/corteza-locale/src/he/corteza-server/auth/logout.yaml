@@ -1,0 +1,3 @@
+template:
+  log-out: התנקת מהמערכת.
+  log-in: לחצו כאן כדי <a href="{{link}}">להתחבר</a>.

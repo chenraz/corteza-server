@@ -3,7 +3,7 @@ message:
   notifyAdministrator: Notify your system administrator.
   startBuilding: Follow these steps to start building
 label:
-  pageBuilder: מחולל עמודים
+  pageBuilder: Page builder
   welcome: Welcome!
 navigation:
   noPageTitle: No page title

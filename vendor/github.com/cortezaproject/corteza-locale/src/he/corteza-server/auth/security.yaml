@@ -15,8 +15,8 @@ template:
       disable: כיבוי
 
     email:
-      title: Additional security with one-time-password over email
-      enforced: Enabled and required on login.
+      title: שכבת אבטחה נוספת עם סיסמה חד-פעמית למייל
+      enforced: הפעל והחל על תהליך ההתחברות
       disabled: כרגע מנותק.
       enable: קונפיגורציה
       disable: כיבוי

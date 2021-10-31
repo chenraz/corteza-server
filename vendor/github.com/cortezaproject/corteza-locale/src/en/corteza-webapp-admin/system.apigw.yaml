@@ -52,8 +52,8 @@ editor:
     undelete: 'Undelete'
     deletedAt: 'Deleted at'
 
-    updatedAt: 'עודכן בתאריך'
-    createdAt: 'נוצר בתאריך'
+    updatedAt: 'Updated at'
+    createdAt: 'Created at'
     validEndpoint: 'Invalid endpoint format'
   filters:
     title: 'Filter list'

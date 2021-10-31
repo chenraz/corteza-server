@@ -17,7 +17,7 @@ editor:
       client_credentials: Will be used to authenticate machines (grant type = client_credentials)
     handle:
       disabledFootnote: Unable to change the handle of the default auth client
-      label: כינוי
+      label: Handle
     name: Name
     no-time: No time selected
     profile: Allow client access to user's profile

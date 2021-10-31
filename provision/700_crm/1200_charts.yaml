@@ -548,7 +548,7 @@ charts:
       colorScheme: tableau.Tableau10
   LeadsPerMonth:
     (envoy): { onExisting: "skip" }
-    name: לידים פר חודש
+    name: Leads per month
     config:
       reports:
       - dimensions:

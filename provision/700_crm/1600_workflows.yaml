@@ -548,7 +548,7 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Warning
+                  value: אזהרה
                   type: String
                   tests: []
                 - target: message
@@ -560,7 +560,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: warning
+                  value: אזהרה
                   type: String
                   tests: []
               results: []
@@ -602,7 +602,7 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Warning
+                  value: אזהרה
                   type: String
                   tests: []
                 - target: message
@@ -614,7 +614,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: warning
+                  value: אזהרה
                   type: String
                   tests: []
               results: []
@@ -638,7 +638,7 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Success
+                  value: הצלחה
                   type: String
                   tests: []
                 - target: message
@@ -650,7 +650,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: success
+                  value: הצלחה
                   type: String
                   tests: []
               results: []
@@ -660,7 +660,7 @@ workflows:
                 visual:
                     id: "27"
                     parent: "1"
-                    value: Success
+                    value: הצלחה
                     xywh:
                         - 3600
                         - 2760
@@ -1433,7 +1433,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: success
+                  value: הצלחה
                   type: String
                   tests: []
                 - target: sticky
@@ -1517,7 +1517,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: warning
+                  value: אזהרה
                   type: String
                   tests: []
                 - target: sticky
@@ -2353,7 +2353,7 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Warning
+                  value: אזהרה
                   type: String
                   tests: []
                 - target: message
@@ -2365,7 +2365,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: warning
+                  value: אזהרה
                   type: String
                   tests: []
               results: []
@@ -2389,7 +2389,7 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Warning
+                  value: אזהרה
                   type: String
                   tests: []
                 - target: message
@@ -2401,7 +2401,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: warning
+                  value: אזהרה
                   type: String
                   tests: []
               results: []
@@ -2869,19 +2869,19 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Warning
+                  value: אזהרה
                   type: String
                   tests: []
                 - target: message
                   source: ""
                   expr: ""
-                  value: There is no email linked to the quote. Please fill in an email address in the "Primary contact data" block
+                  value: לא קושר אימייל להצעת המחיר. נא להזין פרטי איש קשר ראשי
                   type: String
                   tests: []
                 - target: variant
                   source: ""
                   expr: ""
-                  value: warning
+                  value: אזהרה
                   type: String
                   tests: []
               results: []
@@ -2891,7 +2891,7 @@ workflows:
                 visual:
                     id: "15"
                     parent: "1"
-                    value: 'Warning: There is no email linked to the quote. Please fill in an email address in the "Primary contact data" block.'
+                    value: 'אזהרה: לא קושר אימייל להצעת המחיר. נא להזין פרטי איש קשר ראשי.'
                     xywh:
                         - 2320
                         - 2200
@@ -2905,19 +2905,19 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Success
+                  value: הצלחה
                   type: String
                   tests: []
                 - target: message
                   source: ""
                   expr: ""
-                  value: The quote has been sent via email
+                  value: הצעת המחיר נשלחה במייל
                   type: String
                   tests: []
                 - target: variant
                   source: ""
                   expr: ""
-                  value: success
+                  value: הצלחה
                   type: String
                   tests: []
               results: []
@@ -2927,7 +2927,7 @@ workflows:
                 visual:
                     id: "16"
                     parent: "1"
-                    value: 'Success: The quote has been sent via email'
+                    value: 'הצלחה: הצעת המחיר נשלחה במייל'
                     xywh:
                         - 2960
                         - 2520
@@ -3141,18 +3141,18 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Input Custom Email
+                  value: הזנת מייל מותאם
                   type: String
                   tests: []
                 - target: message
                   source: ""
                   expr: ""
-                  value: 'Please enter an email to send this quote to:'
+                  value: 'נא להזין מייל אליו תישלח ההצעה:'
                   type: String
                   tests: []
                 - target: label
                   source: ""
-                  expr: '"Email"'
+                  expr: '"אימייל"'
                   value: null
                   type: String
                   tests: []
@@ -3285,7 +3285,7 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Warning
+                  value: אזהרה
                   type: String
                   tests: []
                 - target: message
@@ -3297,7 +3297,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: warning
+                  value: אזהרה
                   type: String
                   tests: []
               results: []
@@ -3321,19 +3321,19 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Success
+                  value: הצלחה
                   type: String
                   tests: []
                 - target: message
                   source: ""
                   expr: ""
-                  value: The quote has been sent via email
+                  value: הצעת המחיר נשלחה במייל
                   type: String
                   tests: []
                 - target: variant
                   source: ""
                   expr: ""
-                  value: success
+                  value: הצלחה
                   type: String
                   tests: []
               results: []
@@ -3343,7 +3343,7 @@ workflows:
                 visual:
                     id: "20"
                     parent: "1"
-                    value: 'Success: The quote has been sent via email'
+                    value: 'הצלחה: הצעת המחיר נשלחה במייל'
                     xywh:
                         - 3240
                         - 2520
@@ -3960,19 +3960,19 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Warning
+                  value: אזהרה
                   type: String
                   tests: []
                 - target: message
                   source: ""
-                  expr: '"There are no active price books configured in the CRM. Please insert an active price book in the Price book module"'
+                  expr: '"לא הוגדרו ספרי מחיר להזדמנות זו. נא לבחור ספר מחירים"'
                   value: null
                   type: String
                   tests: []
                 - target: variant
                   source: ""
                   expr: ""
-                  value: warning
+                  value: אזהרה
                   type: String
                   tests: []
               results: []
@@ -4014,7 +4014,7 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Warning
+                  value: אזהרה
                   type: String
                   tests: []
                 - target: message
@@ -4026,7 +4026,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: warning
+                  value: אזהרה
                   type: String
                   tests: []
               results: []
@@ -4260,19 +4260,19 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Success
+                  value: הצלחה
                   type: String
                   tests: []
                 - target: message
                   source: ""
                   expr: ""
-                  value: Pricebook applied
+                  value: ספר המחירים ייושם
                   type: String
                   tests: []
                 - target: variant
                   source: ""
                   expr: ""
-                  value: success
+                  value: הצלחה
                   type: String
                   tests: []
               results: []
@@ -4282,7 +4282,7 @@ workflows:
                 visual:
                     id: "34"
                     parent: "1"
-                    value: 'Success: Pricebook applied'
+                    value: 'הצלחה: ספר המחירים ייושם'
                     xywh:
                         - 2040
                         - 2880
@@ -4374,7 +4374,7 @@ workflows:
                     parent: "1"
                     value: Fetch Pricebook entry
                     xywh:
-                        - 3320
+                        - 3600
                         - 2560
                         - 200
                         - 80
@@ -4578,11 +4578,32 @@ workflows:
                     parent: "1"
                     value: Check numOfPricebookEntries > 0
                     xywh:
-                        - 3560
+                        - 3840
                         - 2560
                         - 200
                         - 80
               labels: {}
+            - id: 91
+              kind: expressions
+              ref: ""
+              arguments:
+                - target: lineItem.values.Description
+                  expr: product.values.Description
+                  type: String
+              results: []
+              meta:
+                name: ""
+                description: ""
+                visual:
+                  id: "91"
+                  parent: "1"
+                  value: Set line item description
+                  xywh:
+                    - 3240
+                    - 2560
+                    - 200
+                    - 80
+
         paths:
             - expr: ""
               parentid: 5
@@ -4730,7 +4751,7 @@ workflows:
                     value: null
             - expr: ""
               parentid: 26
-              childid: 38
+              childid: 91
               meta:
                 name: ""
                 description: ""
@@ -4740,6 +4761,19 @@ workflows:
                     points: []
                     style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
                     value: null
+            - expr: ""
+              parentID: 91
+              childID: 38
+              meta:
+                name: ""
+                description: ""
+                visual:
+                  id: "92"
+                  parent: "1"
+                  points: []
+                  style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+                  value: null
+
             - expr: ""
               parentid: 49
               childid: 51
@@ -5324,7 +5358,7 @@ workflows:
               - target: title
                 source: ""
                 expr: ""
-                value: Warning
+                value: אזהרה
                 type: String
                 tests: []
               - target: message
@@ -5336,7 +5370,7 @@ workflows:
               - target: variant
                 source: ""
                 expr: ""
-                value: warning
+                value: אזהרה
                 type: String
                 tests: []
             results: []
@@ -5504,7 +5538,7 @@ workflows:
               - target: title
                 source: ""
                 expr: ""
-                value: Success
+                value: הצלחה
                 type: String
                 tests: []
               - target: message
@@ -5516,7 +5550,7 @@ workflows:
               - target: variant
                 source: ""
                 expr: ""
-                value: success
+                value: הצלחה
                 type: String
                 tests: []
             results: []
@@ -6502,19 +6536,19 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Success
+                  value: הצלחה
                   type: String
                   tests: []
                 - target: message
                   source: ""
                   expr: ""
-                  value: The lead has been converted
+                  value: הליד הומר
                   type: String
                   tests: []
                 - target: variant
                   source: ""
                   expr: ""
-                  value: success
+                  value: הצלחה
                   type: String
                   tests: []
               results: []
@@ -7346,7 +7380,7 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Success
+                  value: הצלחה
                   type: String
                   tests: []
                 - target: message
@@ -7358,7 +7392,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: success
+                  value: הצלחה
                   type: String
                   tests: []
               results: []
@@ -7726,7 +7760,7 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Warning
+                  value: אזהרה
                   type: String
                   tests: []
                 - target: message
@@ -7738,7 +7772,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: warning
+                  value: אזהרה
                   type: String
                   tests: []
               results: []
@@ -7946,7 +7980,7 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Warning
+                  value: אזהרה
                   type: String
                   tests: []
                 - target: message
@@ -7958,7 +7992,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: warning
+                  value: אזהרה
                   type: String
                   tests: []
               results: []
@@ -8597,12 +8631,6 @@ workflows:
                   value: null
                   type: String
                   tests: []
-                - target: limit
-                  source: ""
-                  expr: ""
-                  value: "0"
-                  type: UnsignedInteger
-                  tests: []
               results:
                 - target: opportunityLineItem
                   source: ""
@@ -8828,19 +8856,19 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Success
+                  value: הצלחה
                   type: String
                   tests: []
                 - target: message
                   source: ""
                   expr: ""
-                  value: The new quote has been created.
+                  value: הצעת המחיר נוצרה בהצלחה.
                   type: String
                   tests: []
                 - target: variant
                   source: ""
                   expr: ""
-                  value: success
+                  value: הצלחה
                   type: String
                   tests: []
               results: []
@@ -12200,19 +12228,19 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Success
+                  value: הצלחה
                   type: String
                   tests: []
                 - target: message
                   source: ""
                   expr: ""
-                  value: The lead has been converted
+                  value: הליד הומר
                   type: String
                   tests: []
                 - target: variant
                   source: ""
                   expr: ""
-                  value: success
+                  value: הצלחה
                   type: String
                   tests: []
               results: []
@@ -13128,7 +13156,7 @@ workflows:
                 - target: title
                   source: ""
                   expr: ""
-                  value: Success
+                  value: הצלחה
                   type: String
                   tests: []
                 - target: message
@@ -13140,7 +13168,7 @@ workflows:
                 - target: variant
                   source: ""
                   expr: ""
-                  value: success
+                  value: הצלחה
                   type: String
                   tests: []
               results: []

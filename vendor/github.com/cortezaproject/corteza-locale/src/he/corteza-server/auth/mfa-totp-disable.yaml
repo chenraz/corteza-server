@@ -1,0 +1,5 @@
+template:
+  title: ניתוק איתות דו-שלבי עם TOTP
+  instructions: כיבוי אפשרות הכניסה לקוד קיים
+  button:
+    remove: הסרה

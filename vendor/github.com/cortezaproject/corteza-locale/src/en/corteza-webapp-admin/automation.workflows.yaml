@@ -26,7 +26,7 @@ editor:
 list:
   columns:
     actions: ""
-    createdAt: נוצר
+    createdAt: Created
     enabled: Enabled
     handle: Name
   filterForm:

@@ -1,12 +1,12 @@
 label:
   actions: Actions
   active: Active
-  add: הוספה
+  add: Add
   addNew: Add new
-  addValue:  הוספת ערך חדש
+  addValue: Add new value
   attachmentFileInfo: '(File size: {{0}}, uploaded {{1}})'
   attributes: Attributes
-  back: חזרה
+  back: Back
   backWithoutSave: Back (without saving changes)
   browse: Browse
   buttons: Buttons
@@ -17,10 +17,10 @@ label:
   delete: Delete
   description: Description
   download: Download
-  dropFiles: הקלק כאן או גרור ומשוך קבצים
+  dropFiles: Click or drop files here to upload
   edit: Edit
   enabled: Enabled
-  export: ייצוא
+  export: Export
   fileTypeNotAllowed: File type not allowed
   general: General
   handle: Handle
@@ -40,7 +40,7 @@ label:
   none: None
   ok: Ok
   openBookmarks: Open bookmarks
-  pageBuilder: מחולל עמודים
+  pageBuilder: Page builder
   permissions: Permissions
   private: Private
   processing: Processing...
@@ -50,7 +50,7 @@ label:
   remove: Remove
   removeDefault: Remove default
   required: Required
-  save: שמירה
+  save: Save
   saveAndClose: Save and close
   status: Status
   timeHour: '{{t}}h'
@@ -73,7 +73,7 @@ placeholder:
   handle: handle (a - z, 0 - 9, underscore, dash)
   sample: Sample
 reminder:
-  add: הוספת תזכורת
+  add: Add a new reminder
   dismiss: Dismiss
   edit:
     assigneeLabel: Assignee
@@ -84,7 +84,7 @@ reminder:
     remindAtNone: Never
     titleLabel: Title
     titlePlaceholder: Title
-  listLabel: תזכורות
+  listLabel: Reminders
   routesTo: 'Includes link to:'
   snooze: Snooze
 tooltip:

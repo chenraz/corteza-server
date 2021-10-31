@@ -1361,13 +1361,14 @@ pages:
                 variants: {border: primary, headerText: primary}
               kind: Record
               xywh: [0, 0, 4, 16]
-            - title: Automatically inserted values
+            - title: ערכים שהוזנו אוטומטית
               options:
                 fields:
                 - name: ProductCode
                 - name: ListPrice
                 - name: Subtotal
                 - name: TotalPrice
+                - name: Photo
               style:
                 variants: {border: primary, headerText: primary}
               kind: Record
@@ -2652,7 +2653,7 @@ pages:
                 module: PricebookEntry
                 title: עמוד רשומה במודול "פריט ספר מחירים"
                 blocks:
-                - title: Details
+                - title: פרטים
                   options:
                     fields:
                     - name: PricebookId
