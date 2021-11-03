@@ -31,7 +31,7 @@ general:
   composeAccessNotAllowed: Not allowed to access Compose
   error: Error
   success: Success
-  warning: Warning
+  warning: אזהרה
 module:
   createFailed: Could not create a module
   deleteFailed: Could not delete this module

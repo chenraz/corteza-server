@@ -73,9 +73,9 @@ automation:
 general:
   notFound: 'Not found'
   label:
-    "no": "No"
-    submit: Submit
-    "yes": "Yes"
+    "no": "לא"
+    submit: שליחה
+    "yes": "כן"
   logout: התנתקות
   noAccess: You do not have permissions to access Admin panel
   pagination:

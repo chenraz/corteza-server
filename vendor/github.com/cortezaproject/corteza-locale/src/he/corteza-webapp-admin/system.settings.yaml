@@ -20,7 +20,7 @@ editor:
       from-name: Sender's name
       validate-email: Please enter valid email address.
     mfa:
-      title: אימות רב-שלבי
+      title: Multi-factor authentication
       TOTP:
         enabled: Allow users to use time based one-time-password (using mobile application)
         enforced: Force users to use time based one-time-password (using mobile application)

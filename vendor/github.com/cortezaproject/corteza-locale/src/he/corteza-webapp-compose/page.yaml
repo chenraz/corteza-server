@@ -4,7 +4,7 @@ block:
     label:
       cancel: Cancel
       noHandle: No handle
-      pageBuilder: מחולל עמודים
+      pageBuilder=מחולל עמודים: מחולל עמודים
       saveAndClose: Save and close
     placeholder:
       handle: handle (a - z, 0 - 9, underscore, dash)
@@ -28,7 +28,7 @@ label:
   cancel: Cancel
   description: Description
   handle: Handle
-  pageBuilder: מחולל עמודים
+  pageBuilder=מחולל עמודים: מחולל עמודים
   permissions: Permissions
   saveAndClose: Save and close
 moduleEdit: Edit module

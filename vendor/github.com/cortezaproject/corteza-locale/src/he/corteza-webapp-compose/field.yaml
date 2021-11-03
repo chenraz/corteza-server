@@ -132,12 +132,12 @@ sanitizers:
     placeholder: trim(value)
   label: Value sanitization
 selector:
-  search: Type here to search among module fields
-  available: Available fields
-  selectAll: Select all
-  selected: Selected fields
+  search: חיפוש שדות במודול
+  available: שדות זמינים
+  selectAll: כל השדות
+  selected: שדות שנבחרו
   systemField: (system field)
-  unselectAll: Unselect all
+  unselectAll: הסר את כל השדות
 system:
   createdAt: נוצר בתאריך
   createdBy: Created by

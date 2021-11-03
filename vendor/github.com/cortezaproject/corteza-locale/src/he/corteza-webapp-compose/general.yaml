@@ -40,7 +40,7 @@ label:
   none: None
   ok: Ok
   openBookmarks: Open bookmarks
-  pageBuilder: מחולל עמודים
+  pageBuilder=מחולל עמודים: מחולל עמודים
   permissions: הרשאות
   private: פרטי
   processing: מעבד...

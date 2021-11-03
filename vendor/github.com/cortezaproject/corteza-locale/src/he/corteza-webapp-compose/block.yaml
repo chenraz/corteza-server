@@ -26,7 +26,7 @@ automation:
   secondaryButton: Secondary
   stepID: 'stepID: {{stepID}}'
   successButton: Success
-  warningButton: Warning
+  warningButton: אזהרה
 calendar:
   addEventsSource: Add events source
   calendarHeader: Calendar header
@@ -110,10 +110,10 @@ general:
   label:
     add: הוספה
     back: חזרה
-    edit: Edit
+    edit: עריכה
     general: General
     import: ייבוא
-    next: Next
+    next: הבא
     none: None
     ok: Ok
     permissions: Permissions
@@ -200,38 +200,38 @@ record:
   recordDeleted: This record was deleted
 recordList:
   addRecord: הוספה
-  cancelSelection: Cancel
+  cancelSelection: ביטול
   editFields: Editable module fields
   export:
-    all: Export all records
+    all: ייצוא כל הרשומות
     allow: Allow records export
-    csv: CSV Export
-    dateRange: 'Select date range:'
+    csv: ייצוא ל- CSV
+    dateRange: 'בחירת טווח תאריכים:'
     query:
-      label: Search query
-      placeholder: Search...
+      label: שאילת חיפוש
+      placeholder: חיפוש...
     filter:
-      label: Filter records
+      label: סינון רשומות
       placeholder: field1 = 1 AND field2 = 232
       footnote: Simplified SQL condition (WHERE ...) syntax is supported. Variables like {{0}}, {{1}} and {{2}} are evaluated (when available)
-      createdAt: Record created
-      custom: Custom
-      lastMonth: Last month
-      lastWeek: Last week
-      thisMonth: This month
-      thisWeek: This week
+      createdAt: תאריך יצירת רשומה
+      custom: מותאם
+      lastMonth: חודש שעבר
+      lastWeek: שבוע שעבר
+      thisMonth: החודש
+      thisWeek: השבוע
       today: היום
-      updatedAt: Record updated
-    inRange: Set date range
+      updatedAt: תאריך עדכון רשומה
+    inRange: קביעת טווח תאריכים
     includeQuery: Filter by search query
-    json: JSON Export
-    limitations: 'CSV export limitation: only the first value in the multi value fields will be exported'
-    rangeBy: 'Set range by:'
-    recordCount: '{{count}} records ready for export'
-    selectFields: 'Select fields you want to export:'
-    selection: Selected records
-    specifyTimezone: Export to timezone
-    timezonePlaceholder: Select timezone
+    json: ייצוא ל- JSON
+    limitations: 'מגבלות ייצוא ל- CSV: רק הערך הראשון בשדה רב-ערכי ייוצא לקובץ'
+    rangeBy: 'קביעת טווח לפי:'
+    recordCount: '{{count}} רשומות מוכנות לייצוא'
+    selectFields: 'נא לבחור שדות לייצוא:'
+    selection: רשומות שנבחרו
+    specifyTimezone: אזור זמן לייצוא
+    timezonePlaceholder: בחירת אזור זמן
   federated: Federated
   fields: Module fields
   filter:
@@ -266,23 +266,23 @@ recordList:
   hideRecordReminderButton: Hide record reminder button
   hideRecordViewButton: Hide view record button
   import:
-    dropzoneFileAdded: '{{name}} was uploaded and is ready for import ({{count}} record)'
-    dropzoneFileAdded_plural: '{{name}} was uploaded and is ready for import ({{count}} records)'
-    dropzoneLabel: Click or drop file here to upload (.csv or JSON)
-    failed: 'Something went wrong during the import. Please try again: {{failReason}}'
-    fileColumns: File columns
+    dropzoneFileAdded: '{{name}} נטען בהצלחה ומוכן לייבוא ({{count}} רשומות)'
+    dropzoneFileAdded_plural: '{{name}} נטען בהצלחה ומוכן לייבוא ({{count}} רשומות)'
+    dropzoneLabel: יש ללחוץ או לזרוק לכאן קובץ לייבוא (.csv או JSON)
+    failed: 'משהו השתבש בתהליך הייבוא. נא לנסות שנית: {{failReason}}'
+    fileColumns: טורים בקובץ
     hasRequiredFileFields: 'This module has required file upload fields'
-    matchFields: 'Match imported columns with existing ones:'
-    moduleFields: Module fields
-    onError: 'If any record fails to import:'
-    onErrorFail: Cancel import
-    onErrorSkip: Skip record
-    pickModuleField: Pick a module field
-    progressRatio: '{{completed}} / {{entryCount}} rows'
+    matchFields: 'נא להתאים טורים בקובץ הייבוא לשדות במודול:'
+    moduleFields: שדות במודול
+    onError: 'במקרה ורשומה כלשהי נכשלת בתהליך הייבוא:'
+    onErrorFail: ביטול הייבוא
+    onErrorSkip: דילוג על הרשימה
+    pickModuleField: נא לבחור שדה
+    progressRatio: '{{completed}} / {{entryCount}} שורות'
     report:
-      count: Number of records
-      detectedErrors: Detected errors
-      error: Error
+      count: סה"כ רשומות
+      detectedErrors: שגיאות
+      error: שגיאה
       failedEntries: Failed source entries
       failedEntriesLine: Entry
       failedEntriesLines: Entries from to (inclusive)
@@ -292,9 +292,9 @@ recordList:
       startedAt: Started At
       title: Record import error report
       totalRecords: Total records
-    success: Import successful.
-    to: Import to {{modulename}}
-    uploadFile: Upload the file you want to import (.csv or JSON format)
+    success: הייבוא הסתיים בהצלחה.
+    to: ייבוא ל- {{modulename}}
+    uploadFile: נא לטעון את הקובץ שברצונכם לייבא (פורמט CSV או JSON)
   label: Record list
   moduleFootnote: Modules without a {{0}} can only be used in a record list as an inline editor
   noRecords: לא נמצאו רשומות תואמות
