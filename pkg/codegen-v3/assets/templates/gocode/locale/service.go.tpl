@@ -9,8 +9,6 @@ import (
 {{- range .Imports }}
     {{ . }}
 {{- end }}
-
-	"github.com/cortezaproject/corteza-server/compose/types"
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
 	intAuth "github.com/cortezaproject/corteza-server/pkg/auth"
 	"github.com/cortezaproject/corteza-server/pkg/errors"
@@ -67,6 +65,10 @@ func (svc resourceTranslationsManager) Upsert(ctx context.Context, rr locale.Res
 		if !svc.ac.CanManageResourceTranslations(ctx) {
 			return ErrNotAllowedToManageResourceTranslations
 		}
+	}
+
+	for _, r := range rr {
+		r.Msg = locale.SanitizeMessage(r.Msg)
 	}
 
 	// @todo validation
@@ -211,3 +213,4 @@ func updateTranslations(ctx context.Context, ac localeAccessControl, lsvc Resour
 
 	return nil
 }
+

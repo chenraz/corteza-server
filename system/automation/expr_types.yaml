@@ -2,6 +2,7 @@ package: automation
 imports:
   - github.com/cortezaproject/corteza-server/system/types
   - github.com/cortezaproject/corteza-server/pkg/rbac
+  - github.com/cortezaproject/corteza-server/pkg/actionlog
 
 types:
   Template:
@@ -69,7 +70,10 @@ types:
     as: '*types.QueueMessage'
     struct:
       - { name: 'Queue',   exprType: 'String', goType: 'string' }
-      - { name: 'Payload', exprType: 'String', goType: '[]byte' }
+      - { name: 'Payload', exprType: 'Bytes',  goType: '[]byte' }
 
   RbacResource:
     as: 'rbac.Resource'
+
+  Action:
+    as: '*actionlog.Action'

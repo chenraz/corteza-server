@@ -436,6 +436,12 @@ func (svc *trigger) registerWorkflows(ctx context.Context, workflows ...*types.W
 			continue
 		}
 
+		if len(wf.Issues) > 0 {
+			// workflow was processed before and issues were detected
+			// and stored on the workflow; no need to continue
+			continue
+		}
+
 		if err = svc.registerWorkflow(ctx, wf, tt.FilterByWorkflowID(wf.ID)...); err != nil {
 			return err
 		}
@@ -462,6 +468,14 @@ func (svc *trigger) registerWorkflow(ctx context.Context, wf *types.Workflow, tt
 		runAs auth.Identifiable
 	)
 
+	// Returns context with identity set to service user
+	//
+	// Current user (identity in the context) might not have
+	// sufficient privileges to load info about invoker and runner
+	sysUserCtx := func() context.Context {
+		return auth.SetIdentityToContext(ctx, auth.ServiceUser())
+	}
+
 	if !svc.opt.Register {
 		return nil
 	}
@@ -477,11 +491,17 @@ func (svc *trigger) registerWorkflow(ctx context.Context, wf *types.Workflow, tt
 	}
 
 	if wis := validateWorkflowTriggers(wf, tt...); len(wis) > 0 {
-		return wis
+		// skip trigger registration of there is a trigger related issue(s)
+		// on a specific workflow.
+		//
+		// this really happens since we run all validation on save,
+		// but there might be workflow from the time when these checks were
+		// not in place
+		return nil
 	}
 
 	if wf.RunAs > 0 {
-		if runAs, err = DefaultUser.FindByAny(ctx, wf.RunAs); err != nil {
+		if runAs, err = DefaultUser.FindByAny(sysUserCtx(), wf.RunAs); err != nil {
 			return fmt.Errorf("failed to load run-as user %d: %w", wf.RunAs, err)
 		} else if !runAs.Valid() {
 			return fmt.Errorf("invalid user %d used for workflow run-as", wf.RunAs)

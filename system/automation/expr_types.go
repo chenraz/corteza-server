@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 
+	"github.com/cortezaproject/corteza-server/pkg/actionlog"
 	"github.com/cortezaproject/corteza-server/pkg/expr"
 	"github.com/cortezaproject/corteza-server/pkg/rbac"
 	"github.com/cortezaproject/corteza-server/system/types"
@@ -154,6 +155,16 @@ func CastToRenderOptions(val interface{}) (out map[string]string, err error) {
 	}
 }
 
+func (t *RenderOptions) AssignFieldValue(key string, val expr.TypedValue) error {
+	if t.value == nil {
+		t.value = make(map[string]string)
+	}
+
+	str, err := cast.ToStringE(expr.UntypedValue(val))
+	t.value[key] = str
+	return err
+}
+
 func CastToQueueMessage(val interface{}) (out *types.QueueMessage, err error) {
 	switch val := val.(type) {
 	case expr.Iterator:
@@ -184,6 +195,15 @@ func CastToRbacResource(val interface{}) (out rbac.Resource, err error) {
 		return val, nil
 	case RbacResource:
 		return val.value, nil
+	default:
+		return nil, fmt.Errorf("unable to cast type %T to %T", val, out)
+	}
+}
+
+func CastToAction(val interface{}) (out *actionlog.Action, err error) {
+	switch val := expr.UntypedValue(val).(type) {
+	case *actionlog.Action:
+		return val, nil
 	default:
 		return nil, fmt.Errorf("unable to cast type %T to %T", val, out)
 	}

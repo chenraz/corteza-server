@@ -217,11 +217,23 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, ws websock
 		DefaultRole,
 	)
 
+	if c.ActionLog.WorkflowFunctionsEnabled {
+		// register action-log functions & types only when enabled
+		automation.ActionlogHandler(
+			automationService.Registry(),
+			DefaultActionlog,
+		)
+
+		automationService.Registry().AddTypes(
+			automation.Action{},
+		)
+	}
+
 	return
 }
 
 func Activate(ctx context.Context) (err error) {
-	// Run initial update of current settings with super-user credentials
+	// Run initial update of current settings
 	err = DefaultSettings.UpdateCurrent(ctx)
 	if err != nil {
 		return

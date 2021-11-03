@@ -35,6 +35,7 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/sentry"
 	"github.com/cortezaproject/corteza-server/pkg/websocket"
 	"github.com/cortezaproject/corteza-server/store"
+	"github.com/cortezaproject/corteza-server/system/service"
 	sysService "github.com/cortezaproject/corteza-server/system/service"
 	sysEvent "github.com/cortezaproject/corteza-server/system/service/event"
 	"github.com/cortezaproject/corteza-server/system/types"
@@ -53,8 +54,6 @@ const (
 
 // Setup configures all required services
 func (app *CortezaApp) Setup() (err error) {
-	app.Log = logger.Default()
-
 	if app.lvl >= bootLevelSetup {
 		// Are basics already set-up?
 		return nil
@@ -113,29 +112,6 @@ func (app *CortezaApp) Setup() (err error) {
 
 	auth.SetupDefault(app.Opt.Auth.Secret, app.Opt.Auth.Expiry)
 
-	mail.SetupDialer(
-		app.Opt.SMTP.Host,
-		app.Opt.SMTP.Port,
-		app.Opt.SMTP.User,
-		app.Opt.SMTP.Pass,
-		app.Opt.SMTP.From,
-
-		// Apply TLS configuration
-		func(d *gomail.Dialer) {
-			if d.TLSConfig == nil {
-				d.TLSConfig = &tls.Config{ServerName: d.Host}
-			}
-
-			if app.Opt.SMTP.TlsInsecure {
-				d.TLSConfig.InsecureSkipVerify = true
-			}
-
-			if app.Opt.SMTP.TlsServerName != "" {
-				d.TLSConfig.ServerName = app.Opt.SMTP.TlsServerName
-			}
-		},
-	)
-
 	http.SetupDefaults(
 		app.Opt.HTTPClient.HttpClientTimeout,
 		app.Opt.HTTPClient.ClientTSLInsecure,
@@ -167,6 +143,10 @@ func (app *CortezaApp) Setup() (err error) {
 		if !app.Opt.Messagebus.Enabled {
 			app.Log.Debug("messagebus disabled (MESSAGEBUS_ENABLED=false)")
 		}
+	}
+
+	if err = app.plugins.Setup(app.Log.Named("plugin")); err != nil {
+		return
 	}
 
 	app.lvl = bootLevelSetup
@@ -358,11 +338,6 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 		return err
 	}
 
-	if app.Opt.Messagebus.Enabled {
-		// initialize all the queue handlers
-		messagebus.Service().Init(ctx, app.Store)
-	}
-
 	// Initializes system services
 	//
 	// Note: this is a legacy approach, all services from all 3 apps
@@ -378,6 +353,11 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 
 	if err != nil {
 		return
+	}
+
+	if app.Opt.Messagebus.Enabled {
+		// initialize all the queue handlers
+		messagebus.Service().Init(ctx, service.DefaultQueue)
 	}
 
 	// Initializes automation services
@@ -436,6 +416,14 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 	// Initializing seeder
 	_ = seeder.Seeder(ctx, app.Store, seeder.Faker())
 
+	if err = app.plugins.Initialize(ctx, app.Log); err != nil {
+		return
+	}
+
+	if err = app.plugins.RegisterAutomation(autService.Registry()); err != nil {
+		return
+	}
+
 	app.lvl = bootLevelServicesInitialized
 	return
 }
@@ -489,6 +477,12 @@ func (app *CortezaApp) Activate(ctx context.Context) (err error) {
 		return err
 	}
 
+	if err = applySmtpOptionsToSettings(ctx, app.Log, app.Opt.SMTP, sysService.CurrentSettings); err != nil {
+		return err
+	}
+
+	updateSmtpSettings(app.Log, sysService.CurrentSettings)
+
 	if app.AuthService, err = authService.New(ctx, app.Log, app.Store, app.Opt.Auth); err != nil {
 		return fmt.Errorf("failed to init auth service: %w", err)
 	}
@@ -517,7 +511,7 @@ func (app *CortezaApp) Activate(ctx context.Context) (err error) {
 		messagebus.Service().Listen(ctx)
 
 		// watch for queue changes and restart on update
-		messagebus.Service().Watch(ctx, app.Store)
+		messagebus.Service().Watch(ctx, service.DefaultQueue)
 	}
 
 	app.lvl = bootLevelActivated
@@ -637,4 +631,127 @@ func updateLocaleSettings(opt options.LocaleOpt) {
 
 		updateResourceLanguages(appSettings)
 	})
+}
+
+// takes current options (SMTP_* env variables) and copies their values to settings
+func applySmtpOptionsToSettings(ctx context.Context, log *zap.Logger, opt options.SMTPOpt, current *types.AppSettings) (err error) {
+	if len(opt.Host) == 0 {
+		// nothing to do here, SMTP_HOST not set
+		return
+	}
+
+	// Create SMTP server settings struct
+	// from the environmental variables (SMTP_*)
+	// we'll use it for provisioning empty SMTP settings
+	// and for comparison to issue a warning
+	optServer := &types.SmtpServers{
+		Host:          opt.Host,
+		Port:          opt.Port,
+		User:          opt.User,
+		Pass:          opt.Pass,
+		From:          opt.From,
+		TlsInsecure:   opt.TlsInsecure,
+		TlsServerName: opt.TlsServerName,
+	}
+
+	if len(current.SMTP.Servers) > 0 {
+		if current.SMTP.Servers[0] != *optServer {
+			// ENV variables changed OR settings changed.
+			// One way or the other, this can lead to unexpected situations
+			//
+			// Let's log a warning
+			log.Warn(
+				"Environmental variables (SMTP_*) and SMTP settings " +
+					"(most likely changed via admin console) are not the same. " +
+					"When server was restarted, values from environmental" +
+					"variables were copied to settings for easier management. " +
+					"To avoid confusion and potential issues, we suggest you to " +
+					"remove all SMTP_* variables")
+		}
+
+		return
+	}
+
+	// SMTP server settings do not exist but
+	// there is something in the options (SMTP_HOST)
+	ctx = auth.SetIdentityToContext(ctx, auth.ServiceUser())
+
+	// When settings for the SMTP servers are missing,
+	// we'll try to use one from the options (environmental vars)
+	s := &types.SettingValue{Name: "smtp.servers"}
+	err = s.SetValue([]*types.SmtpServers{optServer})
+
+	if err != nil {
+		return
+	}
+
+	if err = sysService.DefaultSettings.Set(ctx, s); err != nil {
+		return
+	}
+
+	if err = sysService.DefaultSettings.UpdateCurrent(ctx); err != nil {
+		return
+	}
+
+	return
+}
+
+func updateSmtpSettings(log *zap.Logger, current *types.AppSettings) {
+	sysService.DefaultSettings.Register("smtp", func(ctx context.Context, current interface{}, _ types.SettingValueSet) {
+		appSettings, is := current.(*types.AppSettings)
+		if !is {
+			return
+		}
+
+		setupSmtpDialer(log, appSettings.SMTP.Servers...)
+	})
+	setupSmtpDialer(log, current.SMTP.Servers...)
+}
+
+func setupSmtpDialer(log *zap.Logger, servers ...types.SmtpServers) {
+	if len(servers) == 0 {
+		log.Warn("no SMTP servers found, email sending will be disabled")
+		return
+	}
+
+	// Supporting only one server for now
+	s := servers[0]
+
+	if s.Host == "" {
+		log.Warn("SMTP server configured without host/server, email sending will be disabled")
+		return
+	}
+
+	log.Info("reloading SMTP configuration",
+		zap.String("host", s.Host),
+		zap.Int("port", s.Port),
+		zap.String("user", s.User),
+		logger.Mask("pass", s.Pass),
+		zap.Bool("tsl-insecure", s.TlsInsecure),
+		zap.String("tls-server-name", s.TlsServerName),
+	)
+
+	mail.SetupDialer(
+		s.Host,
+		s.Port,
+		s.User,
+		s.Pass,
+		s.From,
+
+		// Apply TLS configuration
+		func(d *gomail.Dialer) {
+			if d.TLSConfig == nil {
+				d.TLSConfig = &tls.Config{ServerName: d.Host}
+			}
+
+			if s.TlsInsecure {
+				d.TLSConfig.InsecureSkipVerify = true
+			}
+
+			if s.TlsServerName != "" {
+				d.TLSConfig.ServerName = s.TlsServerName
+			}
+		},
+	)
+
 }
