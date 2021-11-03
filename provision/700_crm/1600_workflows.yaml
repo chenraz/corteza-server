@@ -3519,6 +3519,422 @@ workflows:
                     points: null
                     style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
                     value: null
+    CRM-Quote-Pdf-SendToPriContact:
+      meta:
+        name: CRM - Quote - Send PDF To Pri Contact
+        description: Send this Quote as PDF via email to the primary contact
+      enabled: true
+      keepSessions: 0
+      triggers:
+        - resourceType: compose:record
+          eventType: onManual
+          constraints:
+            - name: module.handle
+              op: =
+              values:
+                - Quote
+            - name: namespace.handle
+              op: =
+              values:
+                - crm
+          enabled: true
+          stepID: 3
+          meta:
+            description: ""
+            visual:
+              edges:
+                - childID: "3"
+                  meta:
+                    description: ""
+                    label: ""
+                    visual:
+                      id: "53"
+                      parent: "1"
+                      points: []
+                      style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+                      value: null
+                  parentID: "2"
+              id: "2"
+              parent: "1"
+              value: On Manual Quote
+              xywh:
+                - 2040
+                - 2040
+                - 200
+                - 80
+      steps:
+        - id: 3
+          kind: gateway
+          ref: excl
+          arguments: []
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "3"
+              parent: "1"
+              value: Check recipient
+              xywh:
+                - 2320
+                - 2040
+                - 200
+                - 80
+        - id: 6
+          kind: function
+          ref: composeRecordsSearch
+          arguments:
+            - target: module
+              value: QuoteLineItem
+              type: Handle
+            - target: namespace
+              value: crm
+              type: Handle
+            - target: query
+              expr: '"QuoteId = " + record.recordID'
+              type: String
+          results:
+            - target: lineItems
+              expr: records
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "6"
+              parent: "1"
+              value: Get LineItems
+              xywh:
+                - 2680
+                - 2040
+                - 200
+                - 80
+        - id: 11
+          kind: function
+          ref: emailMessage
+          arguments:
+            - target: subject
+              expr: '"Corteza - Quote: " + record.values.QuoteNumber + " - " + record.values.Name'
+              type: String
+            - target: to
+              expr: record.values.Email
+              type: String
+            - target: html
+              value: Attached
+              type: String
+          results:
+            - target: msg
+              expr: message
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "11"
+              parent: "1"
+              value: Build Mail
+              xywh:
+                - 2040
+                - 2520
+                - 200
+                - 80
+        - id: 15
+          kind: prompt
+          ref: notification
+          arguments:
+            - target: title
+              value: אזהרה
+              type: String
+            - target: message
+              value: לא קושר אימייל להצעת המחיר. נא להזין פרטי איש קשר ראשי
+              type: String
+            - target: variant
+              value: אזהרה
+              type: String
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "15"
+              parent: "1"
+              value: 'אזהרה: לא קושר אימייל להצעת המחיר. נא להזין פרטי איש קשר ראשי.'
+              xywh:
+                - 2320
+                - 2200
+                - 200
+                - 80
+        - id: 16
+          kind: prompt
+          ref: notification
+          arguments:
+            - target: title
+              value: הצלחה
+              type: String
+            - target: message
+              value: הצעת המחיר נשלחה במייל
+              type: String
+            - target: variant
+              value: הצלחה
+              type: String
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "16"
+              parent: "1"
+              value: 'הצלחה: הצעת המחיר נשלחה במייל'
+              xywh:
+                - 2600
+                - 2680
+                - 200
+                - 80
+        - id: 19
+          kind: function
+          ref: templatesRender
+          arguments:
+            - target: lookup
+              value: quote
+              type: Handle
+            - target: documentName
+              value: quote.pdf
+              type: String
+            - target: documentType
+              value: application/pdf
+              type: String
+            - target: variables
+              expr: renderVariables
+              type: Vars
+            - target: options
+              expr: |-
+                {
+                    "documentSize": "A4",
+                    "contentScale": "1",
+                    "orientation": "portrait",
+                    "margin": "0.3"
+                  }
+              type: RenderOptions
+          results:
+            - target: QuotePdf
+              expr: document
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "19"
+              parent: "1"
+              value: Quote to PDF
+              xywh:
+                - 2320
+                - 2360
+                - 200
+                - 80
+        - id: 31
+          kind: expressions
+          ref: ""
+          arguments:
+            - target: renderVariables
+              type: Vars
+            - target: renderVariables.quote
+              expr: record
+              type: ComposeRecord
+            - target: renderVariables.lineItems
+              expr: lineItems
+              type: Array
+            - target: renderOptions
+              expr: |-
+                {
+                    "documentSize": "A4",
+                    "contentScale": "1",
+                    "orientation": "portrait",
+                    "margin": "0.3"
+                  }
+              type: Vars
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "31"
+              parent: "1"
+              value: Set Render Variables
+              xywh:
+                - 2040
+                - 2360
+                - 200
+                - 80
+        - id: 56
+          kind: function
+          ref: emailAttach
+          arguments:
+            - target: message
+              expr: msg
+              type: EmailMessage
+            - target: content
+              expr: PdfString
+              type: String
+            - target: name
+              value: quote.pdf
+              type: String
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "56"
+              parent: "1"
+              value: add attachment
+              xywh:
+                - 2320
+                - 2520
+                - 200
+                - 80
+        - id: 58
+          kind: function
+          ref: emailSendMessage
+          arguments:
+            - target: message
+              expr: msg
+              type: EmailMessage
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "58"
+              parent: "1"
+              value: send the email
+              xywh:
+                - 2600
+                - 2520
+                - 200
+                - 80
+        - id: 88
+          kind: expressions
+          ref: ""
+          arguments:
+            - target: PdfString
+              expr: QuotePdf
+              type: String
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "88"
+              parent: "1"
+              value: Translate document to string
+              xywh:
+                - 2600
+                - 2360
+                - 200
+                - 80
+      paths:
+        - expr: 'record.values.Email ? true : false'
+          parentid: 3
+          childid: 6
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "7"
+              parent: "1"
+              points: []
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+              value: '#1 - Yes'
+        - parentid: 3
+          childid: 15
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "8"
+              parent: "1"
+              points: []
+              style: exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
+              value: '#2 - No'
+        - parentid: 6
+          childid: 31
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "46"
+              parent: "1"
+              points:
+                - x: 2920
+                  "y": 2080
+                - x: 2920
+                  "y": 2320
+                - x: 2140
+                  "y": 2320
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
+              value: null
+        - parentid: 88
+          childid: 11
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "93"
+              parent: "1"
+              points: []
+              style: exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
+              value: null
+        - parentid: 31
+          childid: 19
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "94"
+              parent: "1"
+              points: null
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+              value: null
+        - parentid: 19
+          childid: 88
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "95"
+              parent: "1"
+              points: null
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+              value: null
+        - parentid: 11
+          childid: 56
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "96"
+              parent: "1"
+              points: null
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+              value: null
+        - parentid: 56
+          childid: 58
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "97"
+              parent: "1"
+              points: null
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+              value: null
+        - parentid: 58
+          childid: 16
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "98"
+              parent: "1"
+              points: null
+              style: exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
+              value: null
     CRM-Quote-InsertNumber:
         meta:
             name: CRM - Quote - Insert Number
@@ -4590,6 +5006,9 @@ workflows:
                 - target: lineItem.values.Description
                   expr: product.values.Description
                   type: String
+                - target: lineItem.values.Photo
+                  expr: product.values.Photo
+                  type: String                  
               results: []
               meta:
                 name: ""
@@ -4597,7 +5016,7 @@ workflows:
                 visual:
                   id: "91"
                   parent: "1"
-                  value: Set line item description
+                  value: SSet line item product details
                   xywh:
                     - 3240
                     - 2560
