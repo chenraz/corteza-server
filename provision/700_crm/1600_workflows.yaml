@@ -3619,7 +3619,7 @@ workflows:
               expr: record.values.Email
               type: String
             - target: html
-              value: Attached
+              expr: html.document
               type: String
           results:
             - target: msg
@@ -3632,7 +3632,7 @@ workflows:
               parent: "1"
               value: Build Mail
               xywh:
-                - 2040
+                - 2320
                 - 2520
                 - 200
                 - 80
@@ -3684,7 +3684,7 @@ workflows:
               parent: "1"
               value: 'הצלחה: הצעת המחיר נשלחה במייל'
               xywh:
-                - 2600
+                - 2880
                 - 2680
                 - 200
                 - 80
@@ -3693,7 +3693,7 @@ workflows:
           ref: templatesRender
           arguments:
             - target: lookup
-              value: quote
+              value: quote_pdf
               type: Handle
             - target: documentName
               value: quote.pdf
@@ -3784,7 +3784,7 @@ workflows:
               parent: "1"
               value: add attachment
               xywh:
-                - 2320
+                - 2600
                 - 2520
                 - 200
                 - 80
@@ -3804,7 +3804,7 @@ workflows:
               parent: "1"
               value: send the email
               xywh:
-                - 2600
+                - 2880
                 - 2520
                 - 200
                 - 80
@@ -3828,10 +3828,41 @@ workflows:
                 - 2360
                 - 200
                 - 80
+        - id: 99
+          kind: function
+          ref: templatesRender
+          arguments:
+            - target: lookup
+              value: quote_pdf_email
+              type: Handle
+            - target: documentName
+              value: body
+              type: String
+            - target: documentType
+              value: text/html
+              type: String
+            - target: variables
+              expr: renderVariables
+              type: Vars
+          results:
+            - target: html
+              expr: document
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "99"
+              parent: "1"
+              value: Mail Message
+              xywh:
+                - 2040
+                - 2520
+                - 200
+                - 80
       paths:
         - expr: 'record.values.Email ? true : false'
-          parentid: 3
-          childid: 6
+          parentID: 3
+          childID: 6
           meta:
             name: ""
             description: ""
@@ -3841,8 +3872,8 @@ workflows:
               points: []
               style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
               value: '#1 - Yes'
-        - parentid: 3
-          childid: 15
+        - parentID: 3
+          childID: 15
           meta:
             name: ""
             description: ""
@@ -3852,8 +3883,8 @@ workflows:
               points: []
               style: exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
               value: '#2 - No'
-        - parentid: 6
-          childid: 31
+        - parentID: 6
+          childID: 31
           meta:
             name: ""
             description: ""
@@ -3869,72 +3900,569 @@ workflows:
                   "y": 2320
               style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
               value: null
-        - parentid: 88
-          childid: 11
-          meta:
-            name: ""
-            description: ""
-            visual:
-              id: "93"
-              parent: "1"
-              points: []
-              style: exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
-              value: null
-        - parentid: 31
-          childid: 19
+        - parentID: 31
+          childID: 19
           meta:
             name: ""
             description: ""
             visual:
               id: "94"
               parent: "1"
-              points: null
+              points: []
               style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
               value: null
-        - parentid: 19
-          childid: 88
+        - parentID: 19
+          childID: 88
           meta:
             name: ""
             description: ""
             visual:
               id: "95"
               parent: "1"
-              points: null
+              points: []
               style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
               value: null
-        - parentid: 11
-          childid: 56
+        - parentID: 11
+          childID: 56
           meta:
             name: ""
             description: ""
             visual:
               id: "96"
               parent: "1"
-              points: null
+              points: []
               style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
               value: null
-        - parentid: 56
-          childid: 58
+        - parentID: 56
+          childID: 58
           meta:
             name: ""
             description: ""
             visual:
               id: "97"
               parent: "1"
-              points: null
+              points: []
               style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
               value: null
-        - parentid: 58
-          childid: 16
+        - parentID: 58
+          childID: 16
           meta:
             name: ""
             description: ""
             visual:
               id: "98"
               parent: "1"
+              points: []
+              style: exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
+              value: null
+        - parentID: 88
+          childID: 99
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "100"
+              parent: "1"
+              points: []
+              style: exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
+              value: null
+        - parentID: 99
+          childID: 11
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "101"
+              parent: "1"
+              points: []
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+              value: null
+    CRM-Quote-Pdf-SendToCustomEmail:
+      meta:
+        name: CRM - Quote - Send PDF To Custom Email
+        description: Sends quote PDF to custom address address
+      enabled: true
+      keepSessions: 0
+      triggers:
+        - resourceType: compose:record
+          eventType: onManual
+          constraints:
+            - name: namespace.handle
+              op: =
+              values:
+                - crm
+            - name: module.handle
+              op: =
+              values:
+                - Quote
+          enabled: true
+          stepID: 3
+          meta:
+            description: ""
+            visual:
+              edges:
+                - childID: "3"
+                  meta:
+                    description: ""
+                    label: ""
+                    visual:
+                      id: "4"
+                      parent: "1"
+                      points: []
+                      style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+                      value: null
+                  parentID: "2"
+              id: "2"
+              parent: "1"
+              value: On Manual Quote
+              xywh:
+                - 2040
+                - 2040
+                - 200
+                - 80
+      steps:
+        - id: 3
+          kind: prompt
+          ref: input
+          arguments:
+            - target: title
+              value: הזנת מייל מותאם
+              type: String
+            - target: message
+              value: 'נא להזין מייל אליו תישלח ההצעה:'
+              type: String
+            - target: label
+              expr: '"אימייל"'
+              type: String
+            - target: type
+              value: email
+              type: String
+          results:
+            - target: email
+              expr: value
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "3"
+              parent: "1"
+              value: Prompt for Email
+              xywh:
+                - 2320
+                - 2040
+                - 200
+                - 80
+        - id: 5
+          kind: gateway
+          ref: excl
+          arguments: []
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "5"
+              parent: "1"
+              value: Check if email entered
+              xywh:
+                - 2600
+                - 2040
+                - 200
+                - 80
+        - id: 8
+          kind: function
+          ref: composeRecordsSearch
+          arguments:
+            - target: module
+              value: QuoteLineItem
+              type: Handle
+            - target: namespace
+              value: crm
+              type: Handle
+            - target: query
+              expr: '"QuoteId = " + record.recordID'
+              type: String
+          results:
+            - target: lineItems
+              expr: records
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "8"
+              parent: "1"
+              value: Get LineItems
+              xywh:
+                - 2960
+                - 2040
+                - 200
+                - 80
+        - id: 19
+          kind: prompt
+          ref: notification
+          arguments:
+            - target: title
+              value: אזהרה
+              type: String
+            - target: message
+              value: Please enter an email to send this quote to
+              type: String
+            - target: variant
+              value: אזהרה
+              type: String
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "19"
+              parent: "1"
+              value: 'Warning: Please enter an email to send this quote to'
+              xywh:
+                - 2600
+                - 2200
+                - 200
+                - 80
+        - id: 20
+          kind: prompt
+          ref: notification
+          arguments:
+            - target: title
+              value: הצלחה
+              type: String
+            - target: message
+              value: הצעת המחיר נשלחה במייל
+              type: String
+            - target: variant
+              value: הצלחה
+              type: String
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "20"
+              parent: "1"
+              value: 'הצלחה: הצעת המחיר נשלחה במייל'
+              xywh:
+                - 2880
+                - 2680
+                - 200
+                - 80
+        - id: 33
+          kind: expressions
+          ref: ""
+          arguments:
+            - target: renderVariables
+              type: Vars
+            - target: renderVariables.quote
+              expr: record
+              type: ComposeRecord
+            - target: renderVariables.lineItems
+              expr: lineItems
+              type: Array
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "33"
+              parent: "1"
+              value: Set Render Variables
+              xywh:
+                - 3240
+                - 2040
+                - 200
+                - 80
+        - id: 38
+          kind: function
+          ref: templatesRender
+          arguments:
+            - target: lookup
+              value: quote_pdf
+              type: Handle
+            - target: documentName
+              value: quote.pdf
+              type: String
+            - target: documentType
+              value: application/pdf
+              type: String
+            - target: variables
+              expr: renderVariables
+              type: Vars
+            - target: options
+              expr: |-
+                {
+                    "documentSize": "A4",
+                    "contentScale": "1",
+                    "orientation": "portrait",
+                    "margin": "0.3"
+                  }
+              type: RenderOptions
+          results:
+            - target: QuotePdf
+              expr: document
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "38"
+              parent: "1"
+              value: Quote to PDF
+              xywh:
+                - 3240
+                - 2360
+                - 200
+                - 80
+        - id: 39
+          kind: expressions
+          ref: ""
+          arguments:
+            - target: PdfString
+              expr: QuotePdf
+              type: String
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "39"
+              parent: "1"
+              value: Translate document to string
+              xywh:
+                - 2040
+                - 2520
+                - 200
+                - 80
+        - id: 40
+          kind: function
+          ref: emailMessage
+          arguments:
+            - target: subject
+              expr: '"Corteza - Quote: " + record.values.QuoteNumber + " - " + record.values.Name'
+              type: String
+            - target: to
+              expr: record.values.Email
+              type: String
+            - target: html
+              expr: html.document
+              type: String
+          results:
+            - target: msg
+              expr: message
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "40"
+              parent: "1"
+              value: Build Mail
+              xywh:
+                - 2320
+                - 2520
+                - 200
+                - 80
+        - id: 41
+          kind: function
+          ref: emailAttach
+          arguments:
+            - target: message
+              expr: msg
+              type: EmailMessage
+            - target: content
+              expr: PdfString
+              type: String
+            - target: name
+              value: quote.pdf
+              type: String
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "41"
+              parent: "1"
+              value: add attachment
+              xywh:
+                - 2600
+                - 2520
+                - 200
+                - 80
+        - id: 42
+          kind: function
+          ref: emailSendMessage
+          arguments:
+            - target: message
+              expr: msg
+              type: EmailMessage
+          results: []
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "42"
+              parent: "1"
+              value: send the email
+              xywh:
+                - 2880
+                - 2520
+                - 200
+                - 80
+        - id: 49
+          kind: function
+          ref: templatesRender
+          arguments:
+            - target: lookup
+              value: quote_pdf_email
+              type: Handle
+            - target: documentName
+              value: body
+              type: String
+            - target: documentType
+              value: text/html
+              type: String
+            - target: variables
+              expr: renderVariables
+              type: Vars
+          results:
+            - target: html
+              expr: document
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "49"
+              parent: "1"
+              value: Mail Message
+              xywh:
+                - 3240
+                - 2200
+                - 200
+                - 80
+      paths:
+        - parentID: 3
+          childID: 5
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "6"
+              parent: "1"
+              points: []
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+              value: null
+        - expr: 'email ? true : false'
+          parentID: 5
+          childID: 8
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "9"
+              parent: "1"
+              points: []
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+              value: '#1 - If'
+        - parentID: 5
+          childID: 19
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "10"
+              parent: "1"
+              points: []
+              style: exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
+              value: '#2 - Else (if)'
+        - parentID: 8
+          childID: 33
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "37"
+              parent: "1"
+              points: []
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+              value: null
+        - parentID: 40
+          childID: 41
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "43"
+              parent: "1"
+              points: []
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+              value: null
+        - parentID: 41
+          childID: 42
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "44"
+              parent: "1"
+              points: []
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+              value: null
+        - parentID: 39
+          childID: 40
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "46"
+              parent: "1"
+              points: []
+              style: exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;
+              value: null
+        - parentID: 42
+          childID: 20
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "48"
+              parent: "1"
+              points: []
+              style: exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
+              value: null
+        - parentID: 33
+          childID: 49
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "50"
+              parent: "1"
               points: null
               style: exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
               value: null
+        - parentID: 49
+          childID: 38
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "51"
+              parent: "1"
+              points: null
+              style: exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
+              value: null
+        - parentID: 38
+          childID: 39
+          meta:
+            name: ""
+            description: ""
+            visual:
+              id: "52"
+              parent: "1"
+              points: null
+              style: exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;
+              value: null
+
     CRM-Quote-InsertNumber:
         meta:
             name: CRM - Quote - Insert Number

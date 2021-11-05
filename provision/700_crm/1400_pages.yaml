@@ -1659,7 +1659,12 @@ pages:
               label: שליחת הצעת המחיר ב-PDF לאיש קשר ראשי
               resourceType: compose:record
               workflow: CRM-Quote-Pdf-SendToPriContact
-              stepID: 3            
+              stepID: 3
+            - enabled: true
+              label: שליחת PDF לכתובת מייל כלשהי
+              resourceType: compose:record
+              workflow: CRM-Quote-Pdf-SendToCustomEmail
+              stepID: 3                
             - enabled: true
               label: שליחת הצעת המחיר במייל לאיש קשר ראשי
               resourceType: compose:record
