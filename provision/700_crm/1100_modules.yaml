@@ -8964,6 +8964,12 @@ modules:
         options:
           format: "0"
           precision: 2
+      DefaultQuoteImage:
+        label: תמונה להצעת מחיר
+        kind: File
+      EmailLogo:
+        label: לוגו לאימייל
+        kind: File
   Solution:
     (envoy): { onExisting: "skip" }
     name: Solution

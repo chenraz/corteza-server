@@ -3964,6 +3964,8 @@ pages:
                 fields:
                 - name: QuoteNextNumber
                 - name: QuoteExpirationDays
+                - name: DefaultQuoteImage
+                - name: EmailLogo
               style:
                 variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
               kind: Record
