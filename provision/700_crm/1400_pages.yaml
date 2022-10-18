@@ -1464,6 +1464,7 @@ pages:
             - name: QuoteNumber
             - name: Name
             - name: OpportunityId
+            - name: TermookIds
             - name: ExpirationDate
             - name: Status
             - name: Description
@@ -1510,7 +1511,7 @@ pages:
           style:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
-          xywh: [0, 20, 4, 9]
+          xywh: [0, 29, 4, 8]
         - title: הצעת מחיר עבור
           options:
             fields:
@@ -1523,7 +1524,7 @@ pages:
           style:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
-          xywh: [4, 20, 4, 9]
+          xywh: [4, 29, 4, 8]
         - title: משלוח עבור
           options:
             fields:
@@ -1536,7 +1537,7 @@ pages:
           style:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: Record
-          xywh: [8, 20, 4, 9]
+          xywh: [8, 29, 4, 8]
         - title: פריטי הצעת המחיר
           options:
             allowExport: true
@@ -1577,6 +1578,36 @@ pages:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
           xywh: [0, 12, 12, 8]
+        - title: תנאים
+          options:
+            allowExport: true
+            draggable: true
+            editFields:
+            - name: Name
+            - name: Description
+            editable: true
+            fields:
+            - name: Name
+            - name: Description
+            hidePaging: true
+            hideRecordCloneButton: true
+            hideRecordEditButton: true
+            hideRecordReminderButton: true
+            hideRecordViewButton: true
+            hideSorting: true
+            module: QuoteTermItem
+            perPage: 20
+            positionField: Order
+            prefilter: QuoteId = ${recordID}
+            presort: ""
+            refField: QuoteId
+            selectMode: multi
+            selectable: true
+            selectionButtons: []
+          style:
+            variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
+          kind: RecordList
+          xywh: [0, 20, 12, 9]
         - title: הערות 
           options:
             allowExport: true
@@ -1601,7 +1632,7 @@ pages:
           style:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
-          xywh: [0, 29, 4, 8]
+          xywh: [0, 46, 4, 8]
         - title: אירועים 
           options:
             allowExport: true
@@ -1626,7 +1657,7 @@ pages:
           style:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
-          xywh: [4, 29, 4, 8]
+          xywh: [4, 46, 4, 8]
         - title: משימות 
           options:
             allowExport: true
@@ -1652,7 +1683,7 @@ pages:
           style:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
           kind: RecordList
-          xywh: [8, 29, 4, 8]
+          xywh: [8, 46, 4, 8]
         - options:
             buttons:
             - enabled: true
@@ -1669,12 +1700,20 @@ pages:
               label: שליחת הצעת המחיר במייל לאיש קשר ראשי
               resourceType: compose:record
               workflow: CRM-Quote-SendToPriContact
+              variant: light
               stepID: 3
             - enabled: true
               label: שליחת ההצעה למייל כלשהו
               resourceType: compose:record
               workflow: CRM-Quote-SendToCustomEmail
+              variant: light
               stepID: 3
+            - enabled: true
+              label: ייבוא מספרי תנאים
+              resourceType: compose:record
+              workflow: CRM-Quote-ApplyTermBooks
+              variant: dark
+              stepID: 4        
             sealed: false
           style:
             variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}
@@ -1705,6 +1744,124 @@ pages:
               xywh: [0, 0, 4, 15]
             visible: false
         visible: false
+    visible: true
+  - handle: Terms
+    (envoy): { onExisting: "skip" }
+    title: תנאים
+    blocks:
+    - title: ספרי תנאים
+      options:
+        allowExport: true
+        draggable: false
+        editFields: []
+        editable: false
+        fields:
+        - name: Name
+        - name: Description
+        hideRecordCloneButton: true
+        hideRecordEditButton: false
+        hideRecordReminderButton: true
+        hideRecordViewButton: true
+        module: Termbook
+        perPage: 20
+        prefilter: ""
+        presort: Name ASC
+        selectMode: multi
+        selectable: true
+        selectionButtons: []
+      kind: RecordList
+      xywh: [0, 0, 12, 16]
+    pages:
+      - handle: Termbook
+        (envoy): { onExisting: "skip" }
+        title: ספר תנאים
+        blocks:
+        - title: ספר תנאים
+          options:
+            allowExport: true
+            draggable: false
+            editFields: []
+            editable: false
+            fields:
+            - name: Name
+            - name: Description
+            hideRecordCloneButton: true
+            hideRecordEditButton: false
+            hideRecordReminderButton: true
+            hideRecordViewButton: true
+            module: Termbook
+            perPage: 20
+            prefilter: ""
+            presort: Name ASC
+            selectMode: multi
+            selectable: true
+            selectionButtons: []
+          style:
+            variants: {border: primary, headerText: primary}
+          kind: RecordList
+          xywh: [0, 0, 12, 16]
+        pages:
+          - handle: RecordPageForModuleTermbook
+            (envoy): { onExisting: "skip" }
+            module: Termbook
+            title: עמוד רשומה במודול "ספר תנאים"
+            blocks:
+            - title: פרטי ספר תנאים
+              options:
+                fields:
+                - name: Name
+                - name: Description
+              kind: Record
+              xywh: [0, 0, 6, 14]
+            - title: תנאים בספר
+              options:
+                allowExport: true
+                draggable: true
+                editFields:
+                - name: Name
+                - name: Description
+                editable: true
+                fields:
+                - name: Name
+                - name: Description
+                hidePaging: true
+                hideRecordCloneButton: true
+                hideRecordEditButton: true
+                hideRecordReminderButton: true
+                hideRecordViewButton: true
+                hideSorting: true
+                module: TermbookEntry
+                perPage: 20
+                positionField: Order
+                prefilter: TermbookId = ${recordID}
+                presort: ""
+                refField: TermbookId
+                selectMode: multi
+                selectable: true
+                selectionButtons: []
+              style:
+                variants: {border: primary, headerText: primary}
+              kind: RecordList
+              xywh: [6, 0, 6, 14]
+            pages:
+              - handle: RecordPageForModuleTermbookEntry
+                (envoy): { onExisting: "skip" }
+                module: TermbookEntry
+                title: עמוד רשומה במודול "תנאים בספר תנאים"
+                blocks:
+                - title: תנאים
+                  options:
+                    fields:
+                    - name: TermbookId
+                    - name: Name
+                    - name: Description
+                  style:
+                    variants: {border: primary, headerText: primary}
+                  kind: Record
+                  xywh: [0, 0, 4, 15]
+                visible: false
+            visible: false
+        visible: true
     visible: true
   - handle: Contracts
     (envoy): { onExisting: "skip" }
@@ -2596,7 +2753,7 @@ pages:
             module: Pricebook
             title: עמוד רשומה במודול "ספר מחירים"
             blocks:
-            - title: נתוני ספר מחיר
+            - title: פרטי ספר מחיר
               options:
                 fields:
                 - name: Name
@@ -3965,6 +4122,7 @@ pages:
                 - name: QuoteNextNumber
                 - name: QuoteExpirationDays
                 - name: DefaultQuoteImage
+                - name: DefaultAboutImage
                 - name: EmailLogo
               style:
                 variants: {bodyBg: white, border: primary, headerBg: white, headerText: primary}

@@ -6411,7 +6411,7 @@ modules:
         kind: String
         options:
           multiLine: true
-          useRichTextEditor: true
+          useRichTextEditor: false
       Family:
         label: משפחת מוצר
         kind: Select
@@ -7552,6 +7552,8 @@ modules:
       ExpirationDate:
         label: תאריך תפוגה
         kind: DateTime
+        options:
+          format: "DD/MM/YYYY"
       Fax:
         label: פקס
         kind: String
@@ -8666,6 +8668,16 @@ modules:
           validators:
             - test: "value < 0"
               error: Tax can not be a negative number
+      TermookIds:
+        label: ספרי תנאים
+        kind: Record
+        options:
+          labelField: Name
+          module: Termbook
+          queryFields:
+          - Name
+          selectType: ""
+        multi: true
       TotalPrice:
         label: סה"כ מחיר
         kind: Number
@@ -8786,6 +8798,34 @@ modules:
         kind: String
         options:
           multiLine: true
+  QuoteTermItem:
+    (envoy): { onExisting: "skip" }
+    name: QuoteTermItem
+    fields:
+      QuoteId:
+        label: הצעת מחיר
+        kind: Record
+        options:
+          labelField: Name
+          module: Quote
+          queryFields:
+          - Name
+          selectType: ""
+      Description:
+        label: תאור התנאי
+        kind: String
+        options:
+          multiLine: true
+        multi: true
+      Name:
+        label: שם תנאי
+        kind: String
+      Order:
+        label: Order
+        kind: Number
+        options:
+          multiLine: false
+          useRichTextEditor: false
   Reply:
     (envoy): { onExisting: "skip" }
     name: Reply
@@ -8966,6 +9006,9 @@ modules:
           precision: 2
       DefaultQuoteImage:
         label: תמונה להצעת מחיר
+        kind: File
+      DefaultAboutImage:
+        label: תמנה למקטע אודות
         kind: File
       EmailLogo:
         label: לוגו לאימייל
@@ -9218,6 +9261,46 @@ modules:
           - CaseNumber
           - Subject
           selectType: default
+  Termbook:
+    (envoy): { onExisting: "skip" }
+    name: Termbook
+    fields:
+      Description:
+        label: תאור
+        kind: String
+        options:
+          multiLine: true
+      Name:
+        label: שם ספר תנאים
+        kind: String
+  TermbookEntry:
+    (envoy): { onExisting: "skip" }
+    name: TermbookEntry
+    fields:
+      TermbookId:
+        label: ספר תנאים
+        kind: Record
+        options:
+          labelField: Name
+          module: Termbook
+          queryFields:
+          - Name
+          selectType: ""
+      Description:
+        label: תאור התנאי
+        kind: String
+        options:
+          multiLine: true
+        multi: true
+      Name:
+        label: שם תנאי
+        kind: String
+      Order:
+        label: Order
+        kind: Number
+        options:
+          multiLine: false
+          useRichTextEditor: false
   Vote:
     (envoy): { onExisting: "skip" }
     name: Vote
