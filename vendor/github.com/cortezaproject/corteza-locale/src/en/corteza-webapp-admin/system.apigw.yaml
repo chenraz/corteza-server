@@ -1,4 +1,5 @@
 list:
+  export: Export
   title: 'Integration Gateway'
   new: 'New'
   permissions: 'Permissions'
@@ -27,6 +28,8 @@ list:
 
     deleted:
       label: 'Deleted routes'
+    handle:
+      placeholder: 'Filter endpoints by path'
 
 
   columns:
@@ -34,6 +37,10 @@ list:
     createdAt: 'Created'
     enabled: 'Enabled'
     actions: ''
+    state: State
+  rows:
+    filters:
+      deleted: Deleted
 
 editor:
   title: 'Edit route'

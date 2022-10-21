@@ -3,10 +3,11 @@ package actionlog
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"github.com/cortezaproject/corteza-server/pkg/sql"
 	"strconv"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/cortezaproject/corteza-server/pkg/filter"
 )
 
 type (
@@ -67,6 +68,9 @@ type (
 		Resource string   `json:"resource"`
 		Action   string   `json:"action"`
 		Limit    uint     `json:"limit"`
+
+		// Standard helpers for sorting
+		filter.Sorting
 	}
 
 	loggableMetaValue interface {
@@ -87,6 +91,8 @@ const (
 	Notice
 	Info
 	Debug
+
+	ActionResourceType = "corteza::generic:action"
 )
 
 func (a *Action) ToAction() *Action { return a }
@@ -232,21 +238,5 @@ func NewSeverity(s string) Severity {
 	return Debug
 }
 
-func (m *Meta) Scan(value interface{}) error {
-	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
-	switch value.(type) {
-	case nil:
-		*m = Meta{}
-	case []uint8:
-		aux := value.([]byte)
-		if err := json.Unmarshal(aux, m); err != nil {
-			return errors.Wrapf(err, "cannot scan '%v' into Meta", string(aux))
-		}
-	}
-
-	return nil
-}
-
-func (m Meta) Value() (driver.Value, error) {
-	return json.Marshal(m)
-}
+func (m *Meta) Scan(src any) error          { return sql.ParseJSON(src, m) }
+func (m Meta) Value() (driver.Value, error) { return json.Marshal(m) }

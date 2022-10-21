@@ -95,8 +95,9 @@ chart:
     chartId: Chart preview (ID {{0}})
   searchPlaceholder: Type here to search all charts in this namespace
 content:
-  label: Content
   ok: Ok
+  label: Content
+  openLinkInNewTab: Open link in a new tab
   urlPlaceholder: https://example.tld
 file:
   label: File
@@ -107,6 +108,7 @@ general:
   descriptionLabel: Description
   descriptionPlaceholder: Block description
   headerStyle: Block header style (color)
+  wrap: Display block as a card
   label:
     add: Add
     back: Back
@@ -133,6 +135,7 @@ general:
   titlePlaceholder: Block title
   tooltip:
     dragAndDrop: Drag and drop to change order
+    translations: Field translations
 iframe:
   label: IFrame
   pickURLField: Pick an URL field
@@ -160,7 +163,6 @@ metric:
     modulePlaceholder: Pick a module
     numberFormat: Number format
     operationAvg: Avg
-    operationCountd: Count
     operationLabel: Aggregation operation
     operationMax: Max
     operationMin: Min
@@ -180,9 +182,6 @@ metric:
     labelLabel: Label style
     valueLabel: Value style
   label: Metric
-notification:
-  record:
-    loadFailed: Could not load record
 record:
   confirmDelete: Are you sure you want to delete this record?
   deleteFailed: Could not delete record
@@ -194,7 +193,7 @@ record:
   moduleOrPageNotSet: 'RecordList block error: module or page option not set'
   moduleMismatch: Module incompatible, module mismatch
   preview:
-    blockNoRecord: Can not render this block without a record
+    blockNoRecord: Cannot render this block without a record
     fieldsFromModule: Single record block, displaying fields ({{0}}) from module {{1}}
     untitled: Untitled
   recordDeleted: This record was deleted
@@ -232,6 +231,7 @@ recordList:
     selection: Selected records
     specifyTimezone: Export to timezone
     timezonePlaceholder: Select timezone
+    datePresetUndefined: Unknown date preset
   federated: Federated
   fields: Module fields
   filter:
@@ -330,6 +330,7 @@ recordList:
     draggable: Can drag & drop records to order them
     fullPageNavigation: Full page navigation
     hideAddButton: Hide add record button
+    hideImportButton: Hide import record button
     hidePaging: Hide paging
     inlineEditor: Inline editor
     inlineEditorAllow: Allow inline record editing
@@ -342,16 +343,27 @@ recordList:
     prefilterLabel: Prefilter records
     prefilterPlaceholder: field1 = 1 AND field2 = 232
     presortFootnote: Simplified SQL condition (ORDER BY ...) syntax is supported.
+    presortToggleInput: Toggle input type
     presortHideSort: Hide sorting
     presortLabel: Presort records
     presortPlaceholder: field1 DESC, field2 ASC
     showTotalCount: Show total record count
+    openInNewTab: Open records in a new tab
+    linkToParent: Link to parent record
+    tooltip:
+      clone: Clone record
+      edit: Edit record
+      undelete: Undelete record
+      reminder: Reminder
+      view: View record
   recordPage: record page
   refField:
     footnote: Field that links records with the parent record
     label: Parent field
   selectable: Enable record selection
   selected: '{{count}} of {{total}} records selected'
+  sort:
+    tooltip: Sort column
 recordOrganizer:
   descriptionField:
     footnote: Field value will be used as record description
@@ -374,6 +386,54 @@ recordOrganizer:
   preview:
     label: 'Record Organizer block for module {{0}}. Label field {{1}}, Description field {{2}}. Value setting field: {{3}}, Sorted by position field: {{4}}.'
     moduleNotSelected: Record Organizer module not selected.
+  addNewRecord: + Add new record
+
+recordRevisions:
+  label: Record revisions
+
+  viewer:
+    errors:
+      no-record: No record found to display revisions for.
+      disabled-on-module: Record revisions are disabled on this module.
+
+    show-revisions: Show record revisions ({{ revision }})
+    show-changes: "{{ count }} change(s)"
+    revisions:
+      columns:
+        timestamp:
+          label: Timestamp
+        operation:
+          label: Operation
+        user:
+          label: User
+    changes:
+      columns:
+        field:
+          label: Field
+        old-value:
+          label: Old value
+        new-value:
+          label: New value
+
+  configurator:
+    label: Record revisions
+    preload: Preload record revisions
+    errors:
+      invalid-module-id: Field does not contain a valid module ID.
+    fields:
+      label: Configure fields to display in record revisions changes
+      show-all:
+        label: Show changes for all fields
+      columns:
+        label:
+          label: Label
+        kind:
+          label: Type
+        displayed-fields:
+          label: Show
+        expanded-references:
+          label: Expand references
+
 socialFeed:
   label: Twitter feed
   noInput: No input for displaying social feed...
@@ -408,3 +468,51 @@ comment:
     footnote: 'Field value will be used as reference'
 navigation:
   chart: Charts
+report:
+  label: Report
+  scenario:
+    label: Scenario
+  element:
+    label: Display element
+    description: Display elements are grouped by their respective block
+
+progress:
+  add: + Add
+  aggregate:
+    label: Aggregation operation
+    select: Select aggregation operation
+  animated: Animated
+  default-variant: Default variant
+  display-options: Display options
+  fetch-failed: Failed to fetch progress bar report
+  field:
+    label: Field
+    select: Select field
+  label: Progress bar
+  module:
+    select: Select module
+    label: Module
+  preview: Live example
+  show:
+    value: Show value
+    relative: Show relative
+    progress: Show progress
+  tab:
+    label: Progress
+  thresholds: Thresholds
+  threshold:
+    label: Threshold
+    variant: Set which variant to show if value is equal or larger than the threshold
+  value:
+    label: Value
+    max: Maximum value
+  variant:
+    default: Dark
+    danger: Danger
+    dark: Dark
+    info: Info
+    light: Light
+    primary: Primary
+    secondary: Secondary
+    success: Success
+    warning: Warning

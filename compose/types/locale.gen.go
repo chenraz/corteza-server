@@ -23,6 +23,7 @@ type (
 
 // Types and stuff
 const (
+	ChartResourceTranslationType       = "compose:chart"
 	ModuleResourceTranslationType      = "compose:module"
 	ModuleFieldResourceTranslationType = "compose:module-field"
 	NamespaceResourceTranslationType   = "compose:namespace"
@@ -31,6 +32,9 @@ const (
 
 var (
 	// @todo can we remove LocaleKey struct for string constant?
+	LocaleKeyChartYAxisLabel                                = LocaleKey{Path: "yAxis.label"}
+	LocaleKeyChartMetricsMetricIDLabel                      = LocaleKey{Path: "metrics.{{metricID}}.label"}
+	LocaleKeyChartDimensionsDimensionIDMetaStepsStepIDLabel = LocaleKey{Path: "dimensions.{{dimensionID}}.meta.steps.{{stepID}}.label"}
 	LocaleKeyModuleName                                     = LocaleKey{Path: "name"}
 	LocaleKeyModuleFieldLabel                               = LocaleKey{Path: "label"}
 	LocaleKeyModuleFieldMetaDescriptionView                 = LocaleKey{Path: "meta.description.view"}
@@ -45,11 +49,58 @@ var (
 	LocaleKeyNamespaceMetaDescription                       = LocaleKey{Path: "meta.description"}
 	LocaleKeyPageTitle                                      = LocaleKey{Path: "title"}
 	LocaleKeyPageDescription                                = LocaleKey{Path: "description"}
+	LocaleKeyPageRecordToolbarNewLabel                      = LocaleKey{Path: "recordToolbar.new.label"}
+	LocaleKeyPageRecordToolbarEditLabel                     = LocaleKey{Path: "recordToolbar.edit.label"}
+	LocaleKeyPageRecordToolbarSubmitLabel                   = LocaleKey{Path: "recordToolbar.submit.label"}
+	LocaleKeyPageRecordToolbarDeleteLabel                   = LocaleKey{Path: "recordToolbar.delete.label"}
+	LocaleKeyPageRecordToolbarCloneLabel                    = LocaleKey{Path: "recordToolbar.clone.label"}
+	LocaleKeyPageRecordToolbarBackLabel                     = LocaleKey{Path: "recordToolbar.back.label"}
 	LocaleKeyPagePageBlockBlockIDTitle                      = LocaleKey{Path: "pageBlock.{{blockID}}.title"}
 	LocaleKeyPagePageBlockBlockIDDescription                = LocaleKey{Path: "pageBlock.{{blockID}}.description"}
 	LocaleKeyPagePageBlockBlockIDButtonButtonIDLabel        = LocaleKey{Path: "pageBlock.{{blockID}}.button.{{buttonID}}.label"}
 	LocaleKeyPagePageBlockBlockIDContentBody                = LocaleKey{Path: "pageBlock.{{blockID}}.content.body"}
 )
+
+// ResourceTranslation returns string representation of Locale resource for Chart by calling ChartResourceTranslation fn
+//
+// Locale resource is in "compose:chart/..." format
+//
+// This function is auto-generated
+func (r Chart) ResourceTranslation() string {
+	return ChartResourceTranslation(r.NamespaceID, r.ID)
+}
+
+// ChartResourceTranslation returns string representation of Locale resource for Chart
+//
+// Locale resource is in the compose:chart/... format
+//
+// This function is auto-generated
+func ChartResourceTranslation(NamespaceID uint64, ID uint64) string {
+	cpts := []interface{}{
+		ChartResourceTranslationType,
+		strconv.FormatUint(NamespaceID, 10),
+		strconv.FormatUint(ID, 10),
+	}
+
+	return fmt.Sprintf(ChartResourceTranslationTpl(), cpts...)
+}
+
+func ChartResourceTranslationTpl() string {
+	return "%s/%s/%s"
+}
+
+func (r *Chart) DecodeTranslations(tt locale.ResourceTranslationIndex) {
+
+	r.decodeTranslations(tt)
+}
+
+func (r *Chart) EncodeTranslations() (out locale.ResourceTranslationSet) {
+	out = locale.ResourceTranslationSet{}
+
+	out = append(out, r.encodeTranslations()...)
+
+	return out
+}
 
 // ResourceTranslation returns string representation of Locale resource for Module by calling ModuleResourceTranslation fn
 //

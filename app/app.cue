@@ -10,7 +10,7 @@ import (
 )
 
 corteza: schema.#platform & {
-	handle: "corteza"
+	"ident": "corteza"
 
 	"options": [
 		options.DB,
@@ -32,7 +32,6 @@ corteza: schema.#platform & {
 		options.messagebus,
 		options.monitor,
 		options.objectStore,
-		options.plugins,
 		options.provision,
 		options.seeder,
 		options.sentry,
@@ -44,7 +43,10 @@ corteza: schema.#platform & {
 		options.discovery,
 	]
 
-	components: [
+	// platform resources
+	"resources": resources
+
+	"components": [
 		system.component,
 		compose.component,
 		automation.component,

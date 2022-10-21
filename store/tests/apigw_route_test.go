@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func testApigwRoute(t *testing.T, s store.ApigwRoutes) {
+func testApigwRoutes(t *testing.T, s store.ApigwRoutes) {
 	var (
 		ctx = context.Background()
 		new = &types.ApigwRoute{
@@ -72,7 +72,7 @@ func testApigwRoute(t *testing.T, s store.ApigwRoutes) {
 			new,
 		))
 
-		set, _, err := s.SearchApigwRoutes(ctx, types.ApigwRouteFilter{})
+		set, _, err := s.SearchApigwRoutes(ctx, types.ApigwRouteFilter{Endpoint: "/foo"})
 		req.NoError(err)
 		req.Len(set, 1)
 	})

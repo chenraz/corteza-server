@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/cortezaproject/corteza-server/pkg/errors"
 
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
 	"github.com/cortezaproject/corteza-server/pkg/eventbus"
@@ -44,7 +45,7 @@ func (svc *queue) CreateQueueEvent(q string, p []byte) eventbus.Event {
 }
 
 func (svc *queue) ProcessQueueMessage(ctx context.Context, ID uint64, m mt.QueueMessage) error {
-	svc.store.UpdateQueueMessage(ctx, &types.QueueMessage{
+	store.UpdateQueueMessage(ctx, svc.store, &types.QueueMessage{
 		ID:        ID,
 		Processed: now(),
 		Queue:     m.Queue,
@@ -55,7 +56,7 @@ func (svc *queue) ProcessQueueMessage(ctx context.Context, ID uint64, m mt.Queue
 }
 
 func (svc *queue) CreateQueueMessage(ctx context.Context, m mt.QueueMessage) error {
-	svc.store.CreateQueueMessage(ctx, &types.QueueMessage{
+	store.CreateQueueMessage(ctx, svc.store, &types.QueueMessage{
 		ID:      nextID(),
 		Created: now(),
 		Queue:   m.Queue,
@@ -66,7 +67,7 @@ func (svc *queue) CreateQueueMessage(ctx context.Context, m mt.QueueMessage) err
 }
 
 func (svc *queue) SearchQueues(ctx context.Context, ff mt.QueueFilter) (l []mt.QueueDb, f mt.QueueFilter, err error) {
-	list, _, err := svc.store.SearchQueues(ctx, *(makeFilter(&ff)))
+	list, _, err := store.SearchQueues(ctx, svc.store, *(makeFilter(&ff)))
 
 	if err != nil {
 		return
@@ -87,11 +88,10 @@ func (svc *queue) SearchQueues(ctx context.Context, ff mt.QueueFilter) (l []mt.Q
 
 func makeFilter(ff *mt.QueueFilter) (f *types.QueueFilter) {
 	return &types.QueueFilter{
-		Queue:    ff.Queue,
-		Consumer: ff.Consumer,
-		Deleted:  ff.Deleted,
-		Sorting:  ff.Sorting,
-		Paging:   ff.Paging,
+		Query:   ff.Query,
+		Deleted: ff.Deleted,
+		Sorting: ff.Sorting,
+		Paging:  ff.Paging,
 	}
 }
 
@@ -101,11 +101,7 @@ func (svc *queue) FindByID(ctx context.Context, ID uint64) (q *types.Queue, err 
 	)
 
 	err = func() error {
-		if ID == 0 {
-			return QueueErrInvalidID()
-		}
-
-		if q, err = store.LookupQueueByID(ctx, svc.store, ID); err != nil {
+		if q, err = loadQueue(ctx, svc.store, ID); err != nil {
 			return TemplateErrInvalidID().Wrap(err)
 		}
 
@@ -204,11 +200,7 @@ func (svc *queue) DeleteByID(ctx context.Context, ID uint64) (err error) {
 	)
 
 	err = func() (err error) {
-		if ID == 0 {
-			return QueueErrInvalidID()
-		}
-
-		if q, err = store.LookupQueueByID(ctx, svc.store, ID); err != nil {
+		if q, err = loadQueue(ctx, svc.store, ID); err != nil {
 			return
 		}
 
@@ -239,11 +231,7 @@ func (svc *queue) UndeleteByID(ctx context.Context, ID uint64) (err error) {
 	)
 
 	err = func() (err error) {
-		if ID == 0 {
-			return QueueErrInvalidID()
-		}
-
-		if q, err = store.LookupQueueByID(ctx, svc.store, ID); err != nil {
+		if q, err = loadQueue(ctx, svc.store, ID); err != nil {
 			return
 		}
 
@@ -294,6 +282,18 @@ func (svc *queue) Search(ctx context.Context, filter types.QueueFilter) (q types
 	}()
 
 	return q, f, svc.recordAction(ctx, aProps, QueueActionSearch, err)
+}
+
+func loadQueue(ctx context.Context, s store.Queues, ID uint64) (res *types.Queue, err error) {
+	if ID == 0 {
+		return nil, QueueErrInvalidID()
+	}
+
+	if res, err = store.LookupQueueByID(ctx, s, ID); errors.IsNotFound(err) {
+		return nil, QueueErrNotFound()
+	}
+
+	return
 }
 
 func (svc *queue) isValidHandler(h mt.ConsumerType) bool {

@@ -23,10 +23,11 @@ type (
 
 		Fields []*moduleFieldPayload `json:"fields"`
 
-		CanGrant        bool `json:"canGrant"`
-		CanUpdateModule bool `json:"canUpdateModule"`
-		CanDeleteModule bool `json:"canDeleteModule"`
-		CanCreateRecord bool `json:"canCreateRecord"`
+		CanGrant             bool `json:"canGrant"`
+		CanUpdateModule      bool `json:"canUpdateModule"`
+		CanDeleteModule      bool `json:"canDeleteModule"`
+		CanCreateRecord      bool `json:"canCreateRecord"`
+		CanCreateOwnedRecord bool `json:"canCreateOwnedRecord"`
 	}
 
 	moduleFieldPayload struct {
@@ -49,6 +50,7 @@ type (
 		CanUpdateModule(context.Context, *types.Module) bool
 		CanDeleteModule(context.Context, *types.Module) bool
 		CanCreateRecordOnModule(context.Context, *types.Module) bool
+		CanCreateOwnedRecordOnModule(context.Context, *types.Module) bool
 		CanReadRecord(context.Context, *types.Record) bool
 
 		CanReadRecordValueOnModuleField(context.Context, *types.ModuleField) bool
@@ -81,6 +83,8 @@ func (ctrl *Module) List(ctx context.Context, r *request.ModuleList) (interface{
 		return nil, err
 	}
 
+	f.IncTotal = r.IncTotal
+
 	if f.Sorting, err = filter.NewSorting(r.Sort); err != nil {
 		return nil, err
 	}
@@ -107,6 +111,7 @@ func (ctrl *Module) Create(ctx context.Context, r *request.ModuleCreate) (interf
 		err error
 		mod = &types.Module{
 			NamespaceID: r.NamespaceID,
+			Config:      r.Config,
 			Name:        r.Name,
 			Handle:      r.Handle,
 			Fields:      r.Fields,
@@ -125,6 +130,7 @@ func (ctrl *Module) Update(ctx context.Context, r *request.ModuleUpdate) (interf
 		mod = &types.Module{
 			ID:          r.ModuleID,
 			NamespaceID: r.NamespaceID,
+			Config:      r.Config,
 			Name:        r.Name,
 			Handle:      r.Handle,
 			Fields:      r.Fields,
@@ -185,7 +191,9 @@ func (ctrl Module) makePayload(ctx context.Context, m *types.Module, err error) 
 
 		CanUpdateModule: ctrl.ac.CanUpdateModule(ctx, m),
 		CanDeleteModule: ctrl.ac.CanDeleteModule(ctx, m),
-		CanCreateRecord: ctrl.ac.CanCreateRecordOnModule(ctx, m),
+
+		CanCreateRecord:      ctrl.ac.CanCreateRecordOnModule(ctx, m),
+		CanCreateOwnedRecord: ctrl.ac.CanCreateOwnedRecordOnModule(ctx, m),
 	}, nil
 }
 

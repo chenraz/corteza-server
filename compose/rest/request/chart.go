@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cortezaproject/corteza-server/pkg/label"
+	"github.com/cortezaproject/corteza-server/pkg/locale"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
 	"github.com/go-chi/chi/v5"
 	sqlxTypes "github.com/jmoiron/sqlx/types"
@@ -61,6 +62,11 @@ type (
 		//
 		// Limit
 		Limit uint
+
+		// IncTotal GET parameter
+		//
+		// Include total counter
+		IncTotal bool
 
 		// PageCursor GET parameter
 		//
@@ -160,6 +166,35 @@ type (
 		// Chart ID
 		ChartID uint64 `json:",string"`
 	}
+
+	ChartListTranslations struct {
+		// NamespaceID PATH parameter
+		//
+		// Namespace ID
+		NamespaceID uint64 `json:",string"`
+
+		// ChartID PATH parameter
+		//
+		// ID
+		ChartID uint64 `json:",string"`
+	}
+
+	ChartUpdateTranslations struct {
+		// NamespaceID PATH parameter
+		//
+		// Namespace ID
+		NamespaceID uint64 `json:",string"`
+
+		// ChartID PATH parameter
+		//
+		// ID
+		ChartID uint64 `json:",string"`
+
+		// Translations POST parameter
+		//
+		// Resource translation to upsert
+		Translations locale.ResourceTranslationSet
+	}
 )
 
 // NewChartList request
@@ -175,6 +210,7 @@ func (r ChartList) Auditable() map[string]interface{} {
 		"handle":      r.Handle,
 		"labels":      r.Labels,
 		"limit":       r.Limit,
+		"incTotal":    r.IncTotal,
 		"pageCursor":  r.PageCursor,
 		"sort":        r.Sort,
 	}
@@ -203,6 +239,11 @@ func (r ChartList) GetLabels() map[string]string {
 // Auditable returns all auditable/loggable parameters
 func (r ChartList) GetLimit() uint {
 	return r.Limit
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r ChartList) GetIncTotal() bool {
+	return r.IncTotal
 }
 
 // Auditable returns all auditable/loggable parameters
@@ -247,6 +288,12 @@ func (r *ChartList) Fill(req *http.Request) (err error) {
 		}
 		if val, ok := tmp["limit"]; ok && len(val) > 0 {
 			r.Limit, err = payload.ParseUint(val[0]), nil
+			if err != nil {
+				return err
+			}
+		}
+		if val, ok := tmp["incTotal"]; ok && len(val) > 0 {
+			r.IncTotal, err = payload.ParseBool(val[0]), nil
 			if err != nil {
 				return err
 			}
@@ -690,6 +737,142 @@ func (r ChartDelete) GetChartID() uint64 {
 
 // Fill processes request and fills internal variables
 func (r *ChartDelete) Fill(req *http.Request) (err error) {
+
+	{
+		var val string
+		// path params
+
+		val = chi.URLParam(req, "namespaceID")
+		r.NamespaceID, err = payload.ParseUint64(val), nil
+		if err != nil {
+			return err
+		}
+
+		val = chi.URLParam(req, "chartID")
+		r.ChartID, err = payload.ParseUint64(val), nil
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return err
+}
+
+// NewChartListTranslations request
+func NewChartListTranslations() *ChartListTranslations {
+	return &ChartListTranslations{}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r ChartListTranslations) Auditable() map[string]interface{} {
+	return map[string]interface{}{
+		"namespaceID": r.NamespaceID,
+		"chartID":     r.ChartID,
+	}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r ChartListTranslations) GetNamespaceID() uint64 {
+	return r.NamespaceID
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r ChartListTranslations) GetChartID() uint64 {
+	return r.ChartID
+}
+
+// Fill processes request and fills internal variables
+func (r *ChartListTranslations) Fill(req *http.Request) (err error) {
+
+	{
+		var val string
+		// path params
+
+		val = chi.URLParam(req, "namespaceID")
+		r.NamespaceID, err = payload.ParseUint64(val), nil
+		if err != nil {
+			return err
+		}
+
+		val = chi.URLParam(req, "chartID")
+		r.ChartID, err = payload.ParseUint64(val), nil
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return err
+}
+
+// NewChartUpdateTranslations request
+func NewChartUpdateTranslations() *ChartUpdateTranslations {
+	return &ChartUpdateTranslations{}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r ChartUpdateTranslations) Auditable() map[string]interface{} {
+	return map[string]interface{}{
+		"namespaceID":  r.NamespaceID,
+		"chartID":      r.ChartID,
+		"translations": r.Translations,
+	}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r ChartUpdateTranslations) GetNamespaceID() uint64 {
+	return r.NamespaceID
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r ChartUpdateTranslations) GetChartID() uint64 {
+	return r.ChartID
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r ChartUpdateTranslations) GetTranslations() locale.ResourceTranslationSet {
+	return r.Translations
+}
+
+// Fill processes request and fills internal variables
+func (r *ChartUpdateTranslations) Fill(req *http.Request) (err error) {
+
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
+		err = json.NewDecoder(req.Body).Decode(r)
+
+		switch {
+		case err == io.EOF:
+			err = nil
+		case err != nil:
+			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+		}
+	}
+
+	{
+		if err = req.ParseForm(); err != nil {
+			return err
+		}
+
+		// POST params
+
+		//if val, ok := req.Form["translations[]"]; ok && len(val) > 0  {
+		//    r.Translations, err = locale.ResourceTranslationSet(val), nil
+		//    if err != nil {
+		//        return err
+		//    }
+		//}
+	}
 
 	{
 		var val string

@@ -53,7 +53,7 @@ DEV_MAILHOG_SMTP_ADDR ?= 1025
 DEV_MAILHOG_HTTP_ADDR ?= 8025
 
 GIN_ARG_LADDR ?= localhost
-GIN_ARGS      ?= --laddr $(GIN_ARG_LADDR) --build cmd/corteza --immediate
+GIN_ARGS      ?= --laddr $(GIN_ARG_LADDR) --build cmd/corteza --immediate --bin build/gin-bin
 
 GIN_CORTEZA_ENV_FILE ?= .env
 GIN_CORTEZA_BIN_ARGS ?= --env-file $(GIN_CORTEZA_ENV_FILE)
@@ -164,13 +164,13 @@ webapp:
 	@ $(MAKE) --directory=webapp
 
 locale.update:
-	$(GO) get github.com/cortezaproject/corteza-locale@2022.3.x
+	$(GO) get github.com/cortezaproject/corteza-locale@2022.9.x
 	$(GO) mod vendor
 	git add --all vendor/github.com/cortezaproject
 	git commit -m 'Update corteza-locale dep' vendor/github.com/cortezaproject vendor/modules.txt go.mod go.sum
 
 
-outdated: $(MODOUTDATED)
+vendors.check: $(MODOUTDATED)
 	$(GO) list -mod=mod -u -m -json all | $(MODOUTDATED) -update -direct
 
 #######################################################################################################################
@@ -196,10 +196,6 @@ test.integration.%: $(GOTEST)
 # Runs store tests
 test.store: $(GOTEST)
 	$(GOTEST) $(TEST_FLAGS) $(TEST_SUITE_store)
-
-# Runs one suite from store tests
-test.store.%: $(GOTEST)
-	$(GOTEST) $(TEST_FLAGS) ./store/tests/$*/...
 
 # Runs ALL tests
 test.all: $(GOTEST)

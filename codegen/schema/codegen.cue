@@ -1,6 +1,6 @@
 package schema
 
-#codegen: {
+#_ioSpec: {
 	template: string
 	output:   string
 
@@ -8,6 +8,12 @@ package schema
 	if output =~ "\\.adoc$" {
 		syntax: "adoc"
 	}
+}
 
+#codegen: {
+	#_ioSpec
 	payload: _
+} | {
+		bulk?: [...#_ioSpec]
+		payload: _
 }

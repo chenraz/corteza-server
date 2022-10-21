@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/cortezaproject/corteza-server/compose/dalutils"
 	"github.com/cortezaproject/corteza-server/compose/types"
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
 	"github.com/cortezaproject/corteza-server/pkg/auth"
@@ -40,6 +41,7 @@ type (
 		objects   objstore.Store
 		ac        attachmentAccessController
 		store     store.Storer
+		dal       dalDater
 	}
 
 	attachmentAccessController interface {
@@ -59,17 +61,18 @@ type (
 		CreatePageAttachment(ctx context.Context, namespaceID uint64, name string, size int64, fh io.ReadSeeker, pageID uint64) (*types.Attachment, error)
 		CreateRecordAttachment(ctx context.Context, namespaceID uint64, name string, size int64, fh io.ReadSeeker, moduleID, recordID uint64, fieldName string) (*types.Attachment, error)
 		CreateNamespaceAttachment(ctx context.Context, name string, size int64, fh io.ReadSeeker) (*types.Attachment, error)
-		OpenOriginal(att *types.Attachment) (io.ReadSeeker, error)
-		OpenPreview(att *types.Attachment) (io.ReadSeeker, error)
+		OpenOriginal(att *types.Attachment) (io.ReadSeekCloser, error)
+		OpenPreview(att *types.Attachment) (io.ReadSeekCloser, error)
 		DeleteByID(ctx context.Context, namespaceID, attachmentID uint64) error
 	}
 )
 
-func Attachment(store objstore.Store) *attachment {
+func Attachment(store objstore.Store, dal dalDater) *attachment {
 	return &attachment{
 		objects: store,
 		ac:      DefaultAccessControl,
 		store:   DefaultStore,
+		dal:     dal,
 	}
 }
 
@@ -84,7 +87,7 @@ func (svc attachment) Find(ctx context.Context, filter types.AttachmentFilter) (
 		}
 
 		if filter.PageID > 0 {
-			aProps.namespace, aProps.page, err = loadPage(ctx, svc.store, filter.NamespaceID, filter.PageID)
+			aProps.namespace, aProps.page, err = loadPageCombo(ctx, svc.store, filter.NamespaceID, filter.PageID)
 			if err != nil {
 				return err
 			} else if svc.ac.CanReadPage(ctx, aProps.page) {
@@ -93,14 +96,14 @@ func (svc attachment) Find(ctx context.Context, filter types.AttachmentFilter) (
 		}
 
 		if filter.RecordID > 0 {
-			aProps.namespace, aProps.module, aProps.record, err = loadRecordCombo(ctx, svc.store, filter.NamespaceID, filter.ModuleID, filter.RecordID)
+			aProps.namespace, aProps.module, aProps.record, err = loadRecordCombo(ctx, svc.store, svc.dal, filter.NamespaceID, filter.ModuleID, filter.RecordID)
 			if err != nil {
 				return err
 			} else if svc.ac.CanReadRecord(ctx, aProps.record) {
 				return AttachmentErrNotAllowedToReadRecord()
 			}
 		} else if filter.ModuleID > 0 {
-			aProps.namespace, aProps.module, err = loadModuleWithNamespace(ctx, svc.store, filter.NamespaceID, filter.ModuleID)
+			aProps.namespace, aProps.module, err = loadModuleCombo(ctx, svc.store, filter.NamespaceID, filter.ModuleID)
 			if err != nil {
 				return err
 			} else if svc.ac.CanReadRecord(ctx, aProps.record) {
@@ -228,7 +231,7 @@ func (svc attachment) DeleteByID(ctx context.Context, namespaceID, attachmentID 
 //	return r, nil
 //}
 
-func (svc attachment) OpenOriginal(att *types.Attachment) (io.ReadSeeker, error) {
+func (svc attachment) OpenOriginal(att *types.Attachment) (io.ReadSeekCloser, error) {
 	if len(att.Url) == 0 {
 		return nil, nil
 	}
@@ -236,7 +239,7 @@ func (svc attachment) OpenOriginal(att *types.Attachment) (io.ReadSeeker, error)
 	return svc.objects.Open(att.Url)
 }
 
-func (svc attachment) OpenPreview(att *types.Attachment) (io.ReadSeeker, error) {
+func (svc attachment) OpenPreview(att *types.Attachment) (io.ReadSeekCloser, error) {
 	if len(att.PreviewUrl) == 0 {
 		return nil, nil
 	}
@@ -260,7 +263,7 @@ func (svc attachment) CreatePageAttachment(ctx context.Context, namespaceID uint
 			return AttachmentErrNotAllowedToCreateEmptyAttachment()
 		}
 
-		ns, p, err = loadPage(ctx, s, namespaceID, pageID)
+		ns, p, err = loadPageCombo(ctx, s, namespaceID, pageID)
 		if err != nil {
 			return err
 		}
@@ -278,7 +281,7 @@ func (svc attachment) CreatePageAttachment(ctx context.Context, namespaceID uint
 			var (
 				maxSize      = int64(systemService.CurrentSettings.Compose.Page.Attachments.MaxSize) * megabyte
 				allowedTypes = systemService.CurrentSettings.Compose.Page.Attachments.Mimetypes
-				mimeType     string
+				mimeType     *mimetype.MIME
 			)
 
 			if maxSize > 0 && maxSize < size {
@@ -326,7 +329,7 @@ func (svc attachment) CreateRecordAttachment(ctx context.Context, namespaceID ui
 			return AttachmentErrNotAllowedToCreateEmptyAttachment()
 		}
 
-		ns, m, err = loadModuleWithNamespace(ctx, s, namespaceID, moduleID)
+		ns, m, err = loadModuleCombo(ctx, s, namespaceID, moduleID)
 		if err != nil {
 			return err
 		}
@@ -340,7 +343,7 @@ func (svc attachment) CreateRecordAttachment(ctx context.Context, namespaceID ui
 			// To allow upload (attachment creation) user must have permissions to
 			// alter that record
 
-			r, err = store.LookupComposeRecordByID(ctx, s, m, recordID)
+			r, err = dalutils.ComposeRecordsFind(ctx, svc.dal, m, recordID)
 			if err != nil {
 				return err
 			}
@@ -366,7 +369,7 @@ func (svc attachment) CreateRecordAttachment(ctx context.Context, namespaceID ui
 			var (
 				maxSize      = int64(systemService.CurrentSettings.Compose.Record.Attachments.MaxSize) * megabyte
 				allowedTypes = systemService.CurrentSettings.Compose.Record.Attachments.Mimetypes
-				mimeType     string
+				mimeType     *mimetype.MIME
 			)
 
 			f := m.Fields.FindByName(fieldName)
@@ -428,7 +431,7 @@ func (svc attachment) CreateNamespaceAttachment(ctx context.Context, name string
 			var (
 				// use max-file-size from page attachments for now
 				maxSize  = int64(systemService.CurrentSettings.Compose.Page.Attachments.MaxSize) * megabyte
-				mimeType string
+				mimeType *mimetype.MIME
 			)
 
 			if maxSize > 0 && maxSize < size {
@@ -486,7 +489,7 @@ func (svc attachment) create(ctx context.Context, s store.ComposeAttachments, na
 	att.Meta.Original.Extension = strings.Trim(path.Ext(strings.Trim(name, ".")), ".")
 
 	att.Meta.Original.Size = size
-	if att.Meta.Original.Mimetype, err = svc.extractMimetype(fh); err != nil {
+	if att.Meta.Original.Mimetype, err = svc.extractMimetypeS(fh); err != nil {
 		return AttachmentErrFailedToExtractMimeType(aProps).Wrap(err)
 	}
 
@@ -510,7 +513,7 @@ func (svc attachment) create(ctx context.Context, s store.ComposeAttachments, na
 	return nil
 }
 
-func (svc attachment) extractMimetype(file io.ReadSeeker) (mType string, err error) {
+func (svc attachment) extractMimetype(file io.ReadSeeker) (mType *mimetype.MIME, err error) {
 	if _, err = file.Seek(0, 0); err != nil {
 		return
 	}
@@ -525,7 +528,15 @@ func (svc attachment) extractMimetype(file io.ReadSeeker) (mType string, err err
 		return
 	}
 
-	return mime.String(), nil
+	return mime, nil
+}
+
+func (svc attachment) extractMimetypeS(file io.ReadSeeker) (mType string, err error) {
+	aux, err := svc.extractMimetype(file)
+	if err != nil {
+		return
+	}
+	return aux.String(), nil
 }
 
 func (svc attachment) processImage(original io.ReadSeeker, att *types.Attachment) (err error) {
@@ -626,20 +637,14 @@ func (svc attachment) processImage(original io.ReadSeeker, att *types.Attachment
 	return svc.objects.Save(att.PreviewUrl, buf)
 }
 
-func (attachment) checkMimeType(test string, vv ...string) bool {
+func (attachment) checkMimeType(test *mimetype.MIME, vv ...string) bool {
 	if len(vv) == 0 {
 		// return true if there are no type constraints to check against
 		return true
 	}
 
 	for _, v := range vv {
-		v = strings.TrimSpace(v)
-
-		if !reMimeType.MatchString(v) {
-			continue
-		}
-
-		if v == test {
+		if test.Is(v) {
 			return true
 		}
 	}

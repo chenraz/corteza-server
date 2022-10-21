@@ -3,7 +3,7 @@ package types
 import (
 	"database/sql/driver"
 	"encoding/json"
-	"fmt"
+	"github.com/cortezaproject/corteza-server/pkg/sql"
 	"time"
 
 	"github.com/cortezaproject/corteza-server/pkg/filter"
@@ -46,14 +46,5 @@ type (
 	}
 )
 
-func (vv *ApigwFilterParams) Scan(value interface{}) (err error) {
-	if err := json.Unmarshal(value.([]byte), vv); err != nil {
-		return fmt.Errorf("cannot scan '%v' into FuncParams", value)
-	}
-
-	return
-}
-
-func (vv ApigwFilterParams) Value() (driver.Value, error) {
-	return json.Marshal(vv)
-}
+func (vv *ApigwFilterParams) Scan(src any) error          { return sql.ParseJSON(src, vv) }
+func (vv ApigwFilterParams) Value() (driver.Value, error) { return json.Marshal(vv) }

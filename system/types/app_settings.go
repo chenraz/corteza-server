@@ -69,19 +69,7 @@ type (
 				// If only one ext. provider is enabled, user is automatically redirected there
 				SplitCredentialsCheck bool `json:"-" kv:"split-credentials-check"`
 
-				PasswordConstraints struct {
-					// Should the environment not enforce the constraints
-					PasswordSecurity bool `kv:"-" json:"passwordSecurity"`
-
-					// The min password length
-					MinLength uint `kv:"min-length"`
-
-					// The min number of numeric characters
-					MinNumCount uint `kv:"min-num-count"`
-
-					// The min number of special characters
-					MinSpecialCount uint `kv:"min-special-count"`
-				} `kv:"password-constraints" json:"passwordConstraints"`
+				PasswordConstraints PasswordConstraints `kv:"password-constraints" json:"passwordConstraints"`
 			} `json:"internal"`
 
 			External struct {
@@ -173,6 +161,16 @@ type (
 					// Hide namespace link at the end of the list
 					HideNamespaceListLink bool `json:"hideNamespaceListLink"`
 				} `kv:"sidebar,final" json:"sidebar"`
+
+				// Record toolbar specific settings
+				RecordToolbar struct {
+					HideNew    bool `json:"hideNew"`
+					HideEdit   bool `json:"hideEdit"`
+					HideSubmit bool `json:"hideSubmit"`
+					HideDelete bool `json:"hideDelete"`
+					HideClone  bool `json:"hideClone"`
+					HideBack   bool `json:"hideBack"`
+				} `kv:"record-toolbar,final" json:"record-toolbar"`
 			} `kv:"ui" json:"ui"`
 
 			// Record related settings
@@ -374,6 +372,26 @@ type (
 		From          string `json:"from"`
 		TlsInsecure   bool   `json:"tlsInsecure"`
 		TlsServerName string `json:"tlsServerName"`
+	}
+
+	PasswordConstraints struct {
+		// Should the environment not enforce the constraints
+		PasswordSecurity bool `kv:"-" json:"passwordSecurity"`
+
+		// The min password length
+		MinLength uint `kv:"min-length" json:"minLength"`
+
+		// Minimum number of uppercase letters in password
+		MinUpperCase uint `kv:"min-upper-case" json:"minUpperCase"`
+
+		// Minimum number of lowercase letters in password
+		MinLowerCase uint `kv:"min-lower-case" json:"minLowerCase"`
+
+		// The min number of numeric characters
+		MinNumCount uint `kv:"min-num-count" json:"minNumCount"`
+
+		// The min number of special characters
+		MinSpecialCount uint `kv:"min-special-count" json:"minSpecialCount"`
 	}
 )
 

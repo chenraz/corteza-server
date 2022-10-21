@@ -31,7 +31,7 @@ type (
 
 	WfExecer interface {
 		Load(ctx context.Context) error
-		Exec(ctx context.Context, workflowID uint64, p atypes.WorkflowExecParams) (*expr.Vars, atypes.Stacktrace, error)
+		Exec(ctx context.Context, workflowID uint64, p atypes.WorkflowExecParams) (*expr.Vars, uint64, atypes.Stacktrace, error)
 	}
 
 	processerPayload struct {
@@ -120,7 +120,7 @@ func (h workflow) Handler() types.HandlerFunc {
 			Input: in,
 		}
 
-		out, _, err := h.d.Exec(ctx, h.params.Workflow, wp)
+		out, _, _, err := h.d.Exec(ctx, h.params.Workflow, wp)
 
 		if err != nil {
 			return pe.Internal("could not exec workflow: %v", err)
@@ -203,7 +203,9 @@ func (h *processerPayload) Merge(params []byte) (types.Handler, error) {
 		return nil, errors.New("could not register function, body empty")
 	}
 
-	h.fn, _ = h.vm.RegisterFunction(h.params.Func)
+	if h.fn, err = h.vm.RegisterFunction(h.params.Func); err != nil {
+		return nil, fmt.Errorf("could not register function, invalid body: %s", err)
+	}
 
 	return h, err
 }

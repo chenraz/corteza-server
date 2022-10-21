@@ -4,12 +4,13 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"github.com/cortezaproject/corteza-server/pkg/sql"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cortezaproject/corteza-server/pkg/expr"
 	"github.com/cortezaproject/corteza-server/pkg/filter"
-	"github.com/pkg/errors"
 	"github.com/spf13/cast"
 )
 
@@ -30,6 +31,7 @@ type (
 	RecordValueFilter struct {
 		RecordID []uint64
 		Deleted  filter.State `json:"deleted"`
+		Limit    uint
 	}
 )
 
@@ -225,13 +227,7 @@ func (set RecordValueSet) GetClean() (out RecordValueSet) {
 			continue
 		}
 
-		out = append(out, &RecordValue{
-			RecordID: set[s].RecordID,
-			Name:     set[s].Name,
-			Value:    set[s].Value,
-			Ref:      set[s].Ref,
-			Place:    set[s].Place,
-		})
+		out = append(out, set[s].Clone())
 	}
 
 	return out
@@ -321,23 +317,8 @@ func (set RecordValueSet) merge(new RecordValueSet) (out RecordValueSet) {
 	return out
 }
 
-func (set *RecordValueSet) Scan(value interface{}) error {
-	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
-	switch value.(type) {
-	case nil:
-		*set = RecordValueSet{}
-	case []uint8:
-		if err := json.Unmarshal(value.([]byte), set); err != nil {
-			return errors.Wrapf(err, "cannot scan '%v' into RecordValueSet", value)
-		}
-	}
-
-	return nil
-}
-
-func (set RecordValueSet) Value() (driver.Value, error) {
-	return json.Marshal(set)
-}
+func (set *RecordValueSet) Scan(src any) error          { return sql.ParseJSON(src, set) }
+func (set RecordValueSet) Value() (driver.Value, error) { return json.Marshal(set) }
 
 // Simple RVS as string output utility fn that
 // can help with debugging
@@ -420,6 +401,14 @@ func (set RecordValueSet) Dict(fields ModuleFieldSet) map[string]interface{} {
 	return rval
 }
 
-func (set RecordValueSet) Len() int           { return len(set) }
-func (set RecordValueSet) Swap(i, j int)      { set[i], set[j] = set[j], set[i] }
-func (set RecordValueSet) Less(i, j int) bool { return set[i].Place < set[j].Place }
+func (set RecordValueSet) Len() int      { return len(set) }
+func (set RecordValueSet) Swap(i, j int) { set[i], set[j] = set[j], set[i] }
+func (set RecordValueSet) Less(i, j int) bool {
+	n := strings.Compare(set[i].Name, set[j].Name)
+	if n != 0 {
+		return n < 0
+	}
+
+	return set[i].Place < set[j].Place
+
+}

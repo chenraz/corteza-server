@@ -28,6 +28,7 @@ type (
 
 		ac       roleAccessController
 		eventbus eventDispatcher
+		rbac     rbacRuleService
 
 		user UserService
 		auth roleAuth
@@ -42,6 +43,8 @@ type (
 	}
 
 	roleAccessController interface {
+		CanGrant(context.Context) bool
+
 		CanSearchRoles(context.Context) bool
 		CanCreateRole(context.Context) bool
 		CanReadRole(context.Context, *types.Role) bool
@@ -67,6 +70,7 @@ type (
 		Unarchive(ctx context.Context, ID uint64) error
 		Delete(ctx context.Context, ID uint64) error
 		Undelete(ctx context.Context, ID uint64) error
+		CloneRules(ctx context.Context, ID uint64, cloneToRoleID ...uint64) error
 
 		Membership(ctx context.Context, userID uint64) (types.RoleMemberSet, error)
 		MemberList(ctx context.Context, roleID uint64) (types.RoleMemberSet, error)
@@ -82,15 +86,20 @@ type (
 		UpdateRoles(rr ...*rbac.Role)
 	}
 
+	rbacRuleService interface {
+		CloneRulesByRoleID(ctx context.Context, roleID uint64, toRoleID ...uint64) error
+	}
+
 	roleAuth interface {
 		RemoveAccessTokens(context.Context, *types.User) error
 	}
 )
 
-func Role() *role {
+func Role(rbac rbacRuleService) *role {
 	return &role{
 		ac:       DefaultAccessControl,
 		eventbus: eventbus.Service(),
+		rbac:     rbac,
 
 		actionlog: DefaultActionlog,
 
@@ -211,11 +220,7 @@ func (svc role) FindByID(ctx context.Context, roleID uint64) (r *types.Role, err
 }
 
 func (svc role) findByID(ctx context.Context, roleID uint64) (*types.Role, error) {
-	if roleID == 0 {
-		return nil, RoleErrInvalidID()
-	}
-
-	r, err := store.LookupRoleByID(ctx, svc.store, roleID)
+	r, err := loadRole(ctx, svc.store, roleID)
 	return svc.proc(ctx, r, err)
 }
 
@@ -294,7 +299,7 @@ func (svc role) proc(ctx context.Context, r *types.Role, err error) (*types.Role
 
 func (svc role) Create(ctx context.Context, new *types.Role) (r *types.Role, err error) {
 	var (
-		raProps = &roleActionProps{new: new}
+		raProps = &roleActionProps{role: new}
 	)
 
 	err = func() (err error) {
@@ -323,6 +328,8 @@ func (svc role) Create(ctx context.Context, new *types.Role) (r *types.Role, err
 		new.ID = nextID()
 		new.CreatedAt = *now()
 
+		raProps.setNew(new)
+
 		if err = store.CreateRole(ctx, svc.store, new); err != nil {
 			return
 		}
@@ -347,9 +354,11 @@ func (svc role) Update(ctx context.Context, upd *types.Role) (r *types.Role, err
 	)
 
 	err = func() (err error) {
-		if upd.ID == 0 {
-			return RoleErrInvalidID()
+		if r, err = loadRole(ctx, svc.store, upd.ID); err != nil {
+			return
 		}
+
+		raProps.setRole(r)
 
 		if !handle.IsValid(upd.Handle) {
 			return RoleErrInvalidHandle()
@@ -358,12 +367,6 @@ func (svc role) Update(ctx context.Context, upd *types.Role) (r *types.Role, err
 		if !svc.ac.CanUpdateRole(ctx, upd) {
 			return RoleErrNotAllowedToUpdate()
 		}
-
-		if r, err = store.LookupRoleByID(ctx, svc.store, upd.ID); err != nil {
-			return
-		}
-
-		raProps.setRole(r)
 
 		if svc.IsSystem(r) {
 			// prevent system role updates
@@ -592,7 +595,7 @@ func (svc role) Unarchive(ctx context.Context, roleID uint64) (err error) {
 			return RoleErrNotAllowedToUndelete()
 		}
 
-		r.ArchivedAt = nil
+		upd.ArchivedAt = nil
 		if err = store.UpdateRole(ctx, svc.store, upd); err != nil {
 			return
 		}
@@ -602,6 +605,14 @@ func (svc role) Unarchive(ctx context.Context, roleID uint64) (err error) {
 	}()
 
 	return svc.recordAction(ctx, raProps, RoleActionUnarchive, err)
+}
+
+func (svc role) CloneRules(ctx context.Context, roleID uint64, cloneToRoleID ...uint64) (err error) {
+	if !svc.ac.CanGrant(ctx) {
+		return RoleErrNotAllowedToCloneRules()
+	}
+
+	return svc.rbac.CloneRulesByRoleID(ctx, roleID, cloneToRoleID...)
 }
 
 func (svc role) Membership(ctx context.Context, userID uint64) (types.RoleMemberSet, error) {
@@ -753,6 +764,18 @@ func (svc role) MemberRemove(ctx context.Context, roleID, memberID uint64) (err 
 	}()
 
 	return svc.recordAction(ctx, raProps, RoleActionMemberRemove, err)
+}
+
+func loadRole(ctx context.Context, s store.Roles, ID uint64) (res *types.Role, err error) {
+	if ID == 0 {
+		return nil, RoleErrInvalidID()
+	}
+
+	if res, err = store.LookupRoleByID(ctx, s, ID); errors.IsNotFound(err) {
+		return nil, RoleErrNotFound()
+	}
+
+	return
 }
 
 // toLabeledRoles converts to []label.LabeledResource

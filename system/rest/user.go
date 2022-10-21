@@ -13,6 +13,7 @@ import (
 
 	"github.com/cortezaproject/corteza-server/pkg/api"
 	"github.com/cortezaproject/corteza-server/pkg/corredor"
+	"github.com/cortezaproject/corteza-server/pkg/dal"
 	"github.com/cortezaproject/corteza-server/pkg/envoy"
 	"github.com/cortezaproject/corteza-server/pkg/envoy/resource"
 	envoyStore "github.com/cortezaproject/corteza-server/pkg/envoy/store"
@@ -34,19 +35,36 @@ type (
 	User struct {
 		user service.UserService
 		role service.RoleService
+		cred userCredentials
 
 		userAc userAccessController
 		roleAc roleAccessController
 	}
 
+	userPayload struct {
+		*types.User
+
+		CanGrant      bool `json:"canGrant"`
+		CanUpdateUser bool `json:"canUpdateUser"`
+		CanDeleteUser bool `json:"canDeleteUser"`
+	}
+
 	userSetPayload struct {
 		Filter types.UserFilter `json:"filter"`
-		Set    types.UserSet    `json:"set"`
+		Set    []*userPayload   `json:"set"`
+	}
+
+	userCredentials interface {
+		List(ctx context.Context, userID uint64) (cc types.CredentialSet, err error)
+		Delete(ctx context.Context, userID, credentialsID uint64) (err error)
 	}
 
 	userAccessController interface {
+		CanGrant(context.Context) bool
+
 		CanCreateUser(context.Context) bool
 		CanUpdateUser(context.Context, *types.User) bool
+		CanDeleteUser(context.Context, *types.User) bool
 	}
 )
 
@@ -54,6 +72,7 @@ func (User) New() *User {
 	return &User{
 		user: service.DefaultUser,
 		role: service.DefaultRole,
+		cred: service.DefaultCredentials,
 
 		userAc: service.DefaultAccessControl,
 		roleAc: service.DefaultAccessControl,
@@ -82,6 +101,8 @@ func (ctrl User) List(ctx context.Context, r *request.UserList) (interface{}, er
 		return nil, err
 	}
 
+	f.IncTotal = r.IncTotal
+
 	if f.Sorting, err = filter.NewSorting(r.Sort); err != nil {
 		return nil, err
 	}
@@ -107,7 +128,8 @@ func (ctrl User) Create(ctx context.Context, r *request.UserCreate) (interface{}
 		Labels: r.Labels,
 	}
 
-	return ctrl.user.Create(ctx, user)
+	res, err := ctrl.user.Create(ctx, user)
+	return ctrl.makePayload(ctx, res, err)
 }
 
 func (ctrl User) Update(ctx context.Context, r *request.UserUpdate) (interface{}, error) {
@@ -120,7 +142,8 @@ func (ctrl User) Update(ctx context.Context, r *request.UserUpdate) (interface{}
 		Labels: r.Labels,
 	}
 
-	return ctrl.user.Update(ctx, user)
+	res, err := ctrl.user.Update(ctx, user)
+	return ctrl.makePayload(ctx, res, err)
 }
 
 type (
@@ -199,7 +222,8 @@ func (ctrl User) PartialUpdate(ctx context.Context, r *request.UserPartialUpdate
 }
 
 func (ctrl User) Read(ctx context.Context, r *request.UserRead) (interface{}, error) {
-	return ctrl.user.FindByID(ctx, r.UserID)
+	res, err := ctrl.user.FindByID(ctx, r.UserID)
+	return ctrl.makePayload(ctx, res, err)
 }
 
 func (ctrl User) Delete(ctx context.Context, r *request.UserDelete) (interface{}, error) {
@@ -275,6 +299,14 @@ func (ctrl *User) SessionsRemove(ctx context.Context, r *request.UserSessionsRem
 	}
 
 	return
+}
+
+func (ctrl *User) ListCredentials(ctx context.Context, r *request.UserListCredentials) (rsp interface{}, err error) {
+	return ctrl.cred.List(ctx, r.UserID)
+}
+
+func (ctrl *User) DeleteCredentials(ctx context.Context, r *request.UserDeleteCredentials) (rsp interface{}, err error) {
+	return true, ctrl.cred.Delete(ctx, r.UserID, r.CredentialsID)
 }
 
 // Export exports users with optional role membership and related roles
@@ -452,7 +484,7 @@ func (ctrl *User) Import(ctx context.Context, r *request.UserImport) (rsp interf
 		}
 	}
 
-	se := envoyStore.NewStoreEncoder(service.DefaultStore, &envoyStore.EncoderConfig{
+	se := envoyStore.NewStoreEncoder(service.DefaultStore, dal.Service(), &envoyStore.EncoderConfig{
 		OnExisting: resource.Skip,
 	})
 
@@ -466,16 +498,34 @@ func (ctrl *User) Import(ctx context.Context, r *request.UserImport) (rsp interf
 	return api.OK(), err
 }
 
-func (ctrl User) makeFilterPayload(ctx context.Context, uu types.UserSet, f types.UserFilter, err error) (*userSetPayload, error) {
+func (ctrl User) makePayload(ctx context.Context, res *types.User, err error) (*userPayload, error) {
+	if err != nil || res == nil {
+		return nil, err
+	}
+
+	pl := &userPayload{
+		User: res,
+
+		CanGrant: ctrl.userAc.CanGrant(ctx),
+
+		CanUpdateUser: ctrl.userAc.CanUpdateUser(ctx, res),
+		CanDeleteUser: ctrl.userAc.CanDeleteUser(ctx, res),
+	}
+
+	return pl, nil
+}
+
+func (ctrl User) makeFilterPayload(ctx context.Context, rr types.UserSet, f types.UserFilter, err error) (*userSetPayload, error) {
 	if err != nil {
 		return nil, err
 	}
 
-	if len(uu) == 0 {
-		uu = make([]*types.User, 0)
+	out := &userSetPayload{Filter: f, Set: make([]*userPayload, len(rr))}
+	for i := range rr {
+		out.Set[i], _ = ctrl.makePayload(ctx, rr[i], nil)
 	}
 
-	return &userSetPayload{Filter: f, Set: uu}, nil
+	return out, nil
 }
 
 func (ctrl User) serve(ctx context.Context, fn string, archive io.ReadSeeker, err error) (interface{}, error) {

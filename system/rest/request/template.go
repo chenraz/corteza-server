@@ -36,6 +36,11 @@ var (
 type (
 	// Internal API interface
 	TemplateList struct {
+		// Query GET parameter
+		//
+		// Query
+		Query string
+
 		// Handle GET parameter
 		//
 		// Handle
@@ -70,6 +75,11 @@ type (
 		//
 		// Limit
 		Limit uint
+
+		// IncTotal GET parameter
+		//
+		// Include total counter
+		IncTotal bool
 
 		// PageCursor GET parameter
 		//
@@ -231,6 +241,7 @@ func NewTemplateList() *TemplateList {
 // Auditable returns all auditable/loggable parameters
 func (r TemplateList) Auditable() map[string]interface{} {
 	return map[string]interface{}{
+		"query":      r.Query,
 		"handle":     r.Handle,
 		"type":       r.Type,
 		"ownerID":    r.OwnerID,
@@ -238,9 +249,15 @@ func (r TemplateList) Auditable() map[string]interface{} {
 		"deleted":    r.Deleted,
 		"labels":     r.Labels,
 		"limit":      r.Limit,
+		"incTotal":   r.IncTotal,
 		"pageCursor": r.PageCursor,
 		"sort":       r.Sort,
 	}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r TemplateList) GetQuery() string {
+	return r.Query
 }
 
 // Auditable returns all auditable/loggable parameters
@@ -279,6 +296,11 @@ func (r TemplateList) GetLimit() uint {
 }
 
 // Auditable returns all auditable/loggable parameters
+func (r TemplateList) GetIncTotal() bool {
+	return r.IncTotal
+}
+
+// Auditable returns all auditable/loggable parameters
 func (r TemplateList) GetPageCursor() string {
 	return r.PageCursor
 }
@@ -295,6 +317,12 @@ func (r *TemplateList) Fill(req *http.Request) (err error) {
 		// GET params
 		tmp := req.URL.Query()
 
+		if val, ok := tmp["query"]; ok && len(val) > 0 {
+			r.Query, err = val[0], nil
+			if err != nil {
+				return err
+			}
+		}
 		if val, ok := tmp["handle"]; ok && len(val) > 0 {
 			r.Handle, err = val[0], nil
 			if err != nil {
@@ -338,6 +366,12 @@ func (r *TemplateList) Fill(req *http.Request) (err error) {
 		}
 		if val, ok := tmp["limit"]; ok && len(val) > 0 {
 			r.Limit, err = payload.ParseUint(val[0]), nil
+			if err != nil {
+				return err
+			}
+		}
+		if val, ok := tmp["incTotal"]; ok && len(val) > 0 {
+			r.IncTotal, err = payload.ParseBool(val[0]), nil
 			if err != nil {
 				return err
 			}

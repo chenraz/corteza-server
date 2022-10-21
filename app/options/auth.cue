@@ -29,10 +29,25 @@ auth: schema.#optionsGroup & {
 				====
 				"""
 		}
+		jwt_algorithm: {
+			defaultGoExpr: "\"HS512\""
+			defaultValue:  "HS512"
+			description: """
+				Algoritm to be use for JWT signature.
+
+				Supported valus:
+				 - HS256, HS384, HS512
+				 - PS256, PS384, PS512,
+				 - RS256, RS384, RS512
+
+				Provide shared secret string for HS256, HS384, HS512 and full private key or path to the file PS* and RS* algorithms.
+				"""
+		}
 		secret: {
 			defaultGoExpr: "getSecretFromEnv(\"jwt secret\")"
 			description: """
 				Secret used for signing JWT tokens.
+				Value is used only when HS256, HS384 or HS512 algorithm is used.
 
 				[IMPORTANT]
 				====
@@ -42,29 +57,32 @@ auth: schema.#optionsGroup & {
 				"""
 			env: "AUTH_JWT_SECRET"
 		}
+		jwt_key: {
+			description: """
+				Raw private key or absolute or relative path to the file containing one.
+				"""
+		}
 		access_token_lifetime: {
-			type:        "time.Duration"
-			description: "Access token lifetime"
-			env:         "AUTH_OAUTH2_ACCESS_TOKEN_LIFETIME"
+			type: "time.Duration"
+			description: """
+				Lifetime of the access token. Should be shorter than lifetime of the refresh token.
+				"""
+			env: "AUTH_OAUTH2_ACCESS_TOKEN_LIFETIME"
 
 			defaultGoExpr: "time.Hour * 2"
 			defaultValue:  "2h"
 		}
 		refresh_token_lifetime: {
-			type:        "time.Duration"
-			description: "Refresh token lifetime"
-			env:         "AUTH_OAUTH2_REFRESH_TOKEN_LIFETIME"
+			type: "time.Duration"
+			description: """
+				Lifetime of the refresh token. Should be much longer than lifetime of the access token.
+
+				Refresh tokens are used to exchange expired access tokens with new ones.
+				"""
+			env: "AUTH_OAUTH2_REFRESH_TOKEN_LIFETIME"
 
 			defaultGoExpr: "time.Hour * 24 * 3"
 			defaultValue:  "72h"
-		}
-		expiry: {
-			type:        "time.Duration"
-			description: "Expiration time for the auth JWT tokens."
-			env:         "AUTH_JWT_EXPIRY"
-
-			defaultGoExpr: "time.Hour * 24 * 30"
-			defaultValue:  "720h"
 		}
 		external_redirect_URL: {
 			description: """
@@ -72,7 +90,7 @@ auth: schema.#optionsGroup & {
 
 				`provider` placeholder is replaced with the actual value when used.
 				"""
-			defaultGoExpr: "fullURL(\"/auth/external/{provider}/callback\")"
+			defaultGoExpr: "FullURL(\"/auth/external/{provider}/callback\")"
 		}
 		external_cookie_secret: {
 			description: """
@@ -93,7 +111,7 @@ auth: schema.#optionsGroup & {
 				This is used for some redirects and links in auth emails.
 				"""
 
-			defaultGoExpr: "fullURL(\"/auth\")"
+			defaultGoExpr: "FullURL(\"/auth\")"
 		}
 		session_cookie_name: {
 			description:  "Session cookie name"
@@ -104,7 +122,7 @@ auth: schema.#optionsGroup & {
 			defaultGoExpr: "pathPrefix(\"/auth\")"
 		}
 		session_cookie_domain: {
-			defaultGoExpr: "guessHostname()"
+			defaultGoExpr: "GuessApiHostname()"
 			description:   "Session cookie domain"
 		}
 		session_cookie_secure: {
@@ -113,14 +131,29 @@ auth: schema.#optionsGroup & {
 			description:   "Defaults to true when HTTPS is used. Corteza will try to guess the this setting by"
 		}
 		session_lifetime: {
-			type:          "time.Duration"
-			description:   "How long do we keep the temporary session"
+			type: "time.Duration"
+			description: """
+				Maximum time user is allowed to stay idle when logged in without \"remember-me\" option and before session is expired.
+
+				Recomended value is between an hour and a day.
+
+				[IMPORTANT]
+				====
+				This affects only profile (/auth) pages. Using applications (admin, compose, ...) does not prolong the session.
+				====
+
+				"""
 			defaultGoExpr: "24 * time.Hour"
 			defaultValue:  "24h"
 		}
 		session_perm_lifetime: {
-			type:          "time.Duration"
-			description:   "How long do we keep the permanent session"
+			type: "time.Duration"
+			description: """
+				Duration of the session in /auth lasts when user logs-in with \"remember-me\" option.
+
+				If set to 0, \"remember-me\" option is removed.
+				"""
+
 			defaultGoExpr: "360 * 24 * time.Hour"
 			defaultValue:  "8640h"
 		}

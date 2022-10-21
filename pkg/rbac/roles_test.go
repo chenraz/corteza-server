@@ -6,14 +6,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type (
-	testResource string
-)
-
-func (t testResource) RbacResource() string {
-	return string(t)
-}
-
 func Test_partitionRoles(t *testing.T) {
 	var (
 		req = require.New(t)
@@ -49,7 +41,7 @@ func Test_getContextRoles(t *testing.T) {
 			}
 		}
 
-		tres = testResource("testResource")
+		tres = NewResource("testResource")
 
 		tcc = []struct {
 			name         string
@@ -83,6 +75,18 @@ func Test_getContextRoles(t *testing.T) {
 					{id: 4, kind: ContextRole, check: dyCheck(true)},
 				},
 				[]*Role{{id: 1, kind: BypassRole}, {id: 2, kind: ContextRole}},
+			},
+			{
+				"anonymous role mixed with matching contextual",
+				[]uint64{1, 2},
+				tres,
+				[]*Role{
+					{id: 1, kind: AnonymousRole},
+					{id: 2, kind: ContextRole, check: dyCheck(true), crtypes: map[string]bool{tres.RbacResource(): true}},
+					{id: 3, kind: ContextRole, check: dyCheck(false), crtypes: map[string]bool{tres.RbacResource(): true}},
+					{id: 4, kind: ContextRole, check: dyCheck(true)},
+				},
+				[]*Role{{id: 1, kind: AnonymousRole}},
 			},
 		}
 	)

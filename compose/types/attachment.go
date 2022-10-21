@@ -3,11 +3,10 @@ package types
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"github.com/cortezaproject/corteza-server/pkg/sql"
 	"time"
 
 	"github.com/cortezaproject/corteza-server/pkg/filter"
-
-	"github.com/pkg/errors"
 )
 
 type (
@@ -18,7 +17,7 @@ type (
 		Url        string         `json:"url,omitempty"`
 		PreviewUrl string         `json:"previewUrl,omitempty"`
 		Name       string         `json:"name,omitempty"`
-		Meta       attachmentMeta `json:"meta"`
+		Meta       AttachmentMeta `json:"meta"`
 
 		NamespaceID uint64 `json:"namespaceID,string"`
 
@@ -48,22 +47,22 @@ type (
 		filter.Paging
 	}
 
-	attachmentImageMeta struct {
+	AttachmentImageMeta struct {
 		Width    int  `json:"width,omitempty"`
 		Height   int  `json:"height,omitempty"`
 		Animated bool `json:"animated"`
 	}
 
-	attachmentFileMeta struct {
+	AttachmentFileMeta struct {
 		Size      int64                `json:"size"`
 		Extension string               `json:"ext"`
 		Mimetype  string               `json:"mimetype"`
-		Image     *attachmentImageMeta `json:"image,omitempty"`
+		Image     *AttachmentImageMeta `json:"image,omitempty"`
 	}
 
-	attachmentMeta struct {
-		Original attachmentFileMeta  `json:"original"`
-		Preview  *attachmentFileMeta `json:"preview,omitempty"`
+	AttachmentMeta struct {
+		Original AttachmentFileMeta  `json:"original"`
+		Preview  *AttachmentFileMeta `json:"preview,omitempty"`
 	}
 )
 
@@ -73,23 +72,23 @@ const (
 	NamespaceAttachment string = "namespace"
 )
 
-func (a *Attachment) SetOriginalImageMeta(width, height int, animated bool) *attachmentFileMeta {
+func (a *Attachment) SetOriginalImageMeta(width, height int, animated bool) *AttachmentFileMeta {
 	a.imageMeta(&a.Meta.Original, width, height, animated)
 	return &a.Meta.Original
 }
 
-func (a *Attachment) SetPreviewImageMeta(width, height int, animated bool) *attachmentFileMeta {
+func (a *Attachment) SetPreviewImageMeta(width, height int, animated bool) *AttachmentFileMeta {
 	if a.Meta.Preview == nil {
-		a.Meta.Preview = &attachmentFileMeta{}
+		a.Meta.Preview = &AttachmentFileMeta{}
 	}
 
 	a.imageMeta(a.Meta.Preview, width, height, animated)
 	return a.Meta.Preview
 }
 
-func (a *Attachment) imageMeta(in *attachmentFileMeta, width, height int, animated bool) {
+func (a *Attachment) imageMeta(in *AttachmentFileMeta, width, height int, animated bool) {
 	if in.Image == nil {
-		in.Image = &attachmentImageMeta{}
+		in.Image = &AttachmentImageMeta{}
 	}
 
 	if width > 0 && height > 0 {
@@ -99,20 +98,5 @@ func (a *Attachment) imageMeta(in *attachmentFileMeta, width, height int, animat
 	}
 }
 
-func (meta *attachmentMeta) Scan(value interface{}) error {
-	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
-	switch value.(type) {
-	case nil:
-		*meta = attachmentMeta{}
-	case []uint8:
-		if err := json.Unmarshal(value.([]byte), meta); err != nil {
-			return errors.Wrapf(err, "cannot scan '%v' into attachmentMeta", value)
-		}
-	}
-
-	return nil
-}
-
-func (meta attachmentMeta) Value() (driver.Value, error) {
-	return json.Marshal(meta)
-}
+func (meta *AttachmentMeta) Scan(src any) error          { return sql.ParseJSON(src, meta) }
+func (meta AttachmentMeta) Value() (driver.Value, error) { return json.Marshal(meta) }

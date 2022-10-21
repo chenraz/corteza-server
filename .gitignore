@@ -18,3 +18,4 @@ profile.coverprofile
 /.act*
 /workflow
 /corteza-locale
+/profiles

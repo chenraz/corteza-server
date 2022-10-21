@@ -51,6 +51,9 @@ endpoints:
       - type: uint
         name: limit
         title: Limit
+      - type: bool
+        name: incTotal
+        title: Include total counter
       - type: string
         name: pageCursor
         title: Page cursor
@@ -233,6 +236,7 @@ endpoints:
       - { type: "uint",              name: "archived",   title: "Exclude (0, default), include (1) or return only (2) archived roles" }
       - { type: "map[string]string", name: "labels",     title: "Labels", parser: "label.ParseStrings" }
       - { type: "uint",              name: "limit",      title: "Limit" }
+      - { name: "incTotal",          type: "bool",       title: "Include total counter" }
       - { type: "string",            name: "pageCursor", title: "Page cursor" }
       - { type: "string",            name: "sort",       title: "Sort items" }
   - name: create
@@ -396,6 +400,21 @@ endpoints:
         type: map[string]interface{}
         parser: parseMapStringInterface
         title: Arguments to pass to the script
+  - name: cloneRules
+    path: "/{roleID}/rules/clone"
+    method: POST
+    title: Clone permission settings to a role
+    parameters:
+      path:
+        - name: roleID
+          type: uint64
+          required: true
+          title: Role ID
+      get:
+        - name: cloneToRoleID
+          type: "[]string"
+          required: true
+          title: Clone set of rules to roleID
 - title: Users
   path: "/users"
   entrypoint: user
@@ -463,6 +482,9 @@ endpoints:
       - type: uint
         name: limit
         title: Limit
+      - type: bool
+        name: incTotal
+        title: Include total counter
       - type: string
         name: pageCursor
         title: Page cursor
@@ -671,6 +693,23 @@ endpoints:
           required: true
           title: ID
 
+  - name: listCredentials
+    method: GET
+    title: List user's credentials
+    path: "/{userID}/credentials"
+    parameters:
+      path:
+       - { type: uint64, name: userID, required: true, title: ID }
+
+  - name: deleteCredentials
+    method: DELETE
+    title: List user's credentials
+    path: "/{userID}/credentials/{credentialsID}"
+    parameters:
+      path:
+       - { type: uint64, name: userID,        required: true, title: ID }
+       - { type: uint64, name: credentialsID, required: true, title: Credentials ID }
+
   - name: export
     method: GET
     title: Export users
@@ -700,6 +739,170 @@ endpoints:
         type: "*multipart.FileHeader"
         required: true
         title: File import
+
+- title: Data access layer drivers
+  path: "/dal/drivers"
+  entrypoint: dalDriver
+  authentication:
+  - Client ID
+  - Session ID
+  apis:
+  - name: list
+    method: GET
+    title: Search drivers
+    path: "/"
+
+- title: Data access layer sensitivity levels
+  path: "/dal/sensitivity-levels"
+  entrypoint: dalSensitivityLevel
+  authentication:
+  - Client ID
+  - Session ID
+  imports:
+    - github.com/cortezaproject/corteza-server/system/types
+  apis:
+  - name: list
+    method: GET
+    title: Search sensitivity levels
+    path: "/"
+    parameters:
+      get:
+      - name: sensitivityLevelID
+        type: "[]string"
+        title: Filter by sensitivity level ID
+      - name: deleted
+        title: Exclude (0, default), include (1) or return only (2) deleted sensitivity levels
+        type: uint
+
+  - name: create
+    method: POST
+    title: Create sensitivity level
+    path: "/"
+    parameters:
+      post:
+      - { name: "handle", type: "string",                        required: true }
+      - { name: "level",  type: "int",                           required: true }
+      - { name: "meta",   type: "types.DalSensitivityLevelMeta", required: true,  parser: "types.ParseDalSensitivityLevelMeta" }
+  - name: update
+    method: PUT
+    title: Update sensitivity details
+    path: "/{sensitivityLevelID}"
+    parameters:
+      path:
+      - type: uint64
+        name: sensitivityLevelID
+        required: true
+        title: Connection ID
+      post:
+      - { name: "handle", type: "string",                        required: true }
+      - { name: "level",  type: "int",                           required: true }
+      - { name: "meta",   type: "types.DalSensitivityLevelMeta", required: true,  parser: "types.ParseDalSensitivityLevelMeta" }
+
+  - name: read
+    method: GET
+    title: Read connection details
+    path: "/{sensitivityLevelID}"
+    parameters:
+      path:
+      - type: uint64
+        name: sensitivityLevelID
+        required: true
+        title: Connection ID
+
+  - name: delete
+    method: DELETE
+    title: Remove sensitivity level
+    path: "/{sensitivityLevelID}"
+    parameters:
+      path:
+      - type: uint64
+        name: sensitivityLevelID
+        required: true
+        title: Connection ID
+
+  - name: undelete
+    method: POST
+    title: Undelete sensitivity level
+    path: "/{sensitivityLevelID}/undelete"
+    parameters:
+      path:
+      - type: uint64
+        name: sensitivityLevelID
+        required: true
+        title: Connection ID
+
+
+- title: Data access layer connections
+  path: "/dal/connections"
+  entrypoint: dalConnection
+  authentication:
+  - Client ID
+  - Session ID
+  imports:
+    - github.com/cortezaproject/corteza-server/system/types
+  apis:
+  - name: list
+    method: GET
+    title: Search connections (Directory)
+    path: "/"
+    parameters:
+      get:
+      - name: connectionID
+        type: "[]string"
+        title: Filter by connection ID
+      - type: string
+        name: handle
+        title: Search handle to match against connections
+      - type: string
+        name: type
+        title: Search type to match against connections
+      - name: deleted
+        title: Exclude (0, default), include (1) or return only (2) deleted connections
+        type: uint
+      - type: bool
+        name: incTotal
+        title: Include total counter
+  - name: create
+    method: POST
+    title: Create connection
+    path: "/"
+    parameters:
+      post:
+      - { name: handle, type: "string",                 required: true }
+      - { name: type,   type: "string",                 required: true }
+      - { name: meta,   type: "types.ConnectionMeta",   required: true, parser: "types.ParseConnectionMeta" }
+      - { name: config, type: "types.ConnectionConfig", required: true, parser: "types.ParseConnectionConfig" }
+
+  - name: update
+    method: PUT
+    title: Update connection details
+    path: "/{connectionID}"
+    parameters:
+      path: [ { type: uint64, name: connectionID, required: true, title: "Connection ID" } ]
+      post:
+      - { name: handle, type: "string",                 required: true }
+      - { name: type,   type: "string",                 required: true }
+      - { name: meta,   type: "types.ConnectionMeta",   required: true, parser: "types.ParseConnectionMeta" }
+      - { name: config, type: "types.ConnectionConfig", required: true, parser: "types.ParseConnectionConfig" }
+
+  - name: read
+    method: GET
+    title: Read connection details
+    path: "/{connectionID}"
+    parameters:
+      path: [ { type: uint64, name: connectionID, required: true, title: "Connection ID" } ]
+  - name: delete
+    method: DELETE
+    title: Remove connection
+    path: "/{connectionID}"
+    parameters:
+      path: [ { type: uint64, name: connectionID, required: true, title: "Connection ID" } ]
+  - name: undelete
+    method: POST
+    title: Undelete connection
+    path: "/{connectionID}/undelete"
+    parameters:
+      path: [ { type: uint64, name: connectionID, required: true, title: "Connection ID" } ]
 
 - title: Applications
   path: "/application"
@@ -741,6 +944,9 @@ endpoints:
       - type: uint
         name: limit
         title: Limit
+      - type: bool
+        name: incTotal
+        title: Include total counter
       - type: string
         name: pageCursor
         title: Page cursor
@@ -952,6 +1158,22 @@ endpoints:
         type: string
         required: false
         title: Show only rules for a specific resource
+  - name: trace
+    path: "/trace"
+    method: GET
+    title: Evaluate rules for given user/role combo
+    parameters:
+      get:
+      - name: resource
+        type: "[]string"
+        required: false
+        title: Show only rules for a specific resource
+      - name: userID
+        type: uint64
+        required: false
+      - name: roleID
+        type: "[]uint64"
+        required: false
   - name: read
     path: "/{roleID}/rules"
     method: GET
@@ -962,6 +1184,11 @@ endpoints:
         type: uint64
         required: true
         title: Role ID
+      get:
+        - name: resource
+          type: "[]string"
+          required: false
+          title: Show only rules for a specific resource
   - name: delete
     path: "/{roleID}/rules"
     method: DELETE
@@ -987,21 +1214,6 @@ endpoints:
         type: rbac.RuleSet
         required: true
         title: List of permission rules to set
-  - name: clone
-    path: "/{roleID}/rules/clone"
-    method: POST
-    title: Clone permission settings to a role
-    parameters:
-      path:
-        - name: roleID
-          type: uint64
-          required: true
-          title: Role ID
-      get:
-        - name: cloneToRoleID
-          type: "[]string"
-          required: true
-          title: Clone set of rules to roleID
 - title: Reminders
   entrypoint: reminder
   path: "/reminder"
@@ -1244,6 +1456,9 @@ endpoints:
     path: "/"
     parameters:
       get:
+      - name: query
+        type: string
+        title: Query
       - name: handle
         type: string
         title: Handle
@@ -1268,6 +1483,9 @@ endpoints:
       - name: limit
         type: uint
         title: Limit
+      - type: bool
+        name: incTotal
+        title: Include total counter
       - name: pageCursor
         type: string
         title: Page cursor
@@ -1411,8 +1629,8 @@ endpoints:
   authentication: []
   imports:
     - github.com/cortezaproject/corteza-server/pkg/label
-    - github.com/cortezaproject/corteza-server/pkg/report
     - github.com/cortezaproject/corteza-server/system/types
+    - github.com/cortezaproject/corteza-server/system/reporting
   apis:
   - name: list
     method: GET
@@ -1435,6 +1653,9 @@ endpoints:
       - type: uint
         name: limit
         title: Limit
+      - type: bool
+        name: incTotal
+        title: Include total counter
       - type: string
         name: pageCursor
         title: Page cursor
@@ -1506,9 +1727,9 @@ endpoints:
     path: "/describe"
     parameters:
       post:
-      - { name: sources,  type: "types.ReportDataSourceSet",  title: Report steps definition }
-      - { name: steps,    type: "report.StepDefinitionSet",   title: Report steps definition  }
-      - { name: describe, type: "[]string",                   title: The source descriptions to generate }
+      - { name: sources,  type: "types.ReportDataSourceSet", title: Report steps definition }
+      - { name: steps,    type: "types.ReportStepSet",       title: Report steps definition  }
+      - { name: describe, type: "[]string",                  title: The source descriptions to generate }
 
   - name: run
     method: POST
@@ -1521,7 +1742,7 @@ endpoints:
         required: true
         title: Report ID
       post:
-      - { name: frames,       type: "report.FrameDefinitionSet",  title: Report data frame definitions }
+      - { name: frames,       type: "reporting.FrameDefinitionSet",  title: Report data frame definitions }
 - title: Statistics
   entrypoint: stats
   path: "/stats"
@@ -1643,11 +1864,12 @@ endpoints:
     path: "/"
     parameters:
       get:
-      - { type: string,            name: query,      required: false, title: Search query }
-      - { type: uint,              name: limit,      required: false, title: Limit }
-      - { type: string,            name: pageCursor, required: false, title: Page cursor }
-      - { type: string,            name: sort,       required: false, title: Sort items }
-      - { type: uint,              name: deleted,    required: false, title: Exclude (0, default), include (1) or return only (2) deleted queues }
+      - { type: string,            name: query,      title: Search query }
+      - { type: uint,              name: limit,      title: Limit }
+      - { type: bool,              name: incTotal,   title: Include total counter }
+      - { type: string,            name: pageCursor, title: Page cursor }
+      - { type: string,            name: sort,       title: Sort items }
+      - { type: uint,              name: deleted,    title: Exclude (0, default), include (1) or return only (2) deleted queues }
   - name: create
     method: POST
     title: Create messaging queue
@@ -1710,6 +1932,7 @@ endpoints:
       - { name: disabled,   type: "uint64",            title: "Exclude (0, default), include (1) or return only (2) disabled routes" }
       - { name: labels,     type: "map[string]string", title: "Labels", parser: "label.ParseStrings" }
       - { name: limit,      type: "uint",              title: "Limit" }
+      - { name: incTotal,   type: "bool",              title: "Include total counter" }
       - { name: pageCursor, type: "string",            title: "Page cursor" }
       - { name: sort,       type: "string",            title: "Sort items" }
   - name: create
@@ -1929,3 +2152,100 @@ endpoints:
       path:
       - { type: string, name: lang,      required: true,  title: Language  }
       - { type: string, name: application, required: true, title: Application name }
+
+- title: Data Privacy Request
+  entrypoint: dataPrivacyRequest
+  imports:
+    - github.com/cortezaproject/corteza-server/system/types
+  path: "/data-privacy/requests"
+  apis:
+    - name: list
+      method: GET
+      title: List data privacy requests
+      path: "/"
+      parameters:
+        get:
+          - { name: requestedBy,        type: "[]string",   title: "Filter by user ID" }
+          - { name: query,              type: "string",     title: "Filter requests" }
+          - { name: kind,               type: "[]string",   title: "Filter by kind: correct, delete, export" }
+          - { name: status,             type: "[]string",   title: "Filter by status: pending, cancel, approve, reject" }
+          - { name: limit,              type: "uint",       title: "Limit" }
+          - { name: pageCursor,         type: "string",     title: "Page cursor" }
+          - { name: sort,               type: "string",     title: "Sort items" }
+    - name: create
+      method: POST
+      title: Create data privacy request
+      path: "/"
+      parameters:
+        post:
+          - { name: kind,         type: "string",   title: "Request Kind", required: true }
+          - { name: payload,      type: "types.DataPrivacyRequestPayloadSet", title: Request, required: false, parser: types.ParseDataPrivacyRequestPayload }
+
+    - name: update status
+      method: PATCH
+      title: Update data privacy request status
+      path: "/{requestID}/status/{status}"
+      parameters:
+        path:
+          - { name: requestID,     type: "uint64",   title: "ID",             required: true }
+          - { name: status,        type: "string",   title: "Request Status", required: true }
+    - name: read
+      method: GET
+      title: Get details about specific request
+      path: "/{requestID}"
+      parameters:
+        path:
+          - { name: requestID, type: "uint64",     title: "Request ID", required: true }
+
+- title: Data Privacy Request Comment
+  entrypoint: dataPrivacyRequestComment
+  path: "/data-privacy/requests/{requestID}/comments"
+  parameters:
+    path:
+      - { name: requestID, type: "uint64",     title: "Request ID", required: true }
+  apis:
+    - name: list
+      method: GET
+      title: List data privacy request comments
+      path: "/"
+      parameters:
+        get:
+          - { name: limit,              type: "uint",       title: "Limit" }
+          - { name: pageCursor,         type: "string",     title: "Page cursor" }
+          - { name: sort,               type: "string",     title: "Sort items" }
+    - name: create
+      method: POST
+      title: Create data privacy request comment
+      path: "/"
+      parameters:
+        post:
+          - { name: comment,            type: "string",   title: "Comment description", required: true }
+
+- title: Data Privacy
+  entrypoint: dataPrivacy
+  imports:
+    - github.com/cortezaproject/corteza-server/pkg/filter
+  path: "/data-privacy"
+  apis:
+    - name: connection list
+      method: GET
+      title: List connections for data privacy
+      path: "/connection/"
+      parameters:
+        get:
+          - name: connectionID
+            type: "[]string"
+            required: false
+            title: Filter by connection ID
+          - type: string
+            name: handle
+            required: false
+            title: Search handle to match against connections
+          - type: string
+            name: type
+            required: false
+            title: Search type to match against connections
+          - name: deleted
+            required: false
+            title: Exclude (0, default), include (1) or return only (2) deleted connections
+            type: filter.State

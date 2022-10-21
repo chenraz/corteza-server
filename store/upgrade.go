@@ -2,21 +2,12 @@ package store
 
 import (
 	"context"
+
 	"go.uber.org/zap"
 )
 
-type (
-	storeUpgrader interface {
-		Upgrade(context.Context, *zap.Logger) error
-	}
-)
-
+// Upgrade runs all needed upgrades on a specific store
 func Upgrade(ctx context.Context, log *zap.Logger, s Storer) error {
-	upgradableStore, ok := s.(storeUpgrader)
-	if !ok {
-		log.Debug("store does not support upgrades")
-		return nil
-	}
-
-	return upgradableStore.Upgrade(ctx, log)
+	s.SetLogger(log)
+	return s.Upgrade(ctx)
 }

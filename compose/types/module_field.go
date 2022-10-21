@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cortezaproject/corteza-server/pkg/sql"
+
 	"github.com/cortezaproject/corteza-server/pkg/filter"
 	"github.com/cortezaproject/corteza-server/pkg/locale"
 	"github.com/spf13/cast"
@@ -24,11 +26,14 @@ type (
 		Kind string `json:"kind"`
 		Name string `json:"name"`
 
+		// Options relevant to field type
 		Options ModuleFieldOptions `json:"options"`
 
-		Private      bool           `json:"isPrivate"`
+		// Configuration - how sub-services and sub-systems like DAL and record revisions
+		// are configured to work with this field
+		Config ModuleFieldConfig `json:"config"`
+
 		Required     bool           `json:"isRequired"`
-		Visible      bool           `json:"isVisible"`
 		Multi        bool           `json:"isMulti"`
 		DefaultValue RecordValueSet `json:"defaultValue"`
 
@@ -46,15 +51,136 @@ type (
 		Label string `json:"label"`
 	}
 
+	ModuleFieldConfig struct {
+		DAL     ModuleFieldConfigDAL         `json:"dal"`
+		Privacy ModuleFieldConfigDataPrivacy `json:"privacy"`
+
+		RecordRevisions ModuleFieldConfigRecordRevisions `json:"recordRevisions"`
+	}
+
+	// ModuleFieldConfigDAL holds DAL configuration for a specific field
+	//
+	// If strategy is not set for a specific field (nil)
+	// then a default strategy is used
+	ModuleFieldConfigDAL struct {
+		EncodingStrategy *EncodingStrategy `json:"encodingStrategy"`
+	}
+
+	ModuleFieldConfigDataPrivacy struct {
+		// Define the highest sensitivity level which
+		// can be configured on the module fields
+		SensitivityLevelID uint64 `json:"sensitivityLevelID,string,omitempty"`
+
+		UsageDisclosure string `json:"usageDisclosure"`
+	}
+
+	ModuleFieldConfigRecordRevisions struct {
+		// when true, skip record revisions for this field
+		Skip bool `json:"enabled"`
+	}
+
+	// SystemFieldEncoding holds configuration for encoding record system fields
+	//
+	// If strategy is not set for a specific field (nil)
+	// then a default strategy is used, assuming system field/column presence
+	SystemFieldEncoding struct {
+		ID *EncodingStrategy `json:"id"`
+
+		ModuleID    *EncodingStrategy `json:"moduleID"`
+		NamespaceID *EncodingStrategy `json:"namespaceID"`
+
+		Revision *EncodingStrategy `json:"revision"`
+		Meta     *EncodingStrategy `json:"meta"`
+
+		OwnedBy *EncodingStrategy `json:"ownedBy"`
+
+		CreatedAt *EncodingStrategy `json:"createdAt"`
+		CreatedBy *EncodingStrategy `json:"createdBy"`
+
+		UpdatedAt *EncodingStrategy `json:"updatedAt"`
+		UpdatedBy *EncodingStrategy `json:"updatedBy"`
+
+		DeletedAt *EncodingStrategy `json:"deletedAt"`
+		DeletedBy *EncodingStrategy `json:"deletedBy"`
+	}
+
+	// EncodingStrategy is used by both: Module (for system fields) and ModuleField
+	//
+	EncodingStrategy struct {
+		//Type       string         `json:"type"`
+		//TypeParams map[string]any `json:"typeParams"`
+
+		Omit bool `json:"omit,omitempty"`
+
+		*EncodingStrategyAlias `json:"alias,omitempty"`
+		*EncodingStrategyJSON  `json:"json,omitempty"`
+		*EncodingStrategyPlain `json:"plain,omitempty"`
+	}
+
+	EncodingStrategyAlias struct {
+		Ident string `json:"ident"`
+	}
+
+	EncodingStrategyJSON struct {
+		Ident string `json:"ident"`
+	}
+
+	EncodingStrategyPlain struct{}
+
 	ModuleFieldFilter struct {
 		ModuleID []uint64
 		Deleted  filter.State
+		Limit    uint
 	}
 )
 
 var (
 	_ sort.Interface = &ModuleFieldSet{}
 )
+
+func (f *ModuleField) SelectOptions() (out []string) {
+	if f.Kind != "Select" {
+		return
+	}
+
+	var (
+		options, has = f.Options["options"]
+	)
+
+	if !has {
+		return
+	}
+
+	switch oo := options.(type) {
+	case []string:
+		out = oo
+	case []interface{}:
+		for _, o := range oo {
+			switch c := o.(type) {
+			case string:
+				out = append(out, c)
+			case map[string]string:
+				if value, has := c["value"]; has {
+					out = append(out, value)
+				}
+			case map[string]interface{}:
+				if value, has := c["value"]; has {
+					if value, ok := value.(string); ok {
+						out = append(out, value)
+					}
+				}
+			case ModuleFieldOptions:
+				if value, has := c["value"]; has {
+					if value, ok := value.(string); ok {
+						out = append(out, value)
+					}
+				}
+			}
+		}
+	}
+
+	return
+}
 
 func (f *ModuleField) decodeTranslationsExpressionValidatorValidatorIDError(tt locale.ResourceTranslationIndex) {
 	var aux *locale.ResourceTranslation
@@ -75,7 +201,7 @@ func (f *ModuleField) decodeTranslationsMetaDescriptionView(tt locale.ResourceTr
 	var aux *locale.ResourceTranslation
 
 	if aux = tt.FindByKey(LocaleKeyModuleFieldMetaDescriptionView.Path); aux != nil {
-		f.setOptionKey(aux.Msg, "description", "edit")
+		f.setOptionKey(aux.Msg, "description", "view")
 	}
 }
 
@@ -83,7 +209,7 @@ func (f *ModuleField) decodeTranslationsMetaDescriptionEdit(tt locale.ResourceTr
 	var aux *locale.ResourceTranslation
 
 	if aux = tt.FindByKey(LocaleKeyModuleFieldMetaDescriptionEdit.Path); aux != nil {
-		f.setOptionKey(aux.Msg, "description", "view")
+		f.setOptionKey(aux.Msg, "description", "edit")
 	}
 }
 
@@ -91,7 +217,7 @@ func (f *ModuleField) decodeTranslationsMetaHintView(tt locale.ResourceTranslati
 	var aux *locale.ResourceTranslation
 
 	if aux = tt.FindByKey(LocaleKeyModuleFieldMetaHintView.Path); aux != nil {
-		f.setOptionKey(aux.Msg, "hint", "edit")
+		f.setOptionKey(aux.Msg, "hint", "view")
 	}
 }
 
@@ -99,7 +225,7 @@ func (f *ModuleField) decodeTranslationsMetaHintEdit(tt locale.ResourceTranslati
 	var aux *locale.ResourceTranslation
 
 	if aux = tt.FindByKey(LocaleKeyModuleFieldMetaHintEdit.Path); aux != nil {
-		f.setOptionKey(aux.Msg, "hint", "view")
+		f.setOptionKey(aux.Msg, "hint", "edit")
 	}
 }
 
@@ -192,54 +318,53 @@ func (m *ModuleField) encodeTranslationsExpressionValidatorValidatorIDError() (o
 
 func (f *ModuleField) encodeTranslationsMetaDescriptionView() (out locale.ResourceTranslationSet) {
 	out = locale.ResourceTranslationSet{}
-	if v := f.getOptionKey("description", "edit"); v != nil {
-		aux := cast.ToString(v)
-
-		out = append(out, &locale.ResourceTranslation{
-			Resource: f.ResourceTranslation(),
-			Key:      LocaleKeyModuleFieldMetaDescriptionView.Path,
-			Msg:      aux,
-		})
+	t := &locale.ResourceTranslation{
+		Resource: f.ResourceTranslation(),
+		Key:      LocaleKeyModuleFieldMetaDescriptionView.Path,
 	}
+	if v := f.getOptionKey("description", "view"); v != nil {
+		t.Msg = cast.ToString(v)
+	}
+	out = append(out, t)
 	return out
 }
 
 func (f *ModuleField) encodeTranslationsMetaDescriptionEdit() (out locale.ResourceTranslationSet) {
 	out = locale.ResourceTranslationSet{}
-	if v := f.getOptionKey("description", "view"); v != nil {
-		aux := cast.ToString(v)
-		out = append(out, &locale.ResourceTranslation{
-			Resource: f.ResourceTranslation(),
-			Key:      LocaleKeyModuleFieldMetaDescriptionEdit.Path,
-			Msg:      aux,
-		})
+	t := &locale.ResourceTranslation{
+		Resource: f.ResourceTranslation(),
+		Key:      LocaleKeyModuleFieldMetaDescriptionEdit.Path,
 	}
+	if v := f.getOptionKey("description", "edit"); v != nil {
+		t.Msg = cast.ToString(v)
+	}
+	out = append(out, t)
 	return out
 }
 
 func (f *ModuleField) encodeTranslationsMetaHintView() (out locale.ResourceTranslationSet) {
 	out = locale.ResourceTranslationSet{}
-	if v := f.getOptionKey("hint", "edit"); v != nil {
-		aux := cast.ToString(v)
-		out = append(out, &locale.ResourceTranslation{
-			Resource: f.ResourceTranslation(),
-			Key:      LocaleKeyModuleFieldMetaHintView.Path,
-			Msg:      aux,
-		})
+	t := &locale.ResourceTranslation{
+		Resource: f.ResourceTranslation(),
+		Key:      LocaleKeyModuleFieldMetaHintView.Path,
 	}
+	if v := f.getOptionKey("hint", "view"); v != nil {
+		t.Msg = cast.ToString(v)
+	}
+	out = append(out, t)
 	return out
 }
 
 func (f *ModuleField) encodeTranslationsMetaHintEdit() (out locale.ResourceTranslationSet) {
 	out = locale.ResourceTranslationSet{}
-	if v := f.getOptionKey("hint", "view"); v != nil {
-		aux := cast.ToString(v)
-		out = append(out, &locale.ResourceTranslation{
-			Resource: f.ResourceTranslation(),
-			Key:      LocaleKeyModuleFieldMetaHintEdit.Path,
-			Msg:      aux,
-		})
+	t := &locale.ResourceTranslation{
+		Resource: f.ResourceTranslation(),
+		Key:      LocaleKeyModuleFieldMetaHintEdit.Path,
 	}
+	if v := f.getOptionKey("hint", "edit"); v != nil {
+		t.Msg = cast.ToString(v)
+	}
+	out = append(out, t)
 	return out
 }
 
@@ -356,16 +481,8 @@ func (set ModuleFieldSet) Clone() (out ModuleFieldSet) {
 	return out
 }
 
-func (set *ModuleFieldSet) Scan(src interface{}) error {
-	if data, ok := src.([]byte); ok {
-		return json.Unmarshal(data, set)
-	}
-	return nil
-}
-
-func (set ModuleFieldSet) Value() (driver.Value, error) {
-	return json.Marshal(set)
-}
+func (set *ModuleFieldSet) Scan(src any) error          { return sql.ParseJSON(src, set) }
+func (set ModuleFieldSet) Value() (driver.Value, error) { return json.Marshal(set) }
 
 func (set ModuleFieldSet) Names() (names []string) {
 	names = make([]string, len(set))
@@ -444,3 +561,10 @@ func (f ModuleField) IsTimeOnly() bool {
 func (f ModuleField) IsRef() bool {
 	return f.Kind == "Record" || f.Kind == "User" || f.Kind == "File"
 }
+
+func (f ModuleField) IsSensitive() bool {
+	return f.Config.Privacy.SensitivityLevelID > 0
+}
+
+func (p *ModuleFieldConfig) Scan(src any) error          { return sql.ParseJSON(src, p) }
+func (p ModuleFieldConfig) Value() (driver.Value, error) { return json.Marshal(p) }

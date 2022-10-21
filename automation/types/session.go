@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"github.com/cortezaproject/corteza-server/pkg/sql"
 	"sync"
 	"time"
 
@@ -109,6 +110,7 @@ const (
 	SessionSuspended
 	SessionFailed
 	SessionCompleted
+	SessionCanceled
 )
 
 func NewSession(s *wfexec.Session) *Session {
@@ -130,6 +132,11 @@ func (s *Session) Resume(ctx context.Context, stateID uint64, input *expr.Vars) 
 	return s.session.Resume(ctx, stateID, input)
 }
 
+func (s *Session) Cancel() {
+	s.session.Cancel()
+	s.Status = SessionCanceled
+}
+
 func (s *Session) PendingPrompts(ownerId uint64) []*wfexec.PendingPrompt {
 	return s.session.UserPendingPrompts(ownerId)
 }
@@ -138,7 +145,9 @@ func (s *Session) GC() bool {
 	s.l.RLock()
 	defer s.l.RUnlock()
 
-	return s.CompletedAt != nil || s.session.Error() != nil
+	return s.CompletedAt != nil ||
+		s.Status == SessionCanceled ||
+		s.session.Error() != nil
 }
 
 // WaitResults wait blocks until workflow session is completed or fails (or context is canceled) and returns resuts
@@ -193,25 +202,8 @@ func (s *Session) CopyRuntimeStacktrace() {
 	}
 }
 
-func (set *Stacktrace) Scan(value interface{}) error {
-	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
-	switch value.(type) {
-	case nil:
-		*set = Stacktrace{}
-	case []uint8:
-		b := value.([]byte)
-		if err := json.Unmarshal(b, set); err != nil {
-			return fmt.Errorf("cannot scan '%v' into Stacktrace: %w", string(b), err)
-		}
-	}
-
-	return nil
-}
-
-// Scan on WorkflowStepSet gracefully handles conversion from NULL
-func (set Stacktrace) Value() (driver.Value, error) {
-	return json.Marshal(set)
-}
+func (set *Stacktrace) Scan(src any) error          { return sql.ParseJSON(src, set) }
+func (set Stacktrace) Value() (driver.Value, error) { return json.Marshal(set) }
 
 func (set Stacktrace) String() (str string) {
 	for i, f := range set {
@@ -261,6 +253,8 @@ func (s SessionStatus) String() string {
 		return "failed"
 	case SessionCompleted:
 		return "completed"
+	case SessionCanceled:
+		return "canceled"
 	}
 
 	return "unknown"

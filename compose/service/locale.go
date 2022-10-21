@@ -180,6 +180,51 @@ func (svc resourceTranslationsManager) pageExtended(ctx context.Context, res *ty
 	)
 
 	for _, tag := range svc.locale.Tags() {
+		// Button translations
+		if res.Config.Buttons != nil {
+			out = append(out, &locale.ResourceTranslation{
+				Resource: res.ResourceTranslation(),
+				Lang:     tag.String(),
+				Key:      types.LocaleKeyPageRecordToolbarNewLabel.Path,
+				Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), types.LocaleKeyPageRecordToolbarNewLabel.Path),
+			})
+
+			out = append(out, &locale.ResourceTranslation{
+				Resource: res.ResourceTranslation(),
+				Lang:     tag.String(),
+				Key:      types.LocaleKeyPageRecordToolbarEditLabel.Path,
+				Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), types.LocaleKeyPageRecordToolbarEditLabel.Path),
+			})
+
+			out = append(out, &locale.ResourceTranslation{
+				Resource: res.ResourceTranslation(),
+				Lang:     tag.String(),
+				Key:      types.LocaleKeyPageRecordToolbarSubmitLabel.Path,
+				Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), types.LocaleKeyPageRecordToolbarSubmitLabel.Path),
+			})
+
+			out = append(out, &locale.ResourceTranslation{
+				Resource: res.ResourceTranslation(),
+				Lang:     tag.String(),
+				Key:      types.LocaleKeyPageRecordToolbarDeleteLabel.Path,
+				Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), types.LocaleKeyPageRecordToolbarDeleteLabel.Path),
+			})
+
+			out = append(out, &locale.ResourceTranslation{
+				Resource: res.ResourceTranslation(),
+				Lang:     tag.String(),
+				Key:      types.LocaleKeyPageRecordToolbarCloneLabel.Path,
+				Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), types.LocaleKeyPageRecordToolbarCloneLabel.Path),
+			})
+
+			out = append(out, &locale.ResourceTranslation{
+				Resource: res.ResourceTranslation(),
+				Lang:     tag.String(),
+				Key:      types.LocaleKeyPageRecordToolbarBackLabel.Path,
+				Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), types.LocaleKeyPageRecordToolbarBackLabel.Path),
+			})
+		}
+
 		for i, block := range res.Blocks {
 			pbContentID := locale.ContentID(block.BlockID, i)
 			rpl := strings.NewReplacer(
@@ -211,6 +256,13 @@ func (svc resourceTranslationsManager) pageExtended(ctx context.Context, res *ty
 				}
 
 				out = append(out, aux...)
+			case "RecordList":
+				aux, err = svc.pageExtendedRecordListBlock(tag, res, block, pbContentID)
+				if err != nil {
+					return nil, err
+				}
+
+				out = append(out, aux...)
 			case "Content":
 				k = types.LocaleKeyPagePageBlockBlockIDContentBody
 				out = append(out, &locale.ResourceTranslation{
@@ -227,17 +279,84 @@ func (svc resourceTranslationsManager) pageExtended(ctx context.Context, res *ty
 	return
 }
 
+func (svc resourceTranslationsManager) chartExtended(_ context.Context, res *types.Chart) (out locale.ResourceTranslationSet, err error) {
+	var (
+		yAxisLabelK   = types.LocaleKeyChartYAxisLabel
+		metricLabelK  = types.LocaleKeyChartMetricsMetricIDLabel
+		dimStepLabelK = types.LocaleKeyChartDimensionsDimensionIDMetaStepsStepIDLabel
+	)
+
+	for _, report := range res.Config.Reports {
+		for _, tag := range svc.locale.Tags() {
+			out = append(out, &locale.ResourceTranslation{
+				Resource: res.ResourceTranslation(),
+				Lang:     tag.String(),
+				Key:      yAxisLabelK.Path,
+				Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), yAxisLabelK.Path),
+			})
+		}
+
+		report.WalkMetrics(func(metricID string, _ map[string]interface{}) {
+			mpl := strings.NewReplacer(
+				"{{metricID}}", metricID,
+			)
+
+			for _, tag := range svc.locale.Tags() {
+				out = append(out, &locale.ResourceTranslation{
+					Resource: res.ResourceTranslation(),
+					Lang:     tag.String(),
+					Key:      mpl.Replace(metricLabelK.Path),
+					Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), mpl.Replace(metricLabelK.Path)),
+				})
+			}
+		})
+
+		report.WalkDimensionSteps(func(dimensionID string, stepID string, _ map[string]interface{}) {
+			mpl := strings.NewReplacer(
+				"{{dimensionID}}", dimensionID,
+				"{{stepID}}", stepID,
+			)
+
+			for _, tag := range svc.locale.Tags() {
+				out = append(out, &locale.ResourceTranslation{
+					Resource: res.ResourceTranslation(),
+					Lang:     tag.String(),
+					Key:      mpl.Replace(dimStepLabelK.Path),
+					Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), mpl.Replace(dimStepLabelK.Path)),
+				})
+			}
+		})
+	}
+
+	return
+}
+
 func (svc resourceTranslationsManager) pageExtendedAutomationBlock(tag language.Tag, res *types.Page, block types.PageBlock, blockID uint64) (locale.ResourceTranslationSet, error) {
 	var (
-		k     = types.LocaleKeyPagePageBlockBlockIDButtonButtonIDLabel
-		out   = make(locale.ResourceTranslationSet, 0, 10)
 		bb, _ = block.Options["buttons"].([]interface{})
+	)
+
+	return svc.pageBlockButtons(tag, res, blockID, bb)
+}
+
+func (svc resourceTranslationsManager) pageExtendedRecordListBlock(tag language.Tag, res *types.Page, block types.PageBlock, blockID uint64) (locale.ResourceTranslationSet, error) {
+	var (
+		bb, _ = block.Options["selectionButtons"].([]interface{})
+	)
+
+	return svc.pageBlockButtons(tag, res, blockID, bb)
+}
+
+func (svc resourceTranslationsManager) pageBlockButtons(tag language.Tag, res *types.Page, blockID uint64, bb []interface{}) (locale.ResourceTranslationSet, error) {
+	var (
+		k   = types.LocaleKeyPagePageBlockBlockIDButtonButtonIDLabel
+		out = make(locale.ResourceTranslationSet, 0, 10)
 	)
 
 	for j, auxBtn := range bb {
 		btn := auxBtn.(map[string]interface{})
 
-		bContentID := uint64(0)
+		bContentID := uint64(1)
 		if aux, ok := btn["buttonID"]; ok {
 			bContentID = cast.ToUint64(aux)
 		}
@@ -262,20 +381,18 @@ func (svc resourceTranslationsManager) pageExtendedAutomationBlock(tag language.
 
 // Helper loaders
 
-func (svc resourceTranslationsManager) loadModule(ctx context.Context, s store.Storer, namespaceID, moduleID uint64) (m *types.Module, err error) {
-	return loadModule(ctx, s, moduleID)
+func (svc resourceTranslationsManager) loadModule(ctx context.Context, s store.Storer, namespaceID, moduleID uint64) (*types.Module, error) {
+	return loadModule(ctx, s, namespaceID, moduleID)
 }
 
-func (svc resourceTranslationsManager) loadNamespace(ctx context.Context, s store.Storer, namespaceID uint64) (m *types.Namespace, err error) {
+func (svc resourceTranslationsManager) loadNamespace(ctx context.Context, s store.Storer, namespaceID uint64) (*types.Namespace, error) {
 	return loadNamespace(ctx, s, namespaceID)
 }
 
-func (svc resourceTranslationsManager) loadPage(ctx context.Context, s store.Storer, namespaceID, pageID uint64) (m *types.Page, err error) {
-	_, m, err = loadPage(ctx, s, namespaceID, pageID)
-	return m, err
+func (svc resourceTranslationsManager) loadPage(ctx context.Context, s store.Storer, namespaceID, pageID uint64) (*types.Page, error) {
+	return loadPage(ctx, s, namespaceID, pageID)
 }
 
-func (svc resourceTranslationsManager) loadChart(ctx context.Context, s store.Storer, namespaceID, chartID uint64) (m *types.Chart, err error) {
-	_, m, err = loadChart(ctx, s, namespaceID, chartID)
-	return m, err
+func (svc resourceTranslationsManager) loadChart(ctx context.Context, s store.Storer, namespaceID, chartID uint64) (*types.Chart, error) {
+	return loadChart(ctx, s, namespaceID, chartID)
 }

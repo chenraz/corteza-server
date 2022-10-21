@@ -1,6 +1,6 @@
 {{ template "inc_header.html.tpl" . }}
 <div class="card-body p-0">
-	<h4 class="card-title p-3 border-bottom">{{ tr "login.template.title" }}</h4>
+	<h4 class="login-title card-title p-3 border-bottom">{{ tr "login.template.title" }}</h4>
 	{{ if .settings.LocalEnabled }}
 	<form
 		method="POST"
@@ -9,18 +9,22 @@
 	>
 		{{ .csrfField }}
 		{{ if .form.error }}
-		<div class="text-danger mb-4 font-weight-bold" role="alert">
+		<div
+			data-test-id="error"
+			class="text-danger mb-4 font-weight-bold"
+			role="alert"
+		>
 			{{ .form.error }}
 		</div>
 		{{ end }}
 		<div class="mb-3">
 		    <label>
-                {{ tr "login.template.form.email.label" }} *
+                {{ tr "login.template.form.email.label" }}
             </label>
 			<input
+				data-test-id="input-email"
 				type="email"
 				class="form-control"
-				data-test-id="input-email"
 				name="email"
 				required
 				placeholder="{{ tr "login.template.form.email.placeholder" }}"
@@ -31,13 +35,13 @@
 		{{ if not .form.splitCredentialsCheck }}
 		<div class="mb-3">
             <label>
-                {{ tr "login.template.form.password.label" }} *
+                {{ tr "login.template.form.password.label" }}
             </label>
 			<input
+				data-test-id="input-password"
 				type="password"
 				required
 				class="form-control"
-				data-test-id="input-password"
 				name="password"
 				placeholder="{{ tr "login.template.form.password.placeholder" }}"
 				autocomplete="current-password"
@@ -45,16 +49,19 @@
 		</div>
 		<div class="row">
 			<div class="col text-right">
+				{{ if .enableRememberMe }}
 				<button
-					class="btn btn-primary btn-block btn-lg"
 					data-test-id="button-login-and-remember"
+					class="btn btn-primary btn-block btn-lg"
 					name="keep-session"
 					value="true"
 					type="submit"
 				>
 					{{ tr "login.template.form.button.login-and-remember" }}
 				</button>
+				{{ end }}
 				<button
+					data-test-id="button-login"
 					class="btn btn-light btn-block"
 					type="submit"
 				>
@@ -66,8 +73,8 @@
 		<div class="row">
 			<div class="col text-right">
 				<button
+					data-test-id="button-continue"
 					class="btn btn-primary btn-block btn-lg"
-					data-test-id="button-login"
 					name="keep-session"
 					value="true"
 					type="submit"
@@ -78,22 +85,32 @@
 		</div>
 		{{ end }}
 	</form>
-	<div class="row text-center pb-3">
+	<div class="row text-center px-3 pb-3">
         {{ if .settings.PasswordResetEnabled }}
         <div class="col cols-6">
-            <a href="{{ links.RequestPasswordReset }}">{{ tr "login.template.links.request-password-reset" }}</a>
+            <a
+							data-test-id="link-request-password-reset"
+							href="{{ links.RequestPasswordReset }}"
+						>
+							{{ tr "login.template.links.request-password-reset" }}
+						</a>
         </div>
         {{ end }}
         {{ if .settings.SignupEnabled }}
         <div class="col cols-6">
-            <a href="{{ links.Signup }}">{{ tr "login.template.links.signup" }}</a>
+            <a
+							data-test-id="link-signup"
+							href="{{ links.Signup }}"
+						>
+							{{ tr "login.template.links.signup" }}
+						</a>
         </div>
         {{ end }}
 	</div>
 	{{ end }}
 
 	{{ if .settings.ExternalEnabled }}
-	<div class="pb-3">
+	<div class="px-3 pb-3">
 	{{ range .providers }}
 		<a href="{{ links.External }}/{{ .Handle }}" class="btn btn-light btn-block btn-lg mb-2 mt-1 text-dark">
 			<i class="bi bi-{{ .Icon }} mr-1"></i>

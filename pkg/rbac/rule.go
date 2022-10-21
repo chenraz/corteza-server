@@ -60,12 +60,24 @@ func (set RuleSet) FilterAccess(a Access) (out RuleSet) {
 	return out
 }
 
-func (set RuleSet) FilterResource(res string) (out RuleSet) {
-	for _, r := range set {
-		if !matchResource(r.Resource, res) {
-			continue
+// FilterResource returns rules that match given list of resources
+// Wildcards are not used!
+//
+// Note that empty resource list will return ALL rules!
+func (set RuleSet) FilterResource(rr ...Resource) (out RuleSet) {
+	if len(rr) == 0 {
+		return set
+	}
+
+	out = RuleSet{}
+	for _, rule := range set {
+		for _, res := range rr {
+			if res.RbacResource() != rule.Resource {
+				continue
+			}
+
+			out = append(out, rule)
 		}
-		out = append(out, r)
 	}
 
 	return

@@ -5,8 +5,7 @@ import (
 	"time"
 
 	"github.com/PaesslerAG/gval"
-	"github.com/lestrrat-go/strftime"
-	"github.com/spf13/cast"
+	"github.com/cortezaproject/corteza-server/pkg/gvalfnc"
 )
 
 func TimeFunctions() []gval.Language {
@@ -20,7 +19,7 @@ func TimeFunctions() []gval.Language {
 		gval.Function("modMonth", modMonth),
 		gval.Function("modYear", modYear),
 		gval.Function("parseDuration", time.ParseDuration),
-		gval.Function("strftime", strfTime),
+		gval.Function("strftime", gvalfnc.StrfTime),
 		gval.Function("isLeapYear", isLeapYear),
 		gval.Function("now", now),
 		gval.Function("isWeekDay", isWeekDay),
@@ -29,11 +28,11 @@ func TimeFunctions() []gval.Language {
 }
 
 func now() time.Time {
-	return time.Now()
+	return gvalfnc.Now()
 }
 
 func isLeapYear(base interface{}) (bool, error) {
-	t, _, err := prepMod(base, 0)
+	t, _, err := gvalfnc.PrepMod(base, 0)
 	if err != nil {
 		return false, err
 	}
@@ -41,7 +40,7 @@ func isLeapYear(base interface{}) (bool, error) {
 }
 
 func isLeapDay(base interface{}) (bool, error) {
-	t, _, err := prepMod(base, 0)
+	t, _, err := gvalfnc.PrepMod(base, 0)
 	if err != nil {
 		return false, err
 	}
@@ -49,7 +48,7 @@ func isLeapDay(base interface{}) (bool, error) {
 }
 
 func isWeekDay(base interface{}) (bool, error) {
-	t, _, err := prepMod(base, 0)
+	t, _, err := gvalfnc.PrepMod(base, 0)
 	if err != nil {
 		return false, err
 	}
@@ -57,12 +56,12 @@ func isWeekDay(base interface{}) (bool, error) {
 }
 
 func earliest(f interface{}, aa ...interface{}) (*time.Time, error) {
-	t, _, err := prepMod(f, 0)
+	t, _, err := gvalfnc.PrepMod(f, 0)
 	if err != nil {
 		return nil, err
 	}
 	for _, a := range aa {
-		s, _, err := prepMod(a, 0)
+		s, _, err := gvalfnc.PrepMod(a, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -75,12 +74,12 @@ func earliest(f interface{}, aa ...interface{}) (*time.Time, error) {
 }
 
 func latest(f interface{}, aa ...interface{}) (*time.Time, error) {
-	t, _, err := prepMod(f, 0)
+	t, _, err := gvalfnc.PrepMod(f, 0)
 	if err != nil {
 		return nil, err
 	}
 	for _, a := range aa {
-		s, _, err := prepMod(a, 0)
+		s, _, err := gvalfnc.PrepMod(a, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -103,7 +102,7 @@ func modTime(base interface{}, mod interface{}) (*time.Time, error) {
 		t   *time.Time
 	)
 
-	t, _, err = prepMod(base, 0)
+	t, _, err = gvalfnc.PrepMod(base, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +123,7 @@ func modTime(base interface{}, mod interface{}) (*time.Time, error) {
 }
 
 func modDate(base interface{}, mod interface{}) (*time.Time, error) {
-	t, m, err := prepMod(base, mod)
+	t, m, err := gvalfnc.PrepMod(base, mod)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +133,7 @@ func modDate(base interface{}, mod interface{}) (*time.Time, error) {
 }
 
 func modWeek(base interface{}, mod interface{}) (*time.Time, error) {
-	t, m, err := prepMod(base, mod)
+	t, m, err := gvalfnc.PrepMod(base, mod)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +143,7 @@ func modWeek(base interface{}, mod interface{}) (*time.Time, error) {
 }
 
 func modMonth(base interface{}, mod interface{}) (*time.Time, error) {
-	t, m, err := prepMod(base, mod)
+	t, m, err := gvalfnc.PrepMod(base, mod)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +153,7 @@ func modMonth(base interface{}, mod interface{}) (*time.Time, error) {
 }
 
 func modYear(base interface{}, mod interface{}) (*time.Time, error) {
-	t, m, err := prepMod(base, mod)
+	t, m, err := gvalfnc.PrepMod(base, mod)
 	if err != nil {
 		return nil, err
 	}
@@ -163,61 +162,14 @@ func modYear(base interface{}, mod interface{}) (*time.Time, error) {
 	return &tmp, nil
 }
 
-func prepMod(base interface{}, mod interface{}) (*time.Time, int, error) {
-	var (
-		t *time.Time
-	)
-
-	switch auxt := base.(type) {
-	case time.Time:
-		t = &auxt
-	case *time.Time:
-		t = auxt
-	case string:
-		tt, err := cast.ToTimeE(auxt)
-
-		if err != nil {
-			return nil, 0, err
-		}
-
-		t = &tt
-	default:
-		return nil, 0, errors.New("unexpected input type")
-	}
-
-	m, err := cast.ToIntE(mod)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	return t, m, nil
-}
-
-// Strftime formats time with POSIX standard format
-// More details here:
-// https://github.com/lestrrat-go/strftime#supported-conversion-specifications
-func strfTime(base interface{}, f string) (string, error) {
-	t, _, err := prepMod(base, 0)
-
-	if err != nil {
-		return "", err
-	}
-
-	o, _ := strftime.Format(f, *t,
-		strftime.WithMilliseconds('b'),
-		strftime.WithUnixSeconds('L'))
-
-	return o, nil
-}
-
 // sub returns difference between two date into milliseconds
 func sub(from interface{}, to interface{}) (out int64, err error) {
-	t1, _, err := prepMod(from, 0)
+	t1, _, err := gvalfnc.PrepMod(from, 0)
 	if err != nil {
 		return
 	}
 
-	t2, _, err := prepMod(to, 0)
+	t2, _, err := gvalfnc.PrepMod(to, 0)
 	if err != nil {
 		return
 	}

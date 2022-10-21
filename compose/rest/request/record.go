@@ -12,7 +12,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cortezaproject/corteza-server/compose/types"
-	"github.com/cortezaproject/corteza-server/pkg/label"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
 	"github.com/go-chi/chi/v5"
 	"io"
@@ -78,10 +77,10 @@ type (
 		// Record filtering query
 		Query string
 
-		// Labels GET parameter
+		// Meta GET parameter
 		//
-		// Labels
-		Labels map[string]string
+		// Record meta data
+		Meta map[string]any
 
 		// Deleted GET parameter
 		//
@@ -250,15 +249,20 @@ type (
 		// Record values
 		Values types.RecordValueSet
 
+		// OwnedBy POST parameter
+		//
+		// Record Owner
+		OwnedBy uint64 `json:",string"`
+
 		// Records POST parameter
 		//
 		// Records
 		Records types.RecordBulkSet
 
-		// Labels POST parameter
+		// Meta POST parameter
 		//
-		// Labels
-		Labels map[string]string
+		// Record meta-data
+		Meta map[string]any
 	}
 
 	RecordRead struct {
@@ -299,15 +303,20 @@ type (
 		// Record values
 		Values types.RecordValueSet
 
+		// OwnedBy POST parameter
+		//
+		// Record Owner
+		OwnedBy uint64 `json:",string"`
+
+		// Meta POST parameter
+		//
+		// Record meta-data
+		Meta map[string]any
+
 		// Records POST parameter
 		//
 		// Records
 		Records types.RecordBulkSet
-
-		// Labels POST parameter
-		//
-		// Labels
-		Labels map[string]string
 	}
 
 	RecordBulkDelete struct {
@@ -424,6 +433,23 @@ type (
 		// Arguments to pass to the script
 		Args map[string]interface{}
 	}
+
+	RecordRevisions struct {
+		// NamespaceID PATH parameter
+		//
+		// Namespace ID
+		NamespaceID uint64 `json:",string"`
+
+		// ModuleID PATH parameter
+		//
+		// Module ID
+		ModuleID uint64 `json:",string"`
+
+		// RecordID PATH parameter
+		//
+		// ID
+		RecordID uint64 `json:",string"`
+	}
 )
 
 // NewRecordReport request
@@ -526,7 +552,7 @@ func (r RecordList) Auditable() map[string]interface{} {
 		"namespaceID":       r.NamespaceID,
 		"moduleID":          r.ModuleID,
 		"query":             r.Query,
-		"labels":            r.Labels,
+		"meta":              r.Meta,
 		"deleted":           r.Deleted,
 		"limit":             r.Limit,
 		"incTotal":          r.IncTotal,
@@ -552,8 +578,8 @@ func (r RecordList) GetQuery() string {
 }
 
 // Auditable returns all auditable/loggable parameters
-func (r RecordList) GetLabels() map[string]string {
-	return r.Labels
+func (r RecordList) GetMeta() map[string]any {
+	return r.Meta
 }
 
 // Auditable returns all auditable/loggable parameters
@@ -599,13 +625,13 @@ func (r *RecordList) Fill(req *http.Request) (err error) {
 				return err
 			}
 		}
-		if val, ok := tmp["labels[]"]; ok {
-			r.Labels, err = label.ParseStrings(val)
+		if val, ok := tmp["meta[]"]; ok {
+			r.Meta, err = payload.ParseMeta(val)
 			if err != nil {
 				return err
 			}
-		} else if val, ok := tmp["labels"]; ok {
-			r.Labels, err = label.ParseStrings(val)
+		} else if val, ok := tmp["meta"]; ok {
+			r.Meta, err = payload.ParseMeta(val)
 			if err != nil {
 				return err
 			}
@@ -1173,8 +1199,9 @@ func (r RecordCreate) Auditable() map[string]interface{} {
 		"namespaceID": r.NamespaceID,
 		"moduleID":    r.ModuleID,
 		"values":      r.Values,
+		"ownedBy":     r.OwnedBy,
 		"records":     r.Records,
-		"labels":      r.Labels,
+		"meta":        r.Meta,
 	}
 }
 
@@ -1194,13 +1221,18 @@ func (r RecordCreate) GetValues() types.RecordValueSet {
 }
 
 // Auditable returns all auditable/loggable parameters
+func (r RecordCreate) GetOwnedBy() uint64 {
+	return r.OwnedBy
+}
+
+// Auditable returns all auditable/loggable parameters
 func (r RecordCreate) GetRecords() types.RecordBulkSet {
 	return r.Records
 }
 
 // Auditable returns all auditable/loggable parameters
-func (r RecordCreate) GetLabels() map[string]string {
-	return r.Labels
+func (r RecordCreate) GetMeta() map[string]any {
+	return r.Meta
 }
 
 // Fill processes request and fills internal variables
@@ -1224,13 +1256,20 @@ func (r *RecordCreate) Fill(req *http.Request) (err error) {
 		} else if err == nil {
 			// Multipart params
 
-			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
-				r.Labels, err = label.ParseStrings(val)
+			if val, ok := req.MultipartForm.Value["ownedBy"]; ok && len(val) > 0 {
+				r.OwnedBy, err = payload.ParseUint64(val[0]), nil
 				if err != nil {
 					return err
 				}
-			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
-				r.Labels, err = label.ParseStrings(val)
+			}
+
+			if val, ok := req.MultipartForm.Value["meta[]"]; ok {
+				r.Meta, err = payload.ParseMeta(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["meta"]; ok {
+				r.Meta, err = payload.ParseMeta(val)
 				if err != nil {
 					return err
 				}
@@ -1252,6 +1291,13 @@ func (r *RecordCreate) Fill(req *http.Request) (err error) {
 		//    }
 		//}
 
+		if val, ok := req.Form["ownedBy"]; ok && len(val) > 0 {
+			r.OwnedBy, err = payload.ParseUint64(val[0]), nil
+			if err != nil {
+				return err
+			}
+		}
+
 		//if val, ok := req.Form["records[]"]; ok && len(val) > 0  {
 		//    r.Records, err = types.RecordBulkSet(val), nil
 		//    if err != nil {
@@ -1259,13 +1305,13 @@ func (r *RecordCreate) Fill(req *http.Request) (err error) {
 		//    }
 		//}
 
-		if val, ok := req.Form["labels[]"]; ok {
-			r.Labels, err = label.ParseStrings(val)
+		if val, ok := req.Form["meta[]"]; ok {
+			r.Meta, err = payload.ParseMeta(val)
 			if err != nil {
 				return err
 			}
-		} else if val, ok := req.Form["labels"]; ok {
-			r.Labels, err = label.ParseStrings(val)
+		} else if val, ok := req.Form["meta"]; ok {
+			r.Meta, err = payload.ParseMeta(val)
 			if err != nil {
 				return err
 			}
@@ -1364,8 +1410,9 @@ func (r RecordUpdate) Auditable() map[string]interface{} {
 		"moduleID":    r.ModuleID,
 		"recordID":    r.RecordID,
 		"values":      r.Values,
+		"ownedBy":     r.OwnedBy,
+		"meta":        r.Meta,
 		"records":     r.Records,
-		"labels":      r.Labels,
 	}
 }
 
@@ -1390,13 +1437,18 @@ func (r RecordUpdate) GetValues() types.RecordValueSet {
 }
 
 // Auditable returns all auditable/loggable parameters
-func (r RecordUpdate) GetRecords() types.RecordBulkSet {
-	return r.Records
+func (r RecordUpdate) GetOwnedBy() uint64 {
+	return r.OwnedBy
 }
 
 // Auditable returns all auditable/loggable parameters
-func (r RecordUpdate) GetLabels() map[string]string {
-	return r.Labels
+func (r RecordUpdate) GetMeta() map[string]any {
+	return r.Meta
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r RecordUpdate) GetRecords() types.RecordBulkSet {
+	return r.Records
 }
 
 // Fill processes request and fills internal variables
@@ -1420,17 +1472,25 @@ func (r *RecordUpdate) Fill(req *http.Request) (err error) {
 		} else if err == nil {
 			// Multipart params
 
-			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
-				r.Labels, err = label.ParseStrings(val)
-				if err != nil {
-					return err
-				}
-			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
-				r.Labels, err = label.ParseStrings(val)
+			if val, ok := req.MultipartForm.Value["ownedBy"]; ok && len(val) > 0 {
+				r.OwnedBy, err = payload.ParseUint64(val[0]), nil
 				if err != nil {
 					return err
 				}
 			}
+
+			if val, ok := req.MultipartForm.Value["meta[]"]; ok {
+				r.Meta, err = payload.ParseMeta(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["meta"]; ok {
+				r.Meta, err = payload.ParseMeta(val)
+				if err != nil {
+					return err
+				}
+			}
+
 		}
 	}
 
@@ -1448,24 +1508,31 @@ func (r *RecordUpdate) Fill(req *http.Request) (err error) {
 		//    }
 		//}
 
+		if val, ok := req.Form["ownedBy"]; ok && len(val) > 0 {
+			r.OwnedBy, err = payload.ParseUint64(val[0]), nil
+			if err != nil {
+				return err
+			}
+		}
+
+		if val, ok := req.Form["meta[]"]; ok {
+			r.Meta, err = payload.ParseMeta(val)
+			if err != nil {
+				return err
+			}
+		} else if val, ok := req.Form["meta"]; ok {
+			r.Meta, err = payload.ParseMeta(val)
+			if err != nil {
+				return err
+			}
+		}
+
 		//if val, ok := req.Form["records[]"]; ok && len(val) > 0  {
 		//    r.Records, err = types.RecordBulkSet(val), nil
 		//    if err != nil {
 		//        return err
 		//    }
 		//}
-
-		if val, ok := req.Form["labels[]"]; ok {
-			r.Labels, err = label.ParseStrings(val)
-			if err != nil {
-				return err
-			}
-		} else if val, ok := req.Form["labels"]; ok {
-			r.Labels, err = label.ParseStrings(val)
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	{
@@ -2027,6 +2094,65 @@ func (r *RecordTriggerScriptOnList) Fill(req *http.Request) (err error) {
 
 		val = chi.URLParam(req, "moduleID")
 		r.ModuleID, err = payload.ParseUint64(val), nil
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return err
+}
+
+// NewRecordRevisions request
+func NewRecordRevisions() *RecordRevisions {
+	return &RecordRevisions{}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r RecordRevisions) Auditable() map[string]interface{} {
+	return map[string]interface{}{
+		"namespaceID": r.NamespaceID,
+		"moduleID":    r.ModuleID,
+		"recordID":    r.RecordID,
+	}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r RecordRevisions) GetNamespaceID() uint64 {
+	return r.NamespaceID
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r RecordRevisions) GetModuleID() uint64 {
+	return r.ModuleID
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r RecordRevisions) GetRecordID() uint64 {
+	return r.RecordID
+}
+
+// Fill processes request and fills internal variables
+func (r *RecordRevisions) Fill(req *http.Request) (err error) {
+
+	{
+		var val string
+		// path params
+
+		val = chi.URLParam(req, "namespaceID")
+		r.NamespaceID, err = payload.ParseUint64(val), nil
+		if err != nil {
+			return err
+		}
+
+		val = chi.URLParam(req, "moduleID")
+		r.ModuleID, err = payload.ParseUint64(val), nil
+		if err != nil {
+			return err
+		}
+
+		val = chi.URLParam(req, "recordID")
+		r.RecordID, err = payload.ParseUint64(val), nil
 		if err != nil {
 			return err
 		}

@@ -21,14 +21,16 @@ endpoints:
     path: "/"
     parameters:
       get:
-      - { name: workflowID, type: "[]string",          title: "Filter by workflow ID" }
-      - { name: query,      type: "string",            title: "Filter workflows" }
-      - { name: deleted,    type: "uint",              title: "Exclude (0, default), include (1) or return only (2) deleted workflows" }
-      - { name: disabled,   type: "uint",              title: "Exclude (0, default), include (1) or return only (2) disabled workflows" }
-      - { name: labels,     type: "map[string]string", title: "Labels", parser: "label.ParseStrings" }
-      - { name: limit,      type: "uint",              title: "Limit" }
-      - { name: pageCursor, type: "string",            title: "Page cursor" }
-      - { name: sort,       type: "string",            title: "Sort items" }
+      - { name: workflowID,  type: "[]string",          title: "Filter by workflow ID" }
+      - { name: query,       type: "string",            title: "Filter workflows" }
+      - { name: deleted,     type: "uint",              title: "Exclude (0, default), include (1) or return only (2) deleted workflows" }
+      - { name: disabled,    type: "uint",              title: "Exclude (0, default), include (1) or return only (2) disabled workflows" }
+      - { name: subWorkflow, type: "uint",              title: "Exclude (0, default), include (1) or return only (2) sub workflows" }
+      - { name: labels,      type: "map[string]string", title: "Labels", parser: "label.ParseStrings" }
+      - { name: limit,       type: "uint",              title: "Limit" }
+      - { name: incTotal,    type: "bool",              title: "Include total rows counter" }
+      - { name: pageCursor,  type: "string",            title: "Page cursor" }
+      - { name: sort,        type: "string",            title: "Sort items" }
   - name: create
     method: POST
     title: Create workflow
@@ -199,6 +201,7 @@ endpoints:
       - { name: eventType,    type: "string",              title: "Filter event type" }
       - { name: resourceType, type: "string",              title: "Filter resource type" }
       - { name: limit,        type: "uint",                title: "Limit" }
+      - { name: incTotal,     type: "bool",                title: "Include total rows counter" }
       - { name: pageCursor,   type: "string",              title: "Page cursor" }
       - { name: sort,         type: "string",              title: "Sort items" }
   - name: read
@@ -206,16 +209,20 @@ endpoints:
     title: Read session details
     path: "/{sessionID}"
     parameters: { path: [ { name: sessionID, type: uint64, required: true, title: "Session ID" } ] }
-  - name: trace
-    method: GET
-    title: Read session trace info
-    path: "/{sessionID}/trace"
+
+  - name: cancel
+    method: POST
+    title: Cancel session
+    path: "/{sessionID}/cancel"
     parameters: { path: [ { name: sessionID, type: uint64, required: true, title: "Session ID" } ] }
-  - name: delete
-    method: DELETE
-    title: Remove session
-    path: "/{sessionID}"
-    parameters: { path: [ { name: sessionID, type: uint64, required: true, title: "Session ID" } ] }
+
+# not yet implemented
+#
+#  - name: delete
+#    method: DELETE
+#    title: Remove session
+#    path: "/{sessionID}"
+#    parameters: { path: [ { name: sessionID, type: uint64, required: true, title: "Session ID" } ] }
 
   - name: listPrompts
     method: GET
@@ -233,14 +240,16 @@ endpoints:
       post:
       - { name: input,        type: "*expr.Vars",           title: "Prompt variables", parser: "types.ParseWorkflowVariables" }
 
-  - name: deleteState
-    method: DELETE
-    title: Cancel session's state
-    path: "/{sessionID}/state/{stateID}"
-    parameters:
-      path:
-      - { name: sessionID,    type: uint64, required: true, title: "Session ID" }
-      - { name: stateID,      type: uint64, required: true, title: "State ID" }
+# not yet implemented
+#
+#  - name: deleteState
+#    method: DELETE
+#    title: Cancel session's state
+#    path: "/{sessionID}/state/{stateID}"
+#    parameters:
+#      path:
+#      - { name: sessionID,    type: uint64, required: true, title: "Session ID" }
+#      - { name: stateID,      type: uint64, required: true, title: "State ID" }
 
 - title: Functions
   path: "/functions"
@@ -292,6 +301,22 @@ endpoints:
         type: string
         required: false
         title: Show only rules for a specific resource
+  - name: trace
+    path: "/trace"
+    method: GET
+    title: Evaluate rules for given user/role combo
+    parameters:
+      get:
+      - name: resource
+        type: "[]string"
+        required: false
+        title: Show only rules for a specific resource
+      - name: userID
+        type: uint64
+        required: false
+      - name: roleID
+        type: "[]uint64"
+        required: false
   - name: read
     path: "/{roleID}/rules"
     method: GET
@@ -302,6 +327,11 @@ endpoints:
         type: uint64
         required: true
         title: Role ID
+      get:
+      - name: resource
+        type: "[]string"
+        required: false
+        title: Show only rules for a specific resource
   - name: delete
     path: "/{roleID}/rules"
     method: DELETE

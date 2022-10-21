@@ -4,15 +4,19 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
+
+	"github.com/cortezaproject/corteza-server/pkg/dal"
+	"github.com/cortezaproject/corteza-server/pkg/errors"
+	"github.com/cortezaproject/corteza-server/pkg/locale"
 
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
-	"github.com/cortezaproject/corteza-server/pkg/expr"
 	"github.com/cortezaproject/corteza-server/pkg/filter"
 	"github.com/cortezaproject/corteza-server/pkg/label"
-	"github.com/cortezaproject/corteza-server/pkg/minions"
-	rep "github.com/cortezaproject/corteza-server/pkg/report"
 	"github.com/cortezaproject/corteza-server/store"
+	"github.com/cortezaproject/corteza-server/system/reporting"
 	"github.com/cortezaproject/corteza-server/system/types"
+	"github.com/modern-go/reflect2"
 	"github.com/spf13/cast"
 )
 
@@ -22,8 +26,11 @@ type (
 		eventbus  eventDispatcher
 		actionlog actionlog.Recorder
 		store     store.Storer
+		locale    locale.Locale
 
 		users UserService
+
+		pipelineRunner pipelineRunner
 	}
 
 	reportAccessController interface {
@@ -34,10 +41,12 @@ type (
 		CanDeleteReport(context.Context, *types.Report) bool
 		CanRunReport(context.Context, *types.Report) bool
 	}
-)
 
-var (
-	reporters = make(map[string]rep.DatasourceProvider)
+	pipelineRunner interface {
+		Run(context.Context, dal.Pipeline) (dal.Iterator, error)
+		Dryrun(context.Context, dal.Pipeline) error
+		FindModel(dal.ModelRef) *dal.Model
+	}
 )
 
 // Report is a default report service initializer
@@ -47,13 +56,12 @@ func Report(s store.Storer, ac reportAccessController, al actionlog.Recorder, eb
 		ac:        ac,
 		actionlog: al,
 		eventbus:  eb,
+		locale:    locale.Global(),
 
 		users: DefaultUser,
-	}
-}
 
-func (svc *report) RegisterReporter(key string, r rep.DatasourceProvider) {
-	reporters[key] = r
+		pipelineRunner: dal.Service(),
+	}
 }
 
 func (svc *report) LookupByID(ctx context.Context, ID uint64) (report *types.Report, err error) {
@@ -62,11 +70,7 @@ func (svc *report) LookupByID(ctx context.Context, ID uint64) (report *types.Rep
 	)
 
 	err = func() error {
-		if ID == 0 {
-			return ReportErrInvalidID()
-		}
-
-		if report, err = store.LookupReportByID(ctx, svc.store, ID); err != nil {
+		if report, err = loadReport(ctx, svc.store, ID); err != nil {
 			return ReportErrInvalidID().Wrap(err)
 		}
 
@@ -134,7 +138,7 @@ func (svc *report) Search(ctx context.Context, rf types.ReportFilter) (rr types.
 
 func (svc *report) Create(ctx context.Context, new *types.Report) (report *types.Report, err error) {
 	var (
-		aaProps = &reportActionProps{new: new}
+		aaProps = &reportActionProps{report: new}
 	)
 
 	err = func() (err error) {
@@ -155,6 +159,8 @@ func (svc *report) Create(ctx context.Context, new *types.Report) (report *types
 		}
 
 		new = svc.setIDs(new)
+
+		aaProps.setNew(new)
 
 		if err = store.CreateReport(ctx, svc.store, new); err != nil {
 			return
@@ -179,11 +185,7 @@ func (svc *report) Update(ctx context.Context, upd *types.Report) (report *types
 	)
 
 	err = func() (err error) {
-		if upd.ID == 0 {
-			return ReportErrInvalidID()
-		}
-
-		if report, err = store.LookupReportByID(ctx, svc.store, upd.ID); err != nil {
+		if report, err = loadReport(ctx, svc.store, upd.ID); err != nil {
 			return
 		}
 
@@ -236,11 +238,7 @@ func (svc *report) Delete(ctx context.Context, ID uint64) (err error) {
 	)
 
 	err = func() (err error) {
-		if ID == 0 {
-			return ReportErrInvalidID()
-		}
-
-		if report, err = store.LookupReportByID(ctx, svc.store, ID); err != nil {
+		if report, err = loadReport(ctx, svc.store, ID); err != nil {
 			return
 		}
 
@@ -273,11 +271,7 @@ func (svc *report) Undelete(ctx context.Context, ID uint64) (err error) {
 	)
 
 	err = func() (err error) {
-		if ID == 0 {
-			return ReportErrInvalidID()
-		}
-
-		if report, err = store.LookupReportByID(ctx, svc.store, ID); err != nil {
+		if report, err = loadReport(ctx, svc.store, ID); err != nil {
 			return
 		}
 
@@ -303,144 +297,81 @@ func (svc *report) Undelete(ctx context.Context, ID uint64) (err error) {
 	return svc.recordAction(ctx, aaProps, ReportActionUndelete, err)
 }
 
-// actionlog?
-func (svc *report) DescribeFresh(ctx context.Context, src types.ReportDataSourceSet, st rep.StepDefinitionSet, sources ...string) (out rep.FrameDescriptionSet, err error) {
-	// var (
-	// 	aaProps = &reportActionProps{}
-	// )
-
-	out = make(rep.FrameDescriptionSet, 0, len(sources)*2)
+// @todo actionlog?
+func (svc *report) Describe(ctx context.Context, src types.ReportDataSourceSet, st types.ReportStepSet, sources ...string) (out []reporting.FrameDescription, err error) {
+	out = make([]reporting.FrameDescription, 0, len(sources)*2)
 
 	err = func() (err error) {
 		if !svc.ac.CanCreateReport(ctx) {
 			return ReportErrNotAllowedToCreate()
 		}
 
-		ss := src.ModelSteps()
+		ss := src.ReportSteps()
 		ss = append(ss, st...)
 
-		// Model the report
-		model, err := rep.Model(ctx, reporters, ss...)
-		if err != nil {
-			return
-		}
-
-		err = model.Run(ctx)
-		if err != nil {
-			return
-		}
-
-		var auxOut rep.FrameDescriptionSet
-		for _, s := range sources {
-			auxOut, err = model.Describe(ctx, s)
-			if err != nil {
-				return err
-			}
-
-			out = append(out, auxOut...)
-		}
-
-		return nil
+		out, err = reporting.Describe(ctx, svc.pipelineRunner, ss, sources)
+		return err
 	}()
 
 	return out, err
 }
 
-func (svc *report) Run(ctx context.Context, reportID uint64, dd rep.FrameDefinitionSet) (out []*rep.Frame, err error) {
+func (svc *report) Run(ctx context.Context, reportID uint64, dd reporting.FrameDefinitionSet) (_ []*reporting.Frame, err error) {
 	var (
 		aaProps = &reportActionProps{}
+
+		iter dal.Iterator
+		ff   []*reporting.Frame
+		out  = make([]*reporting.Frame, 0, 4)
 	)
-	out = make([]*rep.Frame, 0, 4)
 
 	err = func() (err error) {
-		// @todo evt bus?
-		// if err = svc.eventbus.WaitFor(ctx, event.ReportBeforeUpdate(upd, report)); err != nil {
-		// 	return
-		// }
-
-		if reportID == 0 {
-			return ReportErrInvalidID()
-		}
-
-		r, err := store.LookupReportByID(ctx, svc.store, reportID)
+		// Load the report
+		r, err := loadReport(ctx, svc.store, reportID)
 		if err != nil {
 			return err
 		}
 
-		// - ac
+		// Access control
 		if !svc.ac.CanRunReport(ctx, r) {
 			return ReportErrNotAllowedToRun()
 		}
 
-		ss := r.Sources.ModelSteps()
-		ss = append(ss, r.Blocks.ModelSteps()...)
+		// Get all of the steps
+		ss := r.Sources.ReportSteps()
+		ss = append(ss, r.Blocks.ReportSteps()...)
 
-		if err = ss.Validate(); err != nil {
-			return ReportErrInvalidConfiguration().Wrap(err)
-		}
-
-		for _, d := range dd {
-			if err = d.Validate(); err != nil {
-				return ReportErrInvalidConfiguration().Wrap(err)
-			}
-		}
-
-		// Model the report
-		model, err := rep.Model(ctx, reporters, ss...)
+		// Prepare a set of runs for the provided definitions
+		runs, err := reporting.Runs(svc.pipelineRunner, ss, dd)
 		if err != nil {
 			return
 		}
 
-		err = model.Run(ctx)
-		if err != nil {
-			return
+		// Run the reports and produce the frames
+		// @todo this can be ran in paralel
+		for _, run := range runs {
+			func() (err error) {
+				iter, err = svc.pipelineRunner.Run(ctx, run.Pipeline)
+				if err != nil {
+					return
+				}
+				defer iter.Close()
+
+				ff, err = reporting.Frames(ctx, iter, run)
+				if err != nil {
+					return
+				}
+
+				err = svc.enhance(ctx, ff)
+				if err != nil {
+					return
+				}
+
+				out = append(out, ff...)
+				return
+			}()
 		}
 
-		auxdd := make([]*rep.FrameDefinition, 0, len(dd))
-		for i, d := range dd {
-			// first one; nothing special needed
-			if i == 0 {
-				auxdd = append(auxdd, d)
-				continue
-			}
-
-			stp := model.GetStep(d.Source)
-			if stp == nil {
-				return fmt.Errorf("unknown source: %s", d.Source)
-			}
-
-			// if the current source matches the prev. source, and they both define references,
-			// they fall into the same chunk.
-			if stp.Def().Join != nil && (d.Source == dd[i-1].Source) && (d.Ref != "" && dd[i-1].Ref != "") && (d.Name == dd[i-1].Name) {
-				auxdd = append(auxdd, d)
-				continue
-			}
-
-			// if the current one doesn't fall into the current chunk, process
-			// the chunk and reset it
-			ff, err := model.Load(ctx, auxdd...)
-			if err != nil {
-				return err
-			}
-			out = append(out, ff...)
-
-			auxdd = make([]*rep.FrameDefinition, 0, len(dd))
-			auxdd = append(auxdd, d)
-		}
-
-		if len(auxdd) > 0 {
-			ff, err := model.Load(ctx, auxdd...)
-			if err != nil {
-				return err
-			}
-
-			ff, err = svc.enhance(ctx, ff)
-
-			out = append(out, ff...)
-		}
-
-		// _ = svc.eventbus.WaitFor(ctx, event.ReportAfterUpdate(upd, report))
-		// return nil
 		return nil
 	}()
 
@@ -451,7 +382,7 @@ func (svc *report) Run(ctx context.Context, reportID uint64, dd rep.FrameDefinit
 // @todo extend core implementation to support such operatons
 //
 // - userID is replaced by the user name || username || email || handle || userID
-func (svc *report) enhance(ctx context.Context, ff []*rep.Frame) (_ []*rep.Frame, err error) {
+func (svc *report) enhance(ctx context.Context, ff []*reporting.Frame) (err error) {
 	// Preload sys users
 	uIndex := make(map[uint64]*types.User)
 	uu, uf, err := svc.users.Find(ctx, types.UserFilter{Paging: filter.Paging{Limit: 1024}})
@@ -463,9 +394,18 @@ func (svc *report) enhance(ctx context.Context, ff []*rep.Frame) (_ []*rep.Frame
 		uIndex[uu[i].ID] = uu[i]
 	}
 
+	var uID uint64
 	for _, f := range ff {
 		userCols := make([]int, 0, len(f.Columns))
 		for i, c := range f.Columns {
+			// Translate system columns
+			if c.System {
+				pp := strings.Split(c.Name, ".")
+				c.Label = svc.locale.T(ctx, "compose", fmt.Sprintf("field.system.%s", pp[len(pp)-1]))
+				f.Columns[i] = c
+			}
+
+			// Collect user columns to replace IDs with labels
 			if c.Kind != "User" {
 				continue
 			}
@@ -475,46 +415,45 @@ func (svc *report) enhance(ctx context.Context, ff []*rep.Frame) (_ []*rep.Frame
 		for _, r := range f.Rows {
 			for _, ci := range userCols {
 				col := r[ci]
-				if minions.IsNil(col) {
+				if reflect2.IsNil(col) {
 					continue
 				}
-				switch col.Type() {
-				case "ID":
-					uID := col.Get().(uint64)
-					user, ok := uIndex[uID]
-					if !ok && hasMore {
-						user, err = svc.users.FindByID(ctx, uID)
-						if err != nil && err != store.ErrNotFound {
-							return
-						}
+				uID, err = cast.ToUint64E(col)
+				if err != nil {
+					continue
+				}
+
+				user, ok := uIndex[uID]
+				if !ok && hasMore {
+					user, err = svc.users.FindByID(ctx, uID)
+					if err != nil && err != store.ErrNotFound {
+						return
 					}
+				}
 
-					if user == nil {
-						continue
-					} else if _, ok := uIndex[uID]; !ok {
-						uIndex[uID] = user
-					}
+				if user == nil {
+					continue
+				} else if _, ok := uIndex[uID]; !ok {
+					uIndex[uID] = user
+				}
 
-					if usr, ok := uIndex[uID]; ok {
-						label := strconv.FormatUint(uID, 10)
-						if usr.Name != "" {
-							label = usr.Name
-						} else if usr.Username != "" {
-							label = usr.Username
-						} else if usr.Email != "" {
-							label = usr.Email
-						} else if usr.Handle != "" {
-							label = usr.Handle
-						}
-
-						r[ci], _ = expr.NewString(label)
+				if usr, ok := uIndex[uID]; ok {
+					r[ci] = strconv.FormatUint(uID, 10)
+					if usr.Name != "" {
+						r[ci] = usr.Name
+					} else if usr.Username != "" {
+						r[ci] = usr.Username
+					} else if usr.Email != "" {
+						r[ci] = usr.Email
+					} else if usr.Handle != "" {
+						r[ci] = usr.Handle
 					}
 				}
 			}
 		}
 	}
 
-	return ff, err
+	return err
 }
 
 func (svc *report) setIDs(r *types.Report) *types.Report {
@@ -552,6 +491,18 @@ func (svc *report) setIDs(r *types.Report) *types.Report {
 	}
 
 	return r
+}
+
+func loadReport(ctx context.Context, s store.Reports, ID uint64) (res *types.Report, err error) {
+	if ID == 0 {
+		return nil, ReportErrInvalidID()
+	}
+
+	if res, err = store.LookupReportByID(ctx, s, ID); errors.IsNotFound(err) {
+		return nil, ReportErrNotFound()
+	}
+
+	return
 }
 
 // toLabeledReports converts to []label.LabeledResource

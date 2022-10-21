@@ -11,26 +11,33 @@ import (
 	"fmt"
 	"github.com/cortezaproject/corteza-server/compose/types"
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
+	internalAuth "github.com/cortezaproject/corteza-server/pkg/auth"
 	"github.com/cortezaproject/corteza-server/pkg/rbac"
+	"github.com/cortezaproject/corteza-server/store"
+	systemTypes "github.com/cortezaproject/corteza-server/system/types"
 	"github.com/spf13/cast"
 	"strings"
 )
 
 type (
+	rbacService interface {
+		Can(rbac.Session, string, rbac.Resource) bool
+		Trace(rbac.Session, string, rbac.Resource) *rbac.Trace
+		Grant(context.Context, ...*rbac.Rule) error
+		FindRulesByRoleID(roleID uint64) (rr rbac.RuleSet)
+	}
+
 	accessControl struct {
 		actionlog actionlog.Recorder
 
-		rbac interface {
-			Can(rbac.Session, string, rbac.Resource) bool
-			Grant(context.Context, ...*rbac.Rule) error
-			FindRulesByRoleID(roleID uint64) (rr rbac.RuleSet)
-			CloneRulesByRoleID(ctx context.Context, fromRoleID uint64, toRoleID ...uint64) error
-		}
+		store store.Storer
+		rbac  rbacService
 	}
 )
 
-func AccessControl() *accessControl {
+func AccessControl(s store.Storer) *accessControl {
 	return &accessControl{
+		store:     s,
 		rbac:      rbac.Global(),
 		actionlog: DefaultActionlog,
 	}
@@ -41,6 +48,8 @@ func (svc accessControl) can(ctx context.Context, op string, res rbac.Resource) 
 }
 
 // Effective returns a list of effective permissions for all given resource
+//
+// This function is auto-generated
 func (svc accessControl) Effective(ctx context.Context, rr ...rbac.Resource) (ee rbac.EffectiveSet) {
 	for _, res := range rr {
 		r := res.RbacResource()
@@ -52,6 +61,94 @@ func (svc accessControl) Effective(ctx context.Context, rr ...rbac.Resource) (ee
 	return
 }
 
+// Evaluate returns a list of permissions evaluated for the given user/roles combo
+//
+// This function is auto-generated
+func (svc accessControl) Trace(ctx context.Context, userID uint64, roles []uint64, rr ...string) (ee []*rbac.Trace, err error) {
+	// Reusing the grant permission since this is who the feature is for
+	if !svc.CanGrant(ctx) {
+		// @todo should be altered to check grant permissions PER resource
+		return nil, AccessControlErrNotAllowedToSetPermissions()
+	}
+
+	var (
+		resource  rbac.Resource
+		resources []rbac.Resource
+		members   systemTypes.RoleMemberSet
+	)
+	if len(rr) > 0 {
+		resources = make([]rbac.Resource, 0, len(rr))
+		for _, r := range rr {
+			if err = rbacResourceValidator(r); err != nil {
+				return nil, fmt.Errorf("can not use resource %q: %w", r, err)
+			}
+
+			resource, err = svc.resourceLoader(ctx, r)
+			if err != nil {
+				return
+			}
+
+			resources = append(resources, resource)
+		}
+	} else {
+		resources = svc.Resources()
+	}
+
+	// User ID specified, load its roles
+	if userID != 0 {
+		if len(roles) > 0 {
+			// should be prevented on the client
+			return nil, fmt.Errorf("userID and roles are mutually exclusive")
+		}
+
+		members, _, err = store.SearchRoleMembers(ctx, svc.store, systemTypes.RoleMemberFilter{UserID: userID})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, m := range members {
+			roles = append(roles, m.RoleID)
+		}
+
+		for _, r := range internalAuth.AuthenticatedRoles() {
+			roles = append(roles, r.ID)
+		}
+	}
+
+	if len(roles) == 0 {
+		// should be prevented on the client
+		return nil, fmt.Errorf("no roles specified")
+	}
+
+	session := rbac.ParamsToSession(ctx, userID, roles...)
+	for _, res := range resources {
+		r := res.RbacResource()
+		for op := range rbacResourceOperations(r) {
+			ee = append(ee, svc.rbac.Trace(session, op, res))
+		}
+	}
+
+	return
+}
+
+// Resources returns list of resources
+//
+// This function is auto-generated
+func (svc accessControl) Resources() []rbac.Resource {
+	return []rbac.Resource{
+		rbac.NewResource(types.ChartRbacResource(0, 0)),
+		rbac.NewResource(types.ModuleRbacResource(0, 0)),
+		rbac.NewResource(types.ModuleFieldRbacResource(0, 0, 0)),
+		rbac.NewResource(types.NamespaceRbacResource(0)),
+		rbac.NewResource(types.PageRbacResource(0, 0)),
+		rbac.NewResource(types.RecordRbacResource(0, 0, 0)),
+		rbac.NewResource(types.ComponentRbacResource()),
+	}
+}
+
+// List returns list of operations on all resources
+//
+// This function is auto-generated
 func (svc accessControl) List() (out []map[string]string) {
 	def := []map[string]string{
 		{
@@ -88,6 +185,11 @@ func (svc accessControl) List() (out []map[string]string) {
 			"type": types.ModuleResourceType,
 			"any":  types.ModuleRbacResource(0, 0),
 			"op":   "record.create",
+		},
+		{
+			"type": types.ModuleResourceType,
+			"any":  types.ModuleRbacResource(0, 0),
+			"op":   "owned-record.create",
 		},
 		{
 			"type": types.ModuleResourceType,
@@ -185,6 +287,16 @@ func (svc accessControl) List() (out []map[string]string) {
 			"op":   "delete",
 		},
 		{
+			"type": types.RecordResourceType,
+			"any":  types.RecordRbacResource(0, 0, 0),
+			"op":   "owner.manage",
+		},
+		{
+			"type": types.RecordResourceType,
+			"any":  types.RecordRbacResource(0, 0, 0),
+			"op":   "revisions.search",
+		},
+		{
 			"type": types.ComponentResourceType,
 			"any":  types.ComponentRbacResource(),
 			"op":   "grant",
@@ -265,6 +377,36 @@ func (svc accessControl) logGrants(ctx context.Context, rr []*rbac.Rule) {
 	}
 }
 
+// FindRules find all rules based on filters
+//
+// This function is auto-generated
+func (svc accessControl) FindRules(ctx context.Context, roleID uint64, rr ...string) (out rbac.RuleSet, err error) {
+	if !svc.CanGrant(ctx) {
+		return nil, AccessControlErrNotAllowedToSetPermissions()
+	}
+
+	out, err = svc.FindRulesByRoleID(ctx, roleID)
+	if err != nil {
+		return
+	}
+
+	var resources []rbac.Resource
+	if len(rr) > 0 {
+		resources = make([]rbac.Resource, 0, len(rr))
+		for _, r := range rr {
+			if err = rbacResourceValidator(r); err != nil {
+				return nil, fmt.Errorf("can not use resource %q: %w", r, err)
+			}
+
+			resources = append(resources, rbac.NewResource(r))
+		}
+	} else {
+		resources = svc.Resources()
+	}
+
+	return out.FilterResource(resources...), nil
+}
+
 // FindRulesByRoleID find all rules for a specific role
 //
 // This function is auto-generated
@@ -274,17 +416,6 @@ func (svc accessControl) FindRulesByRoleID(ctx context.Context, roleID uint64) (
 	}
 
 	return svc.rbac.FindRulesByRoleID(roleID), nil
-}
-
-// CloneRulesByRoleID clone all rules of a Role S to a specific Role T
-//
-// This function is auto-generated
-func (svc accessControl) CloneRulesByRoleID(ctx context.Context, fromRoleID uint64, toRoleID ...uint64) error {
-	if !svc.CanGrant(ctx) {
-		return AccessControlErrNotAllowedToSetPermissions()
-	}
-
-	return svc.rbac.CloneRulesByRoleID(ctx, fromRoleID, toRoleID...)
 }
 
 // CanReadChart checks if current user can read
@@ -334,6 +465,13 @@ func (svc accessControl) CanDeleteModule(ctx context.Context, r *types.Module) b
 // This function is auto-generated
 func (svc accessControl) CanCreateRecordOnModule(ctx context.Context, r *types.Module) bool {
 	return svc.can(ctx, "record.create", r)
+}
+
+// CanCreateOwnedRecordOnModule checks if current user can create record with custom owner
+//
+// This function is auto-generated
+func (svc accessControl) CanCreateOwnedRecordOnModule(ctx context.Context, r *types.Module) bool {
+	return svc.can(ctx, "owned-record.create", r)
 }
 
 // CanSearchRecordsOnModule checks if current user can list, search or filter records
@@ -469,6 +607,20 @@ func (svc accessControl) CanDeleteRecord(ctx context.Context, r *types.Record) b
 	return svc.can(ctx, "delete", r)
 }
 
+// CanManageOwnerOnRecord checks if current user can owner.manage
+//
+// This function is auto-generated
+func (svc accessControl) CanManageOwnerOnRecord(ctx context.Context, r *types.Record) bool {
+	return svc.can(ctx, "owner.manage", r)
+}
+
+// CanSearchRevisionsOnRecord checks if current user can revisions.search
+//
+// This function is auto-generated
+func (svc accessControl) CanSearchRevisionsOnRecord(ctx context.Context, r *types.Record) bool {
+	return svc.can(ctx, "revisions.search", r)
+}
+
 // CanGrant checks if current user can manage compose permissions
 //
 // This function is auto-generated
@@ -538,7 +690,70 @@ func rbacResourceValidator(r string, oo ...string) error {
 		return rbacComponentResourceValidator(r, oo...)
 	}
 
-	return fmt.Errorf("unknown resource type '%q'", r)
+	return fmt.Errorf("unknown resource type %q", r)
+}
+
+// resourceLoader loads resource from store
+//
+// function assumes existence of loader functions for all resource types
+//
+// This function is auto-generated
+func (svc accessControl) resourceLoader(ctx context.Context, resource string) (rbac.Resource, error) {
+	var (
+		hasWildcard       = false
+		resourceType, ids = rbac.ParseResourceID(resource)
+	)
+
+	for _, id := range ids {
+		if id == 0 {
+			hasWildcard = true
+			break
+		}
+	}
+
+	switch rbac.ResourceType(resourceType) {
+	case types.ChartResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.ChartRbacResource(0, 0)), nil
+		}
+
+		return loadChart(ctx, svc.store, ids[0], ids[1])
+	case types.ModuleResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.ModuleRbacResource(0, 0)), nil
+		}
+
+		return loadModule(ctx, svc.store, ids[0], ids[1])
+	case types.ModuleFieldResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.ModuleFieldRbacResource(0, 0, 0)), nil
+		}
+
+		return loadModuleField(ctx, svc.store, ids[0], ids[1], ids[2])
+	case types.NamespaceResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.NamespaceRbacResource(0)), nil
+		}
+
+		return loadNamespace(ctx, svc.store, ids[0])
+	case types.PageResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.PageRbacResource(0, 0)), nil
+		}
+
+		return loadPage(ctx, svc.store, ids[0], ids[1])
+	case types.RecordResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.RecordRbacResource(0, 0, 0)), nil
+		}
+
+		return loadRecord(ctx, svc.store, ids[0], ids[1], ids[2])
+	case types.ComponentResourceType:
+		return &types.Component{}, nil
+	}
+
+	_ = ids
+	return nil, fmt.Errorf("unknown resource type %q", resourceType)
 }
 
 // rbacResourceOperations returns defined operations for a requested resource
@@ -554,11 +769,12 @@ func rbacResourceOperations(r string) map[string]bool {
 		}
 	case types.ModuleResourceType:
 		return map[string]bool{
-			"read":           true,
-			"update":         true,
-			"delete":         true,
-			"record.create":  true,
-			"records.search": true,
+			"read":                true,
+			"update":              true,
+			"delete":              true,
+			"record.create":       true,
+			"owned-record.create": true,
+			"records.search":      true,
 		}
 	case types.ModuleFieldResourceType:
 		return map[string]bool{
@@ -586,9 +802,11 @@ func rbacResourceOperations(r string) map[string]bool {
 		}
 	case types.RecordResourceType:
 		return map[string]bool{
-			"read":   true,
-			"update": true,
-			"delete": true,
+			"read":             true,
+			"update":           true,
+			"delete":           true,
+			"owner.manage":     true,
+			"revisions.search": true,
 		}
 	case types.ComponentResourceType:
 		return map[string]bool{
@@ -881,9 +1099,9 @@ func rbacRecordResourceValidator(r string, oo ...string) error {
 //
 // This function is auto-generated
 func rbacComponentResourceValidator(r string, oo ...string) error {
-	if !strings.HasPrefix(r, types.ComponentResourceType) {
+	if r != types.ComponentResourceType+"/" {
 		// expecting resource to always include path
-		return fmt.Errorf("invalid resource type")
+		return fmt.Errorf("invalid component resource, expecting " + types.ComponentResourceType + "/")
 	}
 
 	defOps := rbacResourceOperations(r)

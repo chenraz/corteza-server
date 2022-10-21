@@ -21,6 +21,7 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/api/server"
 	"github.com/cortezaproject/corteza-server/pkg/auth"
 	"github.com/cortezaproject/corteza-server/pkg/cli"
+	"github.com/cortezaproject/corteza-server/pkg/dal"
 	"github.com/cortezaproject/corteza-server/pkg/envoy"
 	"github.com/cortezaproject/corteza-server/pkg/envoy/csv"
 	"github.com/cortezaproject/corteza-server/pkg/envoy/directory"
@@ -54,14 +55,22 @@ type (
 		roleID uint64
 		token  []byte
 	}
+
+	dalSvc interface {
+		dal.FullService
+
+		Purge(ctx context.Context)
+	}
 )
 
 var (
-	testApp *app.CortezaApp
-	r       chi.Router
+	testApp  *app.CortezaApp
+	r        chi.Router
+	testUser *sysTypes.User
 
 	eventBus = eventbus.New()
 	defStore store.Storer
+	defDal   dalSvc
 )
 
 func init() {
@@ -97,6 +106,7 @@ func InitTestApp() {
 			return nil
 		})
 
+		defDal = dal.Service()
 	}
 
 	if r == nil {
@@ -113,14 +123,28 @@ func TestMain(m *testing.M) {
 }
 
 func newHelper(t *testing.T) helper {
+	ctx := context.Background()
+
 	h := helper{
 		t:      t,
 		a:      require.New(t),
 		roleID: id.Next(),
-		cUser: &sysTypes.User{
-			ID: id.Next(),
-		},
 	}
+
+	if testUser == nil {
+		testUser = &sysTypes.User{
+			Handle: "test_user",
+			Name:   "test_user",
+			ID:     id.Next(),
+		}
+
+		err := store.CreateUser(ctx, service.DefaultStore, testUser)
+		if err != nil {
+			panic(err)
+		}
+
+	}
+	h.cUser = testUser
 
 	h.cUser.SetRoles(h.roleID)
 	helpers.UpdateRBAC(h.roleID)
@@ -191,15 +215,35 @@ func cleanup(t *testing.T) {
 	)
 
 	err := collect(
-		defStore.TruncateComposeNamespaces(ctx),
-		defStore.TruncateComposePages(ctx),
-		defStore.TruncateComposeModuleFields(ctx),
-		defStore.TruncateComposeModules(ctx),
-		defStore.TruncateComposeRecords(ctx, nil),
+		store.TruncateComposeNamespaces(ctx, defStore),
+		store.TruncateComposePages(ctx, defStore),
+		store.TruncateComposeModuleFields(ctx, defStore),
+		store.TruncateComposeModules(ctx, defStore),
 	)
 	if err != nil {
 		t.Fatalf("failed to decode scenario data: %v", err)
 	}
+
+	err = truncateRecords(ctx)
+	if err != nil {
+		t.Fatalf("failed to truncate records: %v", err)
+	}
+
+	defDal.Purge(ctx)
+}
+
+func truncateRecords(ctx context.Context) error {
+	models, err := defDal.SearchModels(ctx)
+	if err != nil {
+		return err
+	}
+	for _, model := range models {
+		err = defDal.Truncate(ctx, model.ToFilter(), nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func scenario(t *testing.T) string {
@@ -231,7 +275,7 @@ func parseEnvoy(ctx context.Context, s store.Storer, h helper, path string) {
 	h.a.NoError(err)
 
 	// import into the store
-	se := envoyStore.NewStoreEncoder(s, nil)
+	se := envoyStore.NewStoreEncoder(s, dal.Service(), &envoyStore.EncoderConfig{})
 	bld := envoy.NewBuilder(se)
 	g, err := bld.Build(ctx, nn...)
 	h.a.NoError(err)

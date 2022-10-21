@@ -83,6 +83,10 @@ func (n *resourceTranslation) Encode(ctx context.Context, pl *payload) (err erro
 
 	ll := make(types.ResourceTranslationSet, 0, len(n.locales))
 	for _, l := range n.locales {
+		if l.Message == "" {
+			continue
+		}
+
 		old, ok := gResourceTranslations[l.Lang.Tag][resourceTranslationIndex(l)]
 
 		// not exist
@@ -172,20 +176,20 @@ func (n *resourceTranslation) makeResourceTranslation(pl *payload) (string, erro
 
 		return composeTypes.PageResourceTranslation(p0ID, p1ID), nil
 
-	// case composeTypes.ChartResourceType:
-	// 	p0 := resource.FindComposeNamespace(pl.state.ParentResources, n.refPathRes[0].Identifiers)
-	// 	if p0 == nil {
-	// 		return "", resource.ComposeNamespaceErrUnresolved(n.refPathRes[0].Identifiers)
-	// 	}
-	// 	p0ID = p0.ID
+	case composeTypes.ChartResourceType:
+		p0 := resource.FindComposeNamespace(pl.state.ParentResources, n.refPathRes[0].Identifiers)
+		if p0 == nil {
+			return "", resource.ComposeNamespaceErrUnresolved(n.refPathRes[0].Identifiers)
+		}
+		p0ID = p0.ID
 
-	// 	p1 := resource.FindComposeChart(pl.state.ParentResources, n.refLocaleRes.Identifiers)
-	// 	if p1 == nil {
-	// 		return "", resource.ComposeChartErrUnresolved(n.refLocaleRes.Identifiers)
-	// 	}
-	// 	p1ID = p1.ID
+		p1 := resource.FindComposeChart(pl.state.ParentResources, n.refLocaleRes.Identifiers)
+		if p1 == nil {
+			return "", resource.ComposeChartErrUnresolved(n.refLocaleRes.Identifiers)
+		}
+		p1ID = p1.ID
 
-	// 	return composeTypes.ChartResourceTranslation(p0ID, p1ID), nil
+		return composeTypes.ChartResourceTranslation(p0ID, p1ID), nil
 
 	case composeTypes.ModuleFieldResourceType:
 		p0 := resource.FindComposeNamespace(pl.state.ParentResources, n.refPathRes[0].Identifiers)

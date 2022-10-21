@@ -5,7 +5,9 @@ import (
 	"errors"
 	"time"
 
+	"github.com/cortezaproject/corteza-server/pkg/dal"
 	"github.com/cortezaproject/corteza-server/pkg/discovery"
+	"github.com/cortezaproject/corteza-server/pkg/valuestore"
 
 	automationService "github.com/cortezaproject/corteza-server/automation/service"
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
@@ -33,6 +35,7 @@ type (
 		ActionLog options.ActionLogOpt
 		Discovery options.DiscoveryOpt
 		Storage   options.ObjectStoreOpt
+		DB        options.DBOpt
 		Template  options.TemplateOpt
 		Auth      options.AuthOpt
 		RBAC      options.RbacOpt
@@ -73,6 +76,9 @@ var (
 	DefaultAuth                *auth
 	DefaultAuthClient          *authClient
 	DefaultUser                *user
+	DefaultCredentials         *credentials
+	DefaultDalConnection       *dalConnection
+	DefaultDalSensitivityLevel *dalSensitivityLevel
 	DefaultRole                *role
 	DefaultApplication         *application
 	DefaultReminder            ReminderService
@@ -84,6 +90,7 @@ var (
 	DefaultApigwFilter         *apigwFilter
 	DefaultApigwProfiler       *apigwProfiler
 	DefaultReport              *report
+	DefaultDataPrivacy         *dataPrivacy
 
 	DefaultStatistics *statistics
 
@@ -141,9 +148,16 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, ws websock
 		}
 	}
 
-	DefaultAccessControl = AccessControl()
+	DefaultAccessControl = AccessControl(s)
 
-	DefaultSettings = Settings(ctx, DefaultStore, DefaultLogger, DefaultAccessControl, CurrentSettings)
+	DefaultSettings = Settings(ctx, DefaultStore, DefaultLogger, DefaultAccessControl, DefaultActionlog, CurrentSettings)
+
+	DefaultDalConnection = Connection(ctx, dal.Service(), c.DB)
+
+	DefaultDalSensitivityLevel = SensitivityLevel(ctx, dal.Service())
+	if err != nil {
+		return
+	}
 
 	if DefaultObjectStore == nil {
 		var (
@@ -189,8 +203,9 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, ws websock
 	DefaultAuth = Auth(AuthOptions{LimitUsers: c.Limit.SystemUsers})
 	DefaultAuthClient = AuthClient(DefaultStore, DefaultAccessControl, DefaultActionlog, eventbus.Service(), c.Auth)
 	DefaultUser = User(UserOptions{LimitUsers: c.Limit.SystemUsers})
+	DefaultCredentials = Credentials()
 	DefaultReport = Report(DefaultStore, DefaultAccessControl, DefaultActionlog, eventbus.Service())
-	DefaultRole = Role()
+	DefaultRole = Role(rbac.Global())
 	DefaultApplication = Application(DefaultStore, DefaultAccessControl, DefaultActionlog, eventbus.Service())
 	DefaultReminder = Reminder(ctx, DefaultLogger.Named("reminder"), ws)
 	DefaultSink = Sink()
@@ -200,6 +215,7 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, ws websock
 	DefaultApigwRoute = Route()
 	DefaultApigwProfiler = Profiler()
 	DefaultApigwFilter = Filter()
+	DefaultDataPrivacy = DataPrivacy(DefaultStore, DefaultAccessControl, DefaultActionlog, eventbus.Service())
 
 	if err = initRoles(ctx, log.Named("rbac.roles"), c.RBAC, eventbus.Service(), rbac.Global()); err != nil {
 		return err
@@ -240,6 +256,13 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, ws websock
 		DefaultRole,
 	)
 
+	// ValuestoreHandler isn't (yet) a system thing but this initialization resides
+	// here just so we can easily register it
+	automation.ValuestoreHandler(
+		automationService.Registry(),
+		valuestore.Global(),
+	)
+
 	if c.ActionLog.WorkflowFunctionsEnabled {
 		// register action-log functions & types only when enabled
 		automation.ActionlogHandler(
@@ -252,6 +275,23 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, ws websock
 		)
 	}
 
+	// Reload DAL sensitivity levels
+	err = DefaultDalSensitivityLevel.ReloadSensitivityLevels(ctx, DefaultStore)
+	if err != nil {
+		return
+	}
+
+	// Reload DAL connections
+	err = DefaultDalConnection.ReloadConnections(ctx)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func Watchers(ctx context.Context) {
+	DefaultReminder.Watch(ctx)
 	return
 }
 
@@ -262,11 +302,6 @@ func Activate(ctx context.Context) (err error) {
 		return
 	}
 
-	return
-}
-
-func Watchers(ctx context.Context) {
-	DefaultReminder.Watch(ctx)
 	return
 }
 

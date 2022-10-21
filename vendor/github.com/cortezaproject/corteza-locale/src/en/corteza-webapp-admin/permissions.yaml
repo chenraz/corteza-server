@@ -3,9 +3,40 @@
 #  - inline permission table (admin interface only)
 #  - modal permission table (common perm. interface)
 ui:
-  reset-back: Reset back to "{{current}}"
-  save-changes: Save changes
+  save: Save changes
+  cancel: Cancel
   set-for: Set permissions for {{target}}
+  loading: Loading permissions
+
+  edit:
+    title: Edit permissions
+    label: User roles
+    description: Select role to set permissions
+  edit-or-eval: Edit or evaluate permissions
+
+  evaluate:
+    title: Evaluated permissions
+    description: Evaluate applied permissions
+
+  add:
+    label: Add
+    title: Evaluate permissions
+    save: Save & Close
+    edit:
+      description: Select a role that you wish to edit permissions for
+    evaluate:
+      description: Select a combination of roles or a user to evaluate
+    role:
+      label: Roles
+      placeholder: Select role(s)
+    user:
+      label: Users
+      placeholder: Search or select a user
+
+  tooltip:
+    unknown-context:
+      user: Can not evaluate permission for a user with contextual role on a non-specific resource
+      role: Can not evaluate permission for contextual role on a non-specific resource
 
   access:
     allow: Allow
@@ -17,19 +48,18 @@ ui:
   click-on-cell-to-allow: Click on permission/role cell to allow a specific operation
   alt-click-to-deny: Use Alt-Click to set explicit deny on operation
 
-  not-allowed: Not allowed to set permissions
-  loading: Loading permissions
-
-  role:
-    add-new: Add new role
-    add: Add role
-    no-role-selected: No role selected
-
   title:
     automation: Automation permissions
     system: System permissions
     compose: Compose permissions
     federation: Federation permissions
+
+  clone:
+    clone: Clone
+    label: Clone permissions
+    pick-role: Pick a role
+    title: Clone permissions to
+    description: This will clone all the permissions of the current role and apply them  to the selected
 
 resources:
   automation:
@@ -139,6 +169,16 @@ resources:
           title: Create new report
         reports.search:
           title: List and search reports
+        dal-connections.search:
+          title: Search connections
+        dal-connection.create:
+          title: Create connections
+        dal-sensitivity-level.manage:
+          title: Manage connection sensitivity level
+        data-privacy-requests.search:
+          title: Search connections
+        data-privacy-request.create:
+          title: Create connections
 
     application:
       label: Applications
@@ -198,6 +238,26 @@ resources:
           specific: Update client "{{target}}
           title: Update any client
 
+    dal-connection:
+      label: Connections
+      all: all connections
+      specific: connection "{{target}}"
+      operations:
+        read:
+          description: 'Default: deny'
+          specific: Read connection "{{target}}
+          title: Read any connection
+        update:
+          description: 'Default: deny'
+          specific: Update connection "{{target}}
+          title: Update any connection
+        delete:
+          description: 'Default: deny'
+          specific: Delete connection "{{target}}
+          title: Delete any connection
+        dal-config:
+          manage:
+            title: Manage any connections
     role:
       label: Roles
       all: all roles
@@ -228,27 +288,27 @@ resources:
         delete:
           description: 'Default: deny'
           specific: Delete {{target}}
-          title: Delete any role
+          title: Delete any queue
         members.manage:
           description: 'Default: deny'
           specific: Manage members for {{target}}
-          title: Manage members for any role
+          title: Manage members for any queue
         read:
           description: 'Default: deny'
           specific: Read {{target}}
-          title: Read any role
+          title: Read any queue
         update:
           description: 'Default: deny'
           specific: Update {{target}}
-          title: Update any role
+          title: Update any queue
         queue.read:
           description: 'Default: deny'
           specific: Read messages from {{target}}
-          title: Read messages from any role
+          title: Read messages from any queue
         queue.write:
           description: 'Default: deny'
           specific: Write messages to {{target}}
-          title: Write messages to any role
+          title: Write messages to any queue
 
     template:
       label: Templates
@@ -300,6 +360,10 @@ resources:
       all: all users
       specific: user "{{target}}"
       operations:
+        credentials:
+          manage:
+            specific: Manage {{target}}'s credentials
+            title: Manage any user
         delete:
           description: 'Default: deny'
           specific: Delete {{target}}
@@ -333,6 +397,19 @@ resources:
           specific: Update {{target}}
           title: Update any user
 
+    data-privacy-request:
+      label: Privacy Requests
+      all: all requests
+      specific: request "{{target}}"
+      operations:
+        read:
+          description: 'Default: deny'
+          specific: Read {{target}}
+          title: Read any request
+        approve:
+          description: 'Default: deny'
+          specific: Approve {{target}}
+          title: Approve any request
   federation:
     component:
       label: Federation component
@@ -400,6 +477,8 @@ resources:
       operations:
         delete:
           title: Delete any module
+        owned-record.create:
+          title: Manage owner when creating record of any module
         read:
           title: Read any module
         record.create:
@@ -456,3 +535,7 @@ resources:
           title: Read any record
         update:
           title: Update any record
+        owner.manage:
+          title: Manage ownership of any record
+        revisions.search:
+          title: Access revisions of any record

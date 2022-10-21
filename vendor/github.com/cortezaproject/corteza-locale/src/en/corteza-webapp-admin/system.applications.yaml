@@ -5,7 +5,7 @@ editor:
     deletedAt: Deleted at
     enabled: Enabled
     id: ID
-    name: Name
+    name: Name *
     title: Basic information
     undelete: Undelete
     updatedAt: Updated at
@@ -38,6 +38,11 @@ list:
     enabled: Enabled
     name: Name
     appListName: App selector name
+    state: State
+  export: Export
+  rows:
+    filters:
+      deleted: Deleted
   filterForm:
     deleted:
       label: deleted applications

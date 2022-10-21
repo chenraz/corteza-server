@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql/driver"
 	"encoding/json"
-	"fmt"
+	"github.com/cortezaproject/corteza-server/pkg/sql"
 
 	"github.com/cortezaproject/corteza-server/pkg/expr"
 )
@@ -58,19 +58,20 @@ type (
 )
 
 const (
-	WorkflowStepKindExpressions WorkflowStepKind = "expressions"   // no ref
-	WorkflowStepKindGateway     WorkflowStepKind = "gateway"       // ref = join|fork|excl|incl
-	WorkflowStepKindFunction    WorkflowStepKind = "function"      // ref = <function ref>
-	WorkflowStepKindIterator    WorkflowStepKind = "iterator"      // ref = <iterator function ref>
-	WorkflowStepKindError       WorkflowStepKind = "error"         // no ref
-	WorkflowStepKindTermination WorkflowStepKind = "termination"   // no ref
-	WorkflowStepKindPrompt      WorkflowStepKind = "prompt"        // ref = <client function>
-	WorkflowStepKindDelay       WorkflowStepKind = "delay"         // no ref
-	WorkflowStepKindErrHandler  WorkflowStepKind = "error-handler" // no ref
-	WorkflowStepKindVisual      WorkflowStepKind = "visual"        // ref = <*>
-	WorkflowStepKindDebug       WorkflowStepKind = "debug"         // ref = <*>
-	WorkflowStepKindBreak       WorkflowStepKind = "break"         // ref = <*>
-	WorkflowStepKindContinue    WorkflowStepKind = "continue"      // ref = <*>
+	WorkflowStepKindExpressions  WorkflowStepKind = "expressions"   // no ref
+	WorkflowStepKindGateway      WorkflowStepKind = "gateway"       // ref = join|fork|excl|incl
+	WorkflowStepKindFunction     WorkflowStepKind = "function"      // ref = <function ref>
+	WorkflowStepKindIterator     WorkflowStepKind = "iterator"      // ref = <iterator function ref>
+	WorkflowStepKindError        WorkflowStepKind = "error"         // no ref
+	WorkflowStepKindTermination  WorkflowStepKind = "termination"   // no ref
+	WorkflowStepKindPrompt       WorkflowStepKind = "prompt"        // ref = <client function>
+	WorkflowStepKindDelay        WorkflowStepKind = "delay"         // no ref
+	WorkflowStepKindErrHandler   WorkflowStepKind = "error-handler" // no ref
+	WorkflowStepKindVisual       WorkflowStepKind = "visual"        // ref = <*>
+	WorkflowStepKindDebug        WorkflowStepKind = "debug"         // ref = <*>
+	WorkflowStepKindBreak        WorkflowStepKind = "break"         // ref = <*>
+	WorkflowStepKindContinue     WorkflowStepKind = "continue"      // ref = <*>
+	WorkflowStepKindExecWorkflow WorkflowStepKind = "exec-workflow" // no ref
 )
 
 // IsDeferred fn returns true if type of step is delay or prompt
@@ -84,7 +85,7 @@ func (s WorkflowStep) IsDeferred() (is bool) {
 	return false
 }
 
-// HasDeferred fn returns true if type of any of workflow's steps is delay or prompt
+// HasDeferred fn returns true if wf-step is delay or prompt
 func (vv WorkflowStepSet) HasDeferred() bool {
 	for _, s := range vv {
 		if s.IsDeferred() {
@@ -95,25 +96,8 @@ func (vv WorkflowStepSet) HasDeferred() bool {
 	return false
 }
 
-// Scan on WorkflowStepSet gracefully handles conversion from NULL
-func (vv WorkflowStepSet) Value() (driver.Value, error) {
-	return json.Marshal(vv)
-}
-
-func (vv *WorkflowStepSet) Scan(value interface{}) error {
-	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
-	switch value.(type) {
-	case nil:
-		*vv = WorkflowStepSet{}
-	case []uint8:
-		b := value.([]byte)
-		if err := json.Unmarshal(b, vv); err != nil {
-			return fmt.Errorf("cannot scan '%v' into WorkflowStepSet: %w", string(b), err)
-		}
-	}
-
-	return nil
-}
+func (vv *WorkflowStepSet) Scan(src any) error          { return sql.ParseJSON(src, vv) }
+func (vv WorkflowStepSet) Value() (driver.Value, error) { return json.Marshal(vv) }
 
 func (t WorkflowPath) GetExpr() string              { return t.Expr }
 func (t *WorkflowPath) SetEval(eval expr.Evaluable) { t.eval = eval }
@@ -124,22 +108,5 @@ func (t WorkflowPath) Test(ctx context.Context, scope *expr.Vars) (bool, error) 
 	return t.eval.Test(ctx, scope)
 }
 
-func (vv *WorkflowPathSet) Scan(value interface{}) error {
-	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
-	switch value.(type) {
-	case nil:
-		*vv = WorkflowPathSet{}
-	case []uint8:
-		b := value.([]byte)
-		if err := json.Unmarshal(b, vv); err != nil {
-			return fmt.Errorf("cannot scan '%v' into WorkflowPathSet: %w", string(b), err)
-		}
-	}
-
-	return nil
-}
-
-// Scan on WorkflowPathSet gracefully handles conversion from NULL
-func (vv WorkflowPathSet) Value() (driver.Value, error) {
-	return json.Marshal(vv)
-}
+func (vv *WorkflowPathSet) Scan(src any) error          { return sql.ParseJSON(src, vv) }
+func (vv WorkflowPathSet) Value() (driver.Value, error) { return json.Marshal(vv) }

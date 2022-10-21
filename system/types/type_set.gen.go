@@ -60,10 +60,35 @@ type (
 	// This type is auto-generated.
 	AuthSessionSet []*AuthSession
 
-	// CredentialsSet slice of Credentials
+	// CredentialSet slice of Credential
 	//
 	// This type is auto-generated.
-	CredentialsSet []*Credentials
+	CredentialSet []*Credential
+
+	// DalConnectionSet slice of DalConnection
+	//
+	// This type is auto-generated.
+	DalConnectionSet []*DalConnection
+
+	// DalSensitivityLevelSet slice of DalSensitivityLevel
+	//
+	// This type is auto-generated.
+	DalSensitivityLevelSet []*DalSensitivityLevel
+
+	// DataPrivacyRequestSet slice of DataPrivacyRequest
+	//
+	// This type is auto-generated.
+	DataPrivacyRequestSet []*DataPrivacyRequest
+
+	// DataPrivacyRequestCommentSet slice of DataPrivacyRequestComment
+	//
+	// This type is auto-generated.
+	DataPrivacyRequestCommentSet []*DataPrivacyRequestComment
+
+	// PrivacyDalConnectionSet slice of PrivacyDalConnection
+	//
+	// This type is auto-generated.
+	PrivacyDalConnectionSet []*PrivacyDalConnection
 
 	// QueueSet slice of Queue
 	//
@@ -572,10 +597,10 @@ func (set AuthSessionSet) Filter(f func(*AuthSession) (bool, error)) (out AuthSe
 	return
 }
 
-// Walk iterates through every slice item and calls w(Credentials) err
+// Walk iterates through every slice item and calls w(Credential) err
 //
 // This function is auto-generated.
-func (set CredentialsSet) Walk(w func(*Credentials) error) (err error) {
+func (set CredentialSet) Walk(w func(*Credential) error) (err error) {
 	for i := range set {
 		if err = w(set[i]); err != nil {
 			return
@@ -585,12 +610,12 @@ func (set CredentialsSet) Walk(w func(*Credentials) error) (err error) {
 	return
 }
 
-// Filter iterates through every slice item, calls f(Credentials) (bool, err) and return filtered slice
+// Filter iterates through every slice item, calls f(Credential) (bool, err) and return filtered slice
 //
 // This function is auto-generated.
-func (set CredentialsSet) Filter(f func(*Credentials) (bool, error)) (out CredentialsSet, err error) {
+func (set CredentialSet) Filter(f func(*Credential) (bool, error)) (out CredentialSet, err error) {
 	var ok bool
-	out = CredentialsSet{}
+	out = CredentialSet{}
 	for i := range set {
 		if ok, err = f(set[i]); err != nil {
 			return
@@ -605,7 +630,7 @@ func (set CredentialsSet) Filter(f func(*Credentials) (bool, error)) (out Creden
 // FindByID finds items from slice by its ID property
 //
 // This function is auto-generated.
-func (set CredentialsSet) FindByID(ID uint64) *Credentials {
+func (set CredentialSet) FindByID(ID uint64) *Credential {
 	for i := range set {
 		if set[i].ID == ID {
 			return set[i]
@@ -618,7 +643,287 @@ func (set CredentialsSet) FindByID(ID uint64) *Credentials {
 // IDs returns a slice of uint64s from all items in the set
 //
 // This function is auto-generated.
-func (set CredentialsSet) IDs() (IDs []uint64) {
+func (set CredentialSet) IDs() (IDs []uint64) {
+	IDs = make([]uint64, len(set))
+
+	for i := range set {
+		IDs[i] = set[i].ID
+	}
+
+	return
+}
+
+// Walk iterates through every slice item and calls w(DalConnection) err
+//
+// This function is auto-generated.
+func (set DalConnectionSet) Walk(w func(*DalConnection) error) (err error) {
+	for i := range set {
+		if err = w(set[i]); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// Filter iterates through every slice item, calls f(DalConnection) (bool, err) and return filtered slice
+//
+// This function is auto-generated.
+func (set DalConnectionSet) Filter(f func(*DalConnection) (bool, error)) (out DalConnectionSet, err error) {
+	var ok bool
+	out = DalConnectionSet{}
+	for i := range set {
+		if ok, err = f(set[i]); err != nil {
+			return
+		} else if ok {
+			out = append(out, set[i])
+		}
+	}
+
+	return
+}
+
+// FindByID finds items from slice by its ID property
+//
+// This function is auto-generated.
+func (set DalConnectionSet) FindByID(ID uint64) *DalConnection {
+	for i := range set {
+		if set[i].ID == ID {
+			return set[i]
+		}
+	}
+
+	return nil
+}
+
+// IDs returns a slice of uint64s from all items in the set
+//
+// This function is auto-generated.
+func (set DalConnectionSet) IDs() (IDs []uint64) {
+	IDs = make([]uint64, len(set))
+
+	for i := range set {
+		IDs[i] = set[i].ID
+	}
+
+	return
+}
+
+// Walk iterates through every slice item and calls w(DalSensitivityLevel) err
+//
+// This function is auto-generated.
+func (set DalSensitivityLevelSet) Walk(w func(*DalSensitivityLevel) error) (err error) {
+	for i := range set {
+		if err = w(set[i]); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// Filter iterates through every slice item, calls f(DalSensitivityLevel) (bool, err) and return filtered slice
+//
+// This function is auto-generated.
+func (set DalSensitivityLevelSet) Filter(f func(*DalSensitivityLevel) (bool, error)) (out DalSensitivityLevelSet, err error) {
+	var ok bool
+	out = DalSensitivityLevelSet{}
+	for i := range set {
+		if ok, err = f(set[i]); err != nil {
+			return
+		} else if ok {
+			out = append(out, set[i])
+		}
+	}
+
+	return
+}
+
+// FindByID finds items from slice by its ID property
+//
+// This function is auto-generated.
+func (set DalSensitivityLevelSet) FindByID(ID uint64) *DalSensitivityLevel {
+	for i := range set {
+		if set[i].ID == ID {
+			return set[i]
+		}
+	}
+
+	return nil
+}
+
+// IDs returns a slice of uint64s from all items in the set
+//
+// This function is auto-generated.
+func (set DalSensitivityLevelSet) IDs() (IDs []uint64) {
+	IDs = make([]uint64, len(set))
+
+	for i := range set {
+		IDs[i] = set[i].ID
+	}
+
+	return
+}
+
+// Walk iterates through every slice item and calls w(DataPrivacyRequest) err
+//
+// This function is auto-generated.
+func (set DataPrivacyRequestSet) Walk(w func(*DataPrivacyRequest) error) (err error) {
+	for i := range set {
+		if err = w(set[i]); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// Filter iterates through every slice item, calls f(DataPrivacyRequest) (bool, err) and return filtered slice
+//
+// This function is auto-generated.
+func (set DataPrivacyRequestSet) Filter(f func(*DataPrivacyRequest) (bool, error)) (out DataPrivacyRequestSet, err error) {
+	var ok bool
+	out = DataPrivacyRequestSet{}
+	for i := range set {
+		if ok, err = f(set[i]); err != nil {
+			return
+		} else if ok {
+			out = append(out, set[i])
+		}
+	}
+
+	return
+}
+
+// FindByID finds items from slice by its ID property
+//
+// This function is auto-generated.
+func (set DataPrivacyRequestSet) FindByID(ID uint64) *DataPrivacyRequest {
+	for i := range set {
+		if set[i].ID == ID {
+			return set[i]
+		}
+	}
+
+	return nil
+}
+
+// IDs returns a slice of uint64s from all items in the set
+//
+// This function is auto-generated.
+func (set DataPrivacyRequestSet) IDs() (IDs []uint64) {
+	IDs = make([]uint64, len(set))
+
+	for i := range set {
+		IDs[i] = set[i].ID
+	}
+
+	return
+}
+
+// Walk iterates through every slice item and calls w(DataPrivacyRequestComment) err
+//
+// This function is auto-generated.
+func (set DataPrivacyRequestCommentSet) Walk(w func(*DataPrivacyRequestComment) error) (err error) {
+	for i := range set {
+		if err = w(set[i]); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// Filter iterates through every slice item, calls f(DataPrivacyRequestComment) (bool, err) and return filtered slice
+//
+// This function is auto-generated.
+func (set DataPrivacyRequestCommentSet) Filter(f func(*DataPrivacyRequestComment) (bool, error)) (out DataPrivacyRequestCommentSet, err error) {
+	var ok bool
+	out = DataPrivacyRequestCommentSet{}
+	for i := range set {
+		if ok, err = f(set[i]); err != nil {
+			return
+		} else if ok {
+			out = append(out, set[i])
+		}
+	}
+
+	return
+}
+
+// FindByID finds items from slice by its ID property
+//
+// This function is auto-generated.
+func (set DataPrivacyRequestCommentSet) FindByID(ID uint64) *DataPrivacyRequestComment {
+	for i := range set {
+		if set[i].ID == ID {
+			return set[i]
+		}
+	}
+
+	return nil
+}
+
+// IDs returns a slice of uint64s from all items in the set
+//
+// This function is auto-generated.
+func (set DataPrivacyRequestCommentSet) IDs() (IDs []uint64) {
+	IDs = make([]uint64, len(set))
+
+	for i := range set {
+		IDs[i] = set[i].ID
+	}
+
+	return
+}
+
+// Walk iterates through every slice item and calls w(PrivacyDalConnection) err
+//
+// This function is auto-generated.
+func (set PrivacyDalConnectionSet) Walk(w func(*PrivacyDalConnection) error) (err error) {
+	for i := range set {
+		if err = w(set[i]); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// Filter iterates through every slice item, calls f(PrivacyDalConnection) (bool, err) and return filtered slice
+//
+// This function is auto-generated.
+func (set PrivacyDalConnectionSet) Filter(f func(*PrivacyDalConnection) (bool, error)) (out PrivacyDalConnectionSet, err error) {
+	var ok bool
+	out = PrivacyDalConnectionSet{}
+	for i := range set {
+		if ok, err = f(set[i]); err != nil {
+			return
+		} else if ok {
+			out = append(out, set[i])
+		}
+	}
+
+	return
+}
+
+// FindByID finds items from slice by its ID property
+//
+// This function is auto-generated.
+func (set PrivacyDalConnectionSet) FindByID(ID uint64) *PrivacyDalConnection {
+	for i := range set {
+		if set[i].ID == ID {
+			return set[i]
+		}
+	}
+
+	return nil
+}
+
+// IDs returns a slice of uint64s from all items in the set
+//
+// This function is auto-generated.
+func (set PrivacyDalConnectionSet) IDs() (IDs []uint64) {
 	IDs = make([]uint64, len(set))
 
 	for i := range set {

@@ -61,15 +61,20 @@ func fill(opt interface{}) {
 	}
 }
 
-func guessHostname() string {
-	// All env keys we'll check, first that has any value set, will be used as hostname
-	candidates := []string{
-		os.Getenv("DOMAIN"),
+func GuessApiHostname() string {
+	return guessHostname(os.Getenv("DOMAIN"))
+}
+
+func GuessWebappHostname() string {
+	return guessHostname(os.Getenv("DOMAIN_WEBAPP"))
+}
+
+func guessHostname(base ...string) string {
+	// All env keys we'll check, first one with a value set, will be used as hostname
+	candidates := append(base, []string{
 		os.Getenv("LETSENCRYPT_HOST"),
 		os.Getenv("VIRTUAL_HOST"),
-		os.Getenv("HOSTNAME"),
-		os.Getenv("HOST"),
-	}
+	}...)
 
 	for _, host := range candidates {
 		if len(host) > 0 {
@@ -77,7 +82,7 @@ func guessHostname() string {
 		}
 	}
 
-	return "local.cortezaproject.org"
+	return "localhost"
 }
 
 // returns path prefix
@@ -86,10 +91,18 @@ func pathPrefix(pp ...string) string {
 }
 
 // will return base URL with domain and prefix path
-func fullURL(pp ...string) string {
+func FullURL(pp ...string) string {
+	return fullUrl(GuessApiHostname(), pp...)
+}
+
+func FullWebappURL(pp ...string) string {
+	return fullUrl(GuessWebappHostname(), pp...)
+}
+
+// will return base URL with domain and prefix path
+func fullUrl(host string, pp ...string) string {
 	var (
 		full string
-		host = guessHostname()
 	)
 
 	if strings.Contains(host, "local.") || strings.Contains(host, "localhost") || !isSecure() {

@@ -2,7 +2,6 @@ package rest
 
 import (
 	"context"
-
 	"github.com/cortezaproject/corteza-server/pkg/api"
 	"github.com/cortezaproject/corteza-server/pkg/auth"
 	"github.com/cortezaproject/corteza-server/pkg/corredor"
@@ -79,6 +78,8 @@ func (ctrl Role) List(ctx context.Context, r *request.RoleList) (interface{}, er
 	if f.Paging, err = filter.NewPaging(r.Limit, r.PageCursor); err != nil {
 		return nil, err
 	}
+
+	f.IncTotal = r.IncTotal
 
 	if f.Sorting, err = filter.NewSorting(r.Sort); err != nil {
 		return nil, err
@@ -167,6 +168,11 @@ func (ctrl Role) Archive(ctx context.Context, r *request.RoleArchive) (interface
 
 func (ctrl Role) Unarchive(ctx context.Context, r *request.RoleUnarchive) (interface{}, error) {
 	return api.OK(), ctrl.role.Unarchive(ctx, r.RoleID)
+}
+
+func (ctrl Role) CloneRules(ctx context.Context, r *request.RoleCloneRules) (interface{}, error) {
+	// Clone rules from role S to role T
+	return api.OK(), ctrl.role.CloneRules(ctx, r.RoleID, payload.ParseUint64s(r.CloneToRoleID)...)
 }
 
 // deprecated

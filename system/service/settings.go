@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/cortezaproject/corteza-server/pkg/actionlog"
+	"github.com/spf13/cast"
 	"strings"
 	"sync"
 	"time"
@@ -17,7 +19,8 @@ import (
 
 type (
 	settings struct {
-		store         store.Settings
+		actionlog     actionlog.Recorder
+		store         store.SettingValues
 		accessControl accessController
 		logger        *zap.Logger
 		m             sync.RWMutex
@@ -44,13 +47,9 @@ type (
 	}
 )
 
-var (
-	ErrNoReadPermission   = fmt.Errorf("not allowed to read settings")
-	ErrNoManagePermission = fmt.Errorf("not allowed to manage settings")
-)
-
-func Settings(ctx context.Context, s store.Settings, log *zap.Logger, ac accessController, current interface{}) *settings {
+func Settings(ctx context.Context, s store.SettingValues, log *zap.Logger, ac accessController, al actionlog.Recorder, current interface{}) *settings {
 	svc := &settings{
+		actionlog:     al,
 		store:         s,
 		accessControl: ac,
 		logger:        log.Named("settings"),
@@ -118,7 +117,7 @@ func (svc *settings) log(ctx context.Context, fields ...zapcore.Field) *zap.Logg
 
 func (svc *settings) FindByPrefix(ctx context.Context, pp ...string) (types.SettingValueSet, error) {
 	if !svc.accessControl.CanReadSettings(ctx) {
-		return nil, ErrNoReadPermission
+		return nil, SettingsErrNotAllowedToRead()
 	}
 
 	return svc.findByPrefix(ctx, pp...)
@@ -132,16 +131,16 @@ func (svc *settings) findByPrefix(ctx context.Context, pp ...string) (types.Sett
 		}
 	)
 
-	vv, _, err := store.SearchSettings(ctx, svc.store, f)
+	vv, _, err := store.SearchSettingValues(ctx, svc.store, f)
 	return vv, err
 }
 
 func (svc *settings) Get(ctx context.Context, name string, ownedBy uint64) (out *types.SettingValue, err error) {
 	if !svc.accessControl.CanReadSettings(ctx) {
-		return nil, ErrNoReadPermission
+		return nil, SettingsErrNotAllowedToRead()
 	}
 
-	out, err = store.LookupSettingByNameOwnedBy(ctx, svc.store, name, ownedBy)
+	out, err = store.LookupSettingValueByNameOwnedBy(ctx, svc.store, name, ownedBy)
 	if err != nil && !errors.IsNotFound(err) {
 		return nil, err
 	}
@@ -158,10 +157,9 @@ func (svc *settings) UpdateCurrent(ctx context.Context) error {
 }
 
 func (svc *settings) updateCurrent(ctx context.Context, vv types.SettingValueSet) (err error) {
-
 	// update current settings with new values
 	if err = vv.KV().Decode(svc.current); err != nil {
-		return
+		return fmt.Errorf("could not decode settings into KV: %w", err)
 	}
 
 	// push message over update chan so that we can notify all settings listeners
@@ -178,21 +176,25 @@ func (svc *settings) updateCurrent(ctx context.Context, vv types.SettingValueSet
 
 func (svc *settings) Set(ctx context.Context, v *types.SettingValue) (err error) {
 	if !svc.accessControl.CanManageSettings(ctx) {
-		return ErrNoManagePermission
+		return SettingsErrNotAllowedToManage()
+	}
+
+	if _, err = check(v); err != nil {
+		return
 	}
 
 	var current *types.SettingValue
-	current, err = store.LookupSettingByNameOwnedBy(ctx, svc.store, v.Name, v.OwnedBy)
+	current, err = store.LookupSettingValueByNameOwnedBy(ctx, svc.store, v.Name, v.OwnedBy)
 	if errors.IsNotFound(err) {
 		v.UpdatedAt = *now()
-		err = store.CreateSetting(ctx, svc.store, v)
+		err = store.CreateSettingValue(ctx, svc.store, v)
 	} else if err != nil {
 		return err
 	}
 
 	if !current.Eq(v) {
 		v.UpdatedAt = *now()
-		err = store.UpdateSetting(ctx, svc.store, v)
+		err = store.UpdateSettingValue(ctx, svc.store, v)
 	}
 
 	if err != nil || current.Eq(v) {
@@ -206,7 +208,11 @@ func (svc *settings) Set(ctx context.Context, v *types.SettingValue) (err error)
 
 func (svc *settings) BulkSet(ctx context.Context, vv types.SettingValueSet) (err error) {
 	if !svc.accessControl.CanManageSettings(ctx) {
-		return ErrNoManagePermission
+		return SettingsErrNotAllowedToManage()
+	}
+
+	if _, err = check(vv...); err != nil {
+		return
 	}
 
 	// Load current settings and get changed values
@@ -224,15 +230,15 @@ func (svc *settings) BulkSet(ctx context.Context, vv types.SettingValueSet) (err
 		new = current.New(vv)
 	}
 
-	if err = store.UpdateSetting(ctx, svc.store, old...); err != nil {
+	if err = store.UpdateSettingValue(ctx, svc.store, old...); err != nil {
 		return
 	}
 
-	if err = store.CreateSetting(ctx, svc.store, new...); err != nil {
+	if err = store.CreateSettingValue(ctx, svc.store, new...); err != nil {
 		return
 	}
 
-	if err = store.DeleteSetting(ctx, svc.store, vv.Trash()...); err != nil {
+	if err = store.DeleteSettingValue(ctx, svc.store, vv.Trash()...); err != nil {
 		return
 	}
 
@@ -254,17 +260,17 @@ func (svc *settings) logChange(ctx context.Context, vv types.SettingValueSet) {
 
 func (svc *settings) Delete(ctx context.Context, name string, ownedBy uint64) error {
 	if !svc.accessControl.CanManageSettings(ctx) {
-		return ErrNoManagePermission
+		return SettingsErrNotAllowedToManage()
 	}
 
-	current, err := store.LookupSettingByNameOwnedBy(ctx, svc.store, name, ownedBy)
+	current, err := store.LookupSettingValueByNameOwnedBy(ctx, svc.store, name, ownedBy)
 	if errors.IsNotFound(err) {
 		return nil
 	} else if err != nil {
 		return err
 	}
 
-	err = store.DeleteSetting(ctx, svc.store, current)
+	err = store.DeleteSettingValue(ctx, svc.store, current)
 	if err != nil {
 		return err
 	}
@@ -276,4 +282,52 @@ func (svc *settings) Delete(ctx context.Context, name string, ownedBy uint64) er
 		zap.Uint64("owned-by", ownedBy)).Info("setting value removed")
 
 	return svc.updateCurrent(ctx, vv)
+}
+
+// Check validates settings values
+func check(vv ...*types.SettingValue) (ok bool, err error) {
+	set := append(types.SettingValueSet{}, vv...)
+	err = set.Walk(func(val *types.SettingValue) error {
+		// Password constraints: The min password length should be 8
+		if val.Name == "auth.internal.password-constraints.min-length" {
+			if cast.ToUint64(val.String()) < passwordMinLength {
+				return SettingsErrInvalidPasswordMinLength()
+			}
+		}
+
+		// Password constraints: The min upper case count should not be a negative number
+		if val.Name == "auth.internal.password-constraints.min-upper-case" {
+			if cast.ToInt(val.String()) < 0 {
+				return SettingsErrInvalidPasswordMinUpperCase()
+			}
+		}
+
+		// Password constraints: The min lower case count should not be a negative number
+		if val.Name == "auth.internal.password-constraints.min-lower-case" {
+			if cast.ToInt(val.String()) < 0 {
+				return SettingsErrInvalidPasswordMinLowerCase()
+			}
+		}
+
+		// Password constraints: The min number of numeric characters should not be a negative number
+		if val.Name == "auth.internal.password-constraints.min-num-count" {
+			if cast.ToInt(val.String()) < 0 {
+				return SettingsErrInvalidPasswordMinNumCount()
+			}
+		}
+
+		// Password constraints: The min number of special characters should not be a negative number
+		if val.Name == "auth.internal.password-constraints.min-special-count" {
+			if cast.ToInt(val.String()) < 0 {
+				return SettingsErrInvalidPasswordMinSpecialCharCount()
+			}
+		}
+
+		return err
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }

@@ -2,7 +2,6 @@ package system
 
 import (
 	"context"
-	"github.com/cortezaproject/corteza-server/compose/types"
 	discoveryType "github.com/cortezaproject/corteza-server/pkg/discovery/types"
 	"github.com/cortezaproject/corteza-server/pkg/id"
 	"github.com/cortezaproject/corteza-server/store"
@@ -11,18 +10,18 @@ import (
 )
 
 func (h helper) clearActivityLog() {
-	h.noError(store.TruncateResourceActivityLogs(context.Background(), service.DefaultStore))
+	h.noError(store.TruncateResourceActivitys(context.Background(), service.DefaultStore))
 }
 
 func (h helper) repoMakeActivityLog() *discoveryType.ResourceActivity {
 	var res = &discoveryType.ResourceActivity{
 		ID:             id.Next(),
 		ResourceID:     id.Next(),
-		ResourceType:   (types.Record{}).LabelResourceKind(),
+		ResourceType:   "compose:record",
 		ResourceAction: "create",
 	}
 
-	h.a.NoError(store.CreateResourceActivityLog(context.Background(), service.DefaultStore, res))
+	h.a.NoError(store.CreateResourceActivity(context.Background(), service.DefaultStore, res))
 
 	return res
 }

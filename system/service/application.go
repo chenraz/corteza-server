@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/cortezaproject/corteza-server/pkg/errors"
 
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
 	a "github.com/cortezaproject/corteza-server/pkg/auth"
@@ -43,11 +44,7 @@ func (svc *application) LookupByID(ctx context.Context, ID uint64) (app *types.A
 	)
 
 	err = func() error {
-		if ID == 0 {
-			return ApplicationErrInvalidID()
-		}
-
-		if app, err = store.LookupApplicationByID(ctx, svc.store, ID); err != nil {
+		if app, err = loadApplication(ctx, svc.store, ID); err != nil {
 			return ApplicationErrInvalidID().Wrap(err)
 		}
 
@@ -151,7 +148,7 @@ func (svc *application) Search(ctx context.Context, af types.ApplicationFilter) 
 
 func (svc *application) Create(ctx context.Context, new *types.Application) (app *types.Application, err error) {
 	var (
-		aaProps = &applicationActionProps{new: new}
+		aaProps = &applicationActionProps{application: new}
 	)
 
 	err = func() (err error) {
@@ -170,6 +167,8 @@ func (svc *application) Create(ctx context.Context, new *types.Application) (app
 		if new.Unify == nil {
 			new.Unify = &types.ApplicationUnify{}
 		}
+
+		aaProps.setNew(new)
 
 		if err = store.CreateApplication(ctx, svc.store, new); err != nil {
 			return
@@ -194,11 +193,7 @@ func (svc *application) Update(ctx context.Context, upd *types.Application) (app
 	)
 
 	err = func() (err error) {
-		if upd.ID == 0 {
-			return ApplicationErrInvalidID()
-		}
-
-		if app, err = store.LookupApplicationByID(ctx, svc.store, upd.ID); err != nil {
+		if app, err = loadApplication(ctx, svc.store, upd.ID); err != nil {
 			return
 		}
 
@@ -247,11 +242,7 @@ func (svc *application) Delete(ctx context.Context, ID uint64) (err error) {
 	)
 
 	err = func() (err error) {
-		if ID == 0 {
-			return ApplicationErrInvalidID()
-		}
-
-		if app, err = store.LookupApplicationByID(ctx, svc.store, ID); err != nil {
+		if app, err = loadApplication(ctx, svc.store, ID); err != nil {
 			return
 		}
 
@@ -284,11 +275,7 @@ func (svc *application) Undelete(ctx context.Context, ID uint64) (err error) {
 	)
 
 	err = func() (err error) {
-		if ID == 0 {
-			return ApplicationErrInvalidID()
-		}
-
-		if app, err = store.LookupApplicationByID(ctx, svc.store, ID); err != nil {
+		if app, err = loadApplication(ctx, svc.store, ID); err != nil {
 			return
 		}
 
@@ -369,6 +356,18 @@ func (svc *application) Reorder(ctx context.Context, order []uint64) (err error)
 	})
 
 	return svc.recordAction(ctx, aProps, ApplicationActionReorder, err)
+}
+
+func loadApplication(ctx context.Context, s store.Applications, ID uint64) (res *types.Application, err error) {
+	if ID == 0 {
+		return nil, ApplicationErrInvalidID()
+	}
+
+	if res, err = store.LookupApplicationByID(ctx, s, ID); errors.IsNotFound(err) {
+		return nil, ApplicationErrNotFound()
+	}
+
+	return
 }
 
 // toLabeledApplications converts to []label.LabeledResource

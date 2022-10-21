@@ -5,7 +5,7 @@ import (
 
 	"github.com/cortezaproject/corteza-server/pkg/api"
 	"github.com/cortezaproject/corteza-server/pkg/filter"
-	"github.com/cortezaproject/corteza-server/pkg/report"
+	"github.com/cortezaproject/corteza-server/system/reporting"
 	"github.com/cortezaproject/corteza-server/system/rest/request"
 	"github.com/cortezaproject/corteza-server/system/service"
 	"github.com/cortezaproject/corteza-server/system/types"
@@ -27,8 +27,8 @@ type (
 		Update(ctx context.Context, upd *types.Report) (app *types.Report, err error)
 		Delete(ctx context.Context, ID uint64) (err error)
 		Undelete(ctx context.Context, ID uint64) (err error)
-		Run(ctx context.Context, ID uint64, dd report.FrameDefinitionSet) (rr []*report.Frame, err error)
-		DescribeFresh(ctx context.Context, src types.ReportDataSourceSet, st report.StepDefinitionSet, sources ...string) (out report.FrameDescriptionSet, err error)
+		Run(ctx context.Context, ID uint64, dd reporting.FrameDefinitionSet) (rr []*reporting.Frame, err error)
+		Describe(ctx context.Context, src types.ReportDataSourceSet, st types.ReportStepSet, sources ...string) (out []reporting.FrameDescription, err error)
 	}
 
 	reportAccessController interface {
@@ -56,7 +56,7 @@ type (
 	}
 
 	reportFramePayload struct {
-		Frames []*report.Frame `json:"frames"`
+		Frames []*reporting.Frame `json:"frames"`
 	}
 )
 
@@ -80,6 +80,8 @@ func (ctrl *Report) List(ctx context.Context, r *request.ReportList) (interface{
 	if f.Paging, err = filter.NewPaging(r.Limit, r.PageCursor); err != nil {
 		return nil, err
 	}
+
+	f.IncTotal = r.IncTotal
 
 	if f.Sorting, err = filter.NewSorting(r.Sort); err != nil {
 		return nil, err
@@ -138,7 +140,7 @@ func (ctrl *Report) Undelete(ctx context.Context, r *request.ReportUndelete) (in
 }
 
 func (ctrl *Report) Describe(ctx context.Context, r *request.ReportDescribe) (interface{}, error) {
-	return ctrl.report.DescribeFresh(ctx, r.Sources, r.Steps, r.Describe...)
+	return ctrl.report.Describe(ctx, r.Sources, r.Steps, r.Describe...)
 }
 
 func (ctrl *Report) Run(ctx context.Context, r *request.ReportRun) (interface{}, error) {
@@ -177,7 +179,7 @@ func (ctrl Report) makeFilterPayload(ctx context.Context, nn types.ReportSet, f 
 	return msp, nil
 }
 
-func (ctrl Report) makeReportFramePayload(ctx context.Context, ff []*report.Frame, err error) (*reportFramePayload, error) {
+func (ctrl Report) makeReportFramePayload(ctx context.Context, ff []*reporting.Frame, err error) (*reportFramePayload, error) {
 	if err != nil || len(ff) == 0 {
 		return nil, err
 	}

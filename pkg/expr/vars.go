@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"github.com/cortezaproject/corteza-server/pkg/sql"
 	"reflect"
 	"strings"
 
@@ -13,14 +14,22 @@ import (
 	"github.com/spf13/cast"
 )
 
-func (t *Vars) Len() int {
+func (t *Vars) Len() (out int) {
+	if t == nil {
+		return
+	}
+
 	t.mux.RLock()
 	defer t.mux.RUnlock()
 
 	return len(t.value)
 }
 
-func (t *Vars) Select(k string) (TypedValue, error) {
+func (t *Vars) Select(k string) (out TypedValue, err error) {
+	if t == nil {
+		return
+	}
+
 	t.mux.RLock()
 	defer t.mux.RUnlock()
 
@@ -32,6 +41,10 @@ func (t *Vars) Select(k string) (TypedValue, error) {
 }
 
 func (t *Vars) AssignFieldValue(key string, val TypedValue) (err error) {
+	if t == nil {
+		return
+	}
+
 	t.mux.Lock()
 	defer t.mux.Unlock()
 
@@ -41,12 +54,12 @@ func (t *Vars) AssignFieldValue(key string, val TypedValue) (err error) {
 
 	t.value[key] = val
 
-	return err
+	return
 }
 
 func (t *Vars) ResolveTypes(res func(typ string) Type) (err error) {
 	if t == nil {
-		return nil
+		return
 	}
 
 	t.mux.RLock()
@@ -71,7 +84,7 @@ func (t *Vars) ResolveTypes(res func(typ string) Type) (err error) {
 		}
 	}
 
-	return nil
+	return
 }
 
 // Merge combines the given Vars(es) into Vars
@@ -169,34 +182,37 @@ func (t *Vars) HasAny(key string, kk ...string) bool {
 
 var _ gval.Selector = &Vars{}
 
-func (t *Vars) Dict() map[string]interface{} {
+func (t *Vars) Dict() (out map[string]interface{}) {
+	if t == nil {
+		return
+	}
+
 	t.mux.RLock()
 	defer t.mux.RUnlock()
 
-	dict := make(map[string]interface{})
+	out = make(map[string]interface{})
 	for k, v := range t.value {
 		switch v := v.(type) {
 		case Dict:
-			dict[k] = v.Dict()
+			out[k] = v.Dict()
 
 		case Slice:
-			dict[k] = v.Slice()
+			out[k] = v.Slice()
 
 		case TypedValue:
 			tmp := v.Get()
 			if d, is := tmp.(Dict); is {
-				dict[k] = d.Dict()
+				out[k] = d.Dict()
 			} else {
-				dict[k] = tmp
+				out[k] = tmp
 			}
 
 		default:
-			dict[k] = v
+			out[k] = v
 		}
-
 	}
 
-	return dict
+	return
 }
 
 func (t *Vars) Decode(dst interface{}) (err error) {
@@ -248,20 +264,7 @@ func (t *Vars) Decode(dst interface{}) (err error) {
 	return
 }
 
-func (t *Vars) Scan(value interface{}) error {
-	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
-	switch value.(type) {
-	case nil:
-		*t = Vars{}
-	case []uint8:
-		b := value.([]byte)
-		if err := json.Unmarshal(b, t); err != nil {
-			return fmt.Errorf("cannot scan '%v' into %T: %w", string(b), t, err)
-		}
-	}
-
-	return nil
-}
+func (t *Vars) Scan(src any) error { return sql.ParseJSON(src, t) }
 
 func (t *Vars) Value() (driver.Value, error) {
 	if t != nil {
@@ -272,21 +275,29 @@ func (t *Vars) Value() (driver.Value, error) {
 	return json.Marshal(t)
 }
 
-func (t *Vars) SelectGVal(_ context.Context, k string) (interface{}, error) {
+func (t *Vars) SelectGVal(_ context.Context, k string) (out interface{}, err error) {
+	if t == nil {
+		return
+	}
+
 	t.mux.RLock()
 	defer t.mux.RUnlock()
 
-	val, err := t.Select(k)
-	switch c := val.(type) {
+	out, err = t.Select(k)
+	switch c := out.(type) {
 	case gval.Selector:
-		return c, nil
+		return c, err
 	default:
-		return UntypedValue(val), err
+		return UntypedValue(out), err
 	}
 }
 
 // UnmarshalJSON unmarshal JSON value into Vars
 func (t *Vars) UnmarshalJSON(in []byte) (err error) {
+	if t == nil {
+		return
+	}
+
 	t.mux.Lock()
 	defer t.mux.Unlock()
 
@@ -312,7 +323,7 @@ func (t *Vars) UnmarshalJSON(in []byte) (err error) {
 		}
 	}
 
-	return nil
+	return
 }
 
 func (t *Vars) Each(fn func(k string, v TypedValue) error) (err error) {
@@ -338,6 +349,10 @@ func (t *Vars) Each(fn func(k string, v TypedValue) error) (err error) {
 
 // Set or update the specific key value in Vars
 func (t *Vars) Set(k string, v interface{}) (err error) {
+	if t == nil {
+		return
+	}
+
 	t.mux.RLock()
 	defer t.mux.RUnlock()
 
@@ -350,7 +365,11 @@ func (t *Vars) Set(k string, v interface{}) (err error) {
 }
 
 // MarshalJSON returns JSON encoding of expression
-func (t *Vars) MarshalJSON() ([]byte, error) {
+func (t *Vars) MarshalJSON() (out []byte, err error) {
+	if t == nil {
+		return
+	}
+
 	t.mux.RLock()
 	defer t.mux.RUnlock()
 
@@ -455,6 +474,58 @@ func decode(dst reflect.Value, src TypedValue) (err error) {
 	return nil
 }
 
+func CastToMeta(val interface{}) (out map[string]any, err error) {
+	val = UntypedValue(val)
+
+	if val == nil {
+		return make(map[string]any), nil
+	}
+
+	switch c := val.(type) {
+	case *Vars:
+		c.mux.RLock()
+		defer c.mux.RUnlock()
+
+		out = make(map[string]any)
+		for k, v := range c.value {
+			out[k] = v.Get()
+		}
+
+		return
+	case map[string]string:
+		out = make(map[string]any)
+		for k, v := range c {
+			out[k] = v
+		}
+
+		return
+	case map[string][]string:
+		out = make(map[string]any)
+		for k, v := range c {
+			out[k] = v
+		}
+
+		return
+	case KV:
+		out = make(map[string]any)
+		for k, v := range c.value {
+			out[k] = v
+		}
+
+		return
+	case KVV:
+		out = make(map[string]any)
+		for k, v := range c.value {
+			out[k] = v
+		}
+
+		return
+	case map[string]any:
+		return c, nil
+	}
+
+	return nil, fmt.Errorf("unable to cast type %T to %T", val, out)
+}
 func CastToVars(val interface{}) (out map[string]TypedValue, err error) {
 	val = UntypedValue(val)
 
@@ -487,6 +558,10 @@ func CastToVars(val interface{}) (out map[string]TypedValue, err error) {
 
 // Filter take keys returns Vars with only those key value pair
 func (t *Vars) Filter(keys ...string) (out TypedValue, err error) {
+	if t == nil {
+		return
+	}
+
 	t.mux.RLock()
 	defer t.mux.RUnlock()
 
@@ -507,6 +582,10 @@ func (t *Vars) Filter(keys ...string) (out TypedValue, err error) {
 
 // Delete take keys returns Vars without those key value pair
 func (t *Vars) Delete(keys ...string) (out TypedValue, err error) {
+	if t == nil {
+		return
+	}
+
 	t.mux.RLock()
 	defer t.mux.RUnlock()
 

@@ -16,7 +16,12 @@ type (
 		Kind       string
 		ResourceID []uint64
 		Filter     map[string]string
+		Limit      uint
 	}
+)
+
+const (
+	LabelResourceType = "corteza::generic:label"
 )
 
 func (set LabelSet) ResourceIDs() (rr []uint64) {

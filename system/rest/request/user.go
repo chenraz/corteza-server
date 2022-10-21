@@ -101,6 +101,11 @@ type (
 		// Limit
 		Limit uint
 
+		// IncTotal GET parameter
+		//
+		// Include total counter
+		IncTotal bool
+
 		// PageCursor GET parameter
 		//
 		// Page cursor
@@ -280,6 +285,25 @@ type (
 		UserID uint64 `json:",string"`
 	}
 
+	UserListCredentials struct {
+		// UserID PATH parameter
+		//
+		// ID
+		UserID uint64 `json:",string"`
+	}
+
+	UserDeleteCredentials struct {
+		// UserID PATH parameter
+		//
+		// ID
+		UserID uint64 `json:",string"`
+
+		// CredentialsID PATH parameter
+		//
+		// Credentials ID
+		CredentialsID uint64 `json:",string"`
+	}
+
 	UserExport struct {
 		// Filename PATH parameter
 		//
@@ -326,6 +350,7 @@ func (r UserList) Auditable() map[string]interface{} {
 		"suspended":    r.Suspended,
 		"labels":       r.Labels,
 		"limit":        r.Limit,
+		"incTotal":     r.IncTotal,
 		"pageCursor":   r.PageCursor,
 		"sort":         r.Sort,
 	}
@@ -394,6 +419,11 @@ func (r UserList) GetLabels() map[string]string {
 // Auditable returns all auditable/loggable parameters
 func (r UserList) GetLimit() uint {
 	return r.Limit
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r UserList) GetIncTotal() bool {
+	return r.IncTotal
 }
 
 // Auditable returns all auditable/loggable parameters
@@ -502,6 +532,12 @@ func (r *UserList) Fill(req *http.Request) (err error) {
 		}
 		if val, ok := tmp["limit"]; ok && len(val) > 0 {
 			r.Limit, err = payload.ParseUint(val[0]), nil
+			if err != nil {
+				return err
+			}
+		}
+		if val, ok := tmp["incTotal"]; ok && len(val) > 0 {
+			r.IncTotal, err = payload.ParseBool(val[0]), nil
 			if err != nil {
 				return err
 			}
@@ -1411,6 +1447,88 @@ func (r *UserSessionsRemove) Fill(req *http.Request) (err error) {
 
 		val = chi.URLParam(req, "userID")
 		r.UserID, err = payload.ParseUint64(val), nil
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return err
+}
+
+// NewUserListCredentials request
+func NewUserListCredentials() *UserListCredentials {
+	return &UserListCredentials{}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r UserListCredentials) Auditable() map[string]interface{} {
+	return map[string]interface{}{
+		"userID": r.UserID,
+	}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r UserListCredentials) GetUserID() uint64 {
+	return r.UserID
+}
+
+// Fill processes request and fills internal variables
+func (r *UserListCredentials) Fill(req *http.Request) (err error) {
+
+	{
+		var val string
+		// path params
+
+		val = chi.URLParam(req, "userID")
+		r.UserID, err = payload.ParseUint64(val), nil
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return err
+}
+
+// NewUserDeleteCredentials request
+func NewUserDeleteCredentials() *UserDeleteCredentials {
+	return &UserDeleteCredentials{}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r UserDeleteCredentials) Auditable() map[string]interface{} {
+	return map[string]interface{}{
+		"userID":        r.UserID,
+		"credentialsID": r.CredentialsID,
+	}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r UserDeleteCredentials) GetUserID() uint64 {
+	return r.UserID
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r UserDeleteCredentials) GetCredentialsID() uint64 {
+	return r.CredentialsID
+}
+
+// Fill processes request and fills internal variables
+func (r *UserDeleteCredentials) Fill(req *http.Request) (err error) {
+
+	{
+		var val string
+		// path params
+
+		val = chi.URLParam(req, "userID")
+		r.UserID, err = payload.ParseUint64(val), nil
+		if err != nil {
+			return err
+		}
+
+		val = chi.URLParam(req, "credentialsID")
+		r.CredentialsID, err = payload.ParseUint64(val), nil
 		if err != nil {
 			return err
 		}

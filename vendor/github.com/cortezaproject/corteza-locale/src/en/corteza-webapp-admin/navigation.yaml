@@ -8,6 +8,8 @@ system:
     apigw: Integration Gateway
     applications: Applications
     authclients: Auth Clients
+    connections: Connections
+    sensitivityLevel: Sensitivity Levels
     permissions: Permissions
     queues: Messaging Queues
     roles: Roles

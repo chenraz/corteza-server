@@ -5,8 +5,10 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cortezaproject/corteza-server/compose/dalutils"
 	"github.com/cortezaproject/corteza-server/compose/service"
 	"github.com/cortezaproject/corteza-server/compose/types"
+	"github.com/cortezaproject/corteza-server/pkg/dal"
 	"github.com/cortezaproject/corteza-server/pkg/envoy"
 	"github.com/cortezaproject/corteza-server/pkg/envoy/resource"
 	"github.com/cortezaproject/corteza-server/pkg/filter"
@@ -28,20 +30,31 @@ type (
 		store.ComposeModules
 		store.ComposeNamespaces
 		store.ComposePages
-		store.ComposeRecordValues
-		store.ComposeRecords
+	}
+
+	dalService interface {
+		Create(ctx context.Context, m dal.ModelRef, operations dal.OperationSet, vv ...dal.ValueGetter) error
+		Search(ctx context.Context, m dal.ModelRef, operations dal.OperationSet, f filter.Filter) (dal.Iterator, error)
+		Delete(ctx context.Context, m dal.ModelRef, operations dal.OperationSet, pkv ...dal.ValueGetter) (err error)
+		Update(ctx context.Context, m dal.ModelRef, operations dal.OperationSet, pkv ...dal.ValueGetter) (err error)
+
+		ReplaceModel(context.Context, *dal.Model) error
+		GetConnectionByID(uint64) *dal.ConnectionWrap
 	}
 
 	composeDecoder struct {
 		resourceID  []uint64
 		namespaceID []uint64
+
+		dal dalService
 	}
 )
 
-func newComposeDecoder() *composeDecoder {
+func newComposeDecoder(dal dalService) *composeDecoder {
 	return &composeDecoder{
 		resourceID:  make([]uint64, 0, 200),
 		namespaceID: make([]uint64, 0, 200),
+		dal:         dal,
 	}
 }
 
@@ -166,7 +179,7 @@ func (d *composeDecoder) decodeComposeRecord(ctx context.Context, s store.Storer
 		}
 	}
 
-	ac := service.AccessControl()
+	ac := service.AccessControl(s)
 
 	if len(d.namespaceID) > 0 {
 		ffNs := make([]*composeRecordFilter, 0, len(ff)+len(d.namespaceID))
@@ -233,6 +246,11 @@ func (d *composeDecoder) decodeComposeRecord(ctx context.Context, s store.Storer
 				err: err,
 			}
 		}
+
+		_ = ff.Walk(func(f *types.ModuleField) error {
+			f.NamespaceID = mod.NamespaceID
+			return nil
+		})
 		mod.Fields = ff
 
 		aux.Check = service.ComposeRecordFilterChecker(ctx, ac, mod)
@@ -252,7 +270,7 @@ func (d *composeDecoder) decodeComposeRecord(ctx context.Context, s store.Storer
 			var err error
 
 			for {
-				rr, fn, err = s.SearchComposeRecords(ctx, mod, types.RecordFilter(aux))
+				rr, fn, err = dalutils.ComposeRecordsList(ctx, d.dal, mod, types.RecordFilter(aux))
 				if err != nil {
 					return err
 				}

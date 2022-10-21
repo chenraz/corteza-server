@@ -16,8 +16,10 @@ type (
 
 	permissionsAccessController interface {
 		Effective(context.Context, ...rbac.Resource) rbac.EffectiveSet
+		Trace(context.Context, uint64, []uint64, ...string) ([]*rbac.Trace, error)
 		List() []map[string]string
 		FindRulesByRoleID(context.Context, uint64) (rbac.RuleSet, error)
+		FindRules(ctx context.Context, roleID uint64, rr ...string) (rbac.RuleSet, error)
 		Grant(ctx context.Context, rr ...*rbac.Rule) error
 	}
 )
@@ -32,12 +34,16 @@ func (ctrl Permissions) Effective(ctx context.Context, r *request.PermissionsEff
 	return ctrl.ac.Effective(ctx, types.Component{}), nil
 }
 
+func (ctrl Permissions) Trace(ctx context.Context, r *request.PermissionsTrace) (interface{}, error) {
+	return ctrl.ac.Trace(ctx, r.UserID, r.RoleID, r.Resource...)
+}
+
 func (ctrl Permissions) List(ctx context.Context, r *request.PermissionsList) (interface{}, error) {
 	return ctrl.ac.List(), nil
 }
 
 func (ctrl Permissions) Read(ctx context.Context, r *request.PermissionsRead) (interface{}, error) {
-	return ctrl.ac.FindRulesByRoleID(ctx, r.RoleID)
+	return ctrl.ac.FindRules(ctx, r.RoleID, r.Resource...)
 }
 
 func (ctrl Permissions) Delete(ctx context.Context, r *request.PermissionsDelete) (interface{}, error) {

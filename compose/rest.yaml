@@ -33,6 +33,9 @@ endpoints:
       - type: uint
         name: limit
         title: Limit
+      - type: bool
+        name: incTotal
+        title: Include total counter
       - type: map[string]string
         name: labels
         title: Labels
@@ -532,6 +535,9 @@ endpoints:
       - type: uint
         name: limit
         title: Limit
+      - type: bool
+        name: incTotal
+        title: Include total counter
       - type: string
         name: pageCursor
         title: Page cursor
@@ -548,26 +554,12 @@ endpoints:
     path: "/"
     parameters:
       post:
-      - type: string
-        name: name
-        required: true
-        title: Module Name
-      - type: string
-        name: handle
-        required: false
-        title: Module handle
-      - type: types.ModuleFieldSet
-        name: fields
-        required: true
-        title: Fields JSON
-      - type: sqlxTypes.JSONText
-        name: meta
-        required: true
-        title: Module meta data
-      - type: map[string]string
-        name: labels
-        title: Module labels
-        parser: label.ParseStrings
+      - { type: "string",               name: name,   title: Name,          required: true  }
+      - { type: "string",               name: handle, title: Handle }
+      - { type: "types.ModuleConfig",   name: config, title: Configuration, parser: types.ParseModuleConfig }
+      - { type: "sqlxTypes.JSONText",   name: meta,   title: Meta data,     required: true }
+      - { type: "types.ModuleFieldSet", name: fields, title: Fields,        required: true }
+      - { type: "map[string]string",    name: labels, title: Labels,        parser: label.ParseStrings }
   - name: read
     method: GET
     title: Read module
@@ -589,30 +581,13 @@ endpoints:
         required: true
         title: Module ID
       post:
-      - type: string
-        name: name
-        required: true
-        title: Module Name
-      - type: string
-        name: handle
-        required: false
-        title: Module Handle
-      - type: types.ModuleFieldSet
-        name: fields
-        required: true
-        title: Fields JSON
-      - type: sqlxTypes.JSONText
-        name: meta
-        required: true
-        title: Module meta data
-      - type: "*time.Time"
-        name: updatedAt
-        required: false
-        title: Last update (or creation) date
-      - type: map[string]string
-        name: labels
-        title: Module labels
-        parser: label.ParseStrings
+      - { type: "string",               name: name,      title: Name,          required: true  }
+      - { type: "string",               name: handle,    title: Handle }
+      - { type: "types.ModuleConfig",   name: config,    title: Configuration, parser: types.ParseModuleConfig }
+      - { type: "sqlxTypes.JSONText",   name: meta,      title: Meta data,     required: true }
+      - { type: "types.ModuleFieldSet", name: fields,    title: Fields,        required: true }
+      - { type: "map[string]string",    name: labels,    title: Labels,        parser: label.ParseStrings }
+      - { type: "*time.Time",           name: updatedAt, title: Last update (or creation) date }
   - name: delete
     method: DELETE
     title: Delete module
@@ -674,7 +649,6 @@ endpoints:
   path: "/namespace/{namespaceID}/module/{moduleID}/record"
   authentication: []
   imports:
-    - github.com/cortezaproject/corteza-server/pkg/label
     - github.com/cortezaproject/corteza-server/compose/types
   parameters:
     path:
@@ -711,33 +685,14 @@ endpoints:
     path: "/"
     parameters:
       get:
-      - name: query
-        type: string
-        required: false
-        title: Record filtering query
-      - type: map[string]string
-        name: labels
-        title: Labels
-        parser: label.ParseStrings
-      - name: deleted
-        required: false
-        title: Exclude (0, default), include (1) or return only (2) deleted records
-        type: uint
-      - type: uint
-        name: limit
-        title: Limit
-      - name: incTotal
-        type: bool
-        title: Include total records counter
-      - name: incPageNavigation
-        type: bool
-        title: Include page navigation
-      - type: string
-        name: pageCursor
-        title: Page cursor
-      - type: string
-        name: sort
-        title: Sort items
+      - { name: query,             type: "string",         title: "Record filtering query" }
+      - { name: meta,              type: "map[string]any", title: "Record meta data", parser: payload.ParseMeta }
+      - { name: deleted,           type: "uint",           title: "Exclude (0, default), include (1) or return only (2) deleted records" }
+      - { name: limit,             type: "uint",           title: "Limit" }
+      - { name: incTotal,          type: "bool",           title: "Include total records counter" }
+      - { name: incPageNavigation, type: "bool",           title: "Include page navigation" }
+      - { name: pageCursor,        type: "string",         title: "Page cursor" }
+      - { name: sort,              type: "string",         title: "Sort items" }
   - name: importInit
     path: "/import"
     method: POST
@@ -825,18 +780,10 @@ endpoints:
     path: "/"
     parameters:
       post:
-      - type: types.RecordValueSet
-        name: values
-        required: false
-        title: Record values
-      - type: types.RecordBulkSet
-        name: records
-        required: false
-        title: Records
-      - type: map[string]string
-        name: labels
-        title: Labels
-        parser: label.ParseStrings
+      - { name: values,  type: "types.RecordValueSet",  title: Record values }
+      - { name: ownedBy, type: "uint64",                title: Record Owner }
+      - { name: records, type: "types.RecordBulkSet",   title: Records }
+      - { name: meta,    type: "map[string]any",        title: Record meta-data, parser: payload.ParseMeta }
   - name: read
     method: GET
     title: Read records by ID from module section
@@ -853,23 +800,12 @@ endpoints:
     path: "/{recordID}"
     parameters:
       path:
-      - type: uint64
-        name: recordID
-        required: true
-        title: Record ID
+      - { name: recordID, type: "uint64", required: true, title: Record ID }
       post:
-      - type: types.RecordValueSet
-        name: values
-        required: false
-        title: Record values
-      - type: types.RecordBulkSet
-        name: records
-        required: false
-        title: Records
-      - type: map[string]string
-        name: labels
-        title: Labels
-        parser: label.ParseStrings
+      - { name: values,  type: "types.RecordValueSet",  title: Record values }
+      - { name: ownedBy, type: "uint64",                title: Record Owner }
+      - { name: meta,    type: "map[string]any",        title: Record meta-data, parser: payload.ParseMeta }
+      - { name: records, type: "types.RecordBulkSet",   title: Records }
   - name: bulkDelete
     method: DELETE
     title: Delete record row from module section
@@ -945,6 +881,37 @@ endpoints:
         type: map[string]interface{}
         parser: parseMapStringInterface
         title: Arguments to pass to the script
+  - name: revisions
+    method: GET
+    title: List record revisions
+    path: "/{recordID}/revisions"
+    parameters:
+      path:
+       - { type: uint64, name: recordID, required: true, title: ID }
+
+- title: Data Privacy
+  entrypoint: dataPrivacy
+  path: "/data-privacy"
+  apis:
+    - name: record list
+      method: GET
+      title: List records for data privacy
+      path: /record
+      parameters:
+        get:
+          - { name: sensitivityLevelID, type: "uint64", title: "Sensitivity Level ID", required: false}
+          - { name: connectionID, type: "[]string", required: false, title: "Filter by connection ID"}
+    - name: module list
+      method: GET
+      title: List modules
+      path: /module
+      parameters:
+        get:
+          - { name: connectionID, type: "[]string", title: "Filter by connection ID" }
+          - { name: limit,        type: "uint",     title: "Limit" }
+          - { name: pageCursor,   type: "string",   title: "Page cursor" }
+          - { name: sort,         type: "string",   title: "Sort items" }
+
 - title: Charts
   path: "/namespace/{namespaceID}/chart"
   entrypoint: chart
@@ -952,6 +919,7 @@ endpoints:
   imports:
     - sqlxTypes github.com/jmoiron/sqlx/types
     - github.com/cortezaproject/corteza-server/pkg/label
+    - github.com/cortezaproject/corteza-server/pkg/locale
     - time
   parameters:
     path:
@@ -981,6 +949,9 @@ endpoints:
       - type: uint
         name: limit
         title: Limit
+      - type: bool
+        name: incTotal
+        title: Include total counter
       - type: string
         name: pageCursor
         title: Page cursor
@@ -1060,6 +1031,32 @@ endpoints:
         name: chartID
         required: true
         title: Chart ID
+  - name: listTranslations
+    method: GET
+    title: List chart translation
+    path: "/{chartID}/translation"
+    parameters:
+      path:
+        - type: uint64
+          name: chartID
+          required: true
+          title: ID
+  - name: updateTranslations
+    method: PATCH
+    title: Update chart translation
+    path: "/{chartID}/translation"
+    parameters:
+      path:
+        - type: uint64
+          name: chartID
+          required: true
+          title: ID
+      post:
+        - name: translations
+          type: locale.ResourceTranslationSet
+          title: Resource translation to upsert
+          required: true
+
 - title: Notifications
   description: Compose Notifications
   entrypoint: notification
@@ -1228,6 +1225,22 @@ endpoints:
         type: string
         required: false
         title: Show only rules for a specific resource
+  - name: trace
+    path: "/trace"
+    method: GET
+    title: Evaluate rules for given user/role combo
+    parameters:
+      get:
+      - name: resource
+        type: "[]string"
+        required: false
+        title: Show only rules for a specific resource
+      - name: userID
+        type: uint64
+        required: false
+      - name: roleID
+        type: "[]uint64"
+        required: false
   - name: read
     path: "/{roleID}/rules"
     method: GET
@@ -1238,6 +1251,11 @@ endpoints:
         type: uint64
         required: true
         title: Role ID
+      get:
+      - name: resource
+        type: "[]string"
+        required: false
+        title: Show only rules for a specific resource
   - name: delete
     path: "/{roleID}/rules"
     method: DELETE

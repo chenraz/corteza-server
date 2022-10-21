@@ -23,6 +23,8 @@ type (
 	}
 
 	HttpServerOpt struct {
+		Domain                 string `env:"DOMAIN"`
+		DomainWebapp           string `env:"DOMAIN_WEBAPP"`
 		Addr                   string `env:"HTTP_ADDR"`
 		LogRequest             bool   `env:"HTTP_LOG_REQUEST"`
 		LogResponse            bool   `env:"HTTP_LOG_RESPONSE"`
@@ -96,10 +98,11 @@ type (
 	AuthOpt struct {
 		LogEnabled               bool          `env:"AUTH_LOG_ENABLED"`
 		PasswordSecurity         bool          `env:"AUTH_PASSWORD_SECURITY"`
+		JwtAlgorithm             string        `env:"AUTH_JWT_ALGORITHM"`
 		Secret                   string        `env:"AUTH_JWT_SECRET"`
+		JwtKey                   string        `env:"AUTH_JWT_KEY"`
 		AccessTokenLifetime      time.Duration `env:"AUTH_OAUTH2_ACCESS_TOKEN_LIFETIME"`
 		RefreshTokenLifetime     time.Duration `env:"AUTH_OAUTH2_REFRESH_TOKEN_LIFETIME"`
-		Expiry                   time.Duration `env:"AUTH_JWT_EXPIRY"`
 		ExternalRedirectURL      string        `env:"AUTH_EXTERNAL_REDIRECT_URL"`
 		ExternalCookieSecret     string        `env:"AUTH_EXTERNAL_COOKIE_SECRET"`
 		BaseURL                  string        `env:"AUTH_BASE_URL"`
@@ -199,11 +202,6 @@ type (
 		MinioStrict     bool   `env:"MINIO_STRICT"`
 	}
 
-	PluginsOpt struct {
-		Enabled bool   `env:"PLUGINS_ENABLED"`
-		Paths   string `env:"PLUGINS_PATHS"`
-	}
-
 	ProvisionOpt struct {
 		Always bool   `env:"PROVISION_ALWAYS"`
 		Path   string `env:"PROVISION_PATH"`
@@ -223,6 +221,7 @@ type (
 		Release          string  `env:"SENTRY_RELEASE"`
 		Dist             string  `env:"SENTRY_DIST"`
 		Environment      string  `env:"SENTRY_ENVIRONMENT"`
+		WebappDSN        string  `env:"SENTRY_WEBAPP_DSN"`
 	}
 
 	TemplateOpt struct {
@@ -325,6 +324,8 @@ func HTTPClient() (o *HTTPClientOpt) {
 // This function is auto-generated
 func HttpServer() (o *HttpServerOpt) {
 	o = &HttpServerOpt{
+		Domain:                 "localhost",
+		DomainWebapp:           "localhost",
 		Addr:                   ":80",
 		EnableHealthcheckRoute: true,
 		EnableVersionRoute:     true,
@@ -424,10 +425,7 @@ func SCIM() (o *SCIMOpt) {
 //
 // This function is auto-generated
 func SMTP() (o *SMTPOpt) {
-	o = &SMTPOpt{
-		Host: "localhost",
-		Port: 25,
-	}
+	o = &SMTPOpt{}
 
 	// Custom defaults
 	func(o interface{}) {
@@ -512,16 +510,16 @@ func Apigw() (o *ApigwOpt) {
 func Auth() (o *AuthOpt) {
 	o = &AuthOpt{
 		PasswordSecurity:         true,
+		JwtAlgorithm:             "HS512",
 		Secret:                   getSecretFromEnv("jwt secret"),
 		AccessTokenLifetime:      time.Hour * 2,
 		RefreshTokenLifetime:     time.Hour * 24 * 3,
-		Expiry:                   time.Hour * 24 * 30,
-		ExternalRedirectURL:      fullURL("/auth/external/{provider}/callback"),
+		ExternalRedirectURL:      FullURL("/auth/external/{provider}/callback"),
 		ExternalCookieSecret:     getSecretFromEnv("external cookie secret"),
-		BaseURL:                  fullURL("/auth"),
+		BaseURL:                  FullURL("/auth"),
 		SessionCookieName:        "session",
 		SessionCookiePath:        pathPrefix("/auth"),
-		SessionCookieDomain:      guessHostname(),
+		SessionCookieDomain:      GuessApiHostname(),
 		SessionCookieSecure:      isSecure(),
 		SessionLifetime:          24 * time.Hour,
 		SessionPermLifetime:      360 * 24 * time.Hour,
@@ -821,33 +819,6 @@ func ObjectStore() (o *ObjectStoreOpt) {
 		Path:        "var/store",
 		MinioSecure: true,
 		MinioBucket: "{component}",
-	}
-
-	// Custom defaults
-	func(o interface{}) {
-		if def, ok := o.(interface{ Defaults() }); ok {
-			def.Defaults()
-		}
-	}(o)
-
-	fill(o)
-
-	// Custom cleanup
-	func(o interface{}) {
-		if def, ok := o.(interface{ Cleanup() }); ok {
-			def.Cleanup()
-		}
-	}(o)
-
-	return
-}
-
-// Plugins initializes and returns a PluginsOpt with default values
-//
-// This function is auto-generated
-func Plugins() (o *PluginsOpt) {
-	o = &PluginsOpt{
-		Enabled: true,
 	}
 
 	// Custom defaults

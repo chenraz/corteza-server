@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"github.com/cortezaproject/corteza-server/pkg/label"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
-	"github.com/cortezaproject/corteza-server/pkg/report"
+	"github.com/cortezaproject/corteza-server/system/reporting"
 	"github.com/cortezaproject/corteza-server/system/types"
 	"github.com/go-chi/chi/v5"
 	"io"
@@ -56,6 +56,11 @@ type (
 		//
 		// Limit
 		Limit uint
+
+		// IncTotal GET parameter
+		//
+		// Include total counter
+		IncTotal bool
 
 		// PageCursor GET parameter
 		//
@@ -167,7 +172,7 @@ type (
 		// Steps POST parameter
 		//
 		// Report steps definition
-		Steps report.StepDefinitionSet
+		Steps types.ReportStepSet
 
 		// Describe POST parameter
 		//
@@ -184,7 +189,7 @@ type (
 		// Frames POST parameter
 		//
 		// Report data frame definitions
-		Frames report.FrameDefinitionSet
+		Frames reporting.FrameDefinitionSet
 	}
 )
 
@@ -200,6 +205,7 @@ func (r ReportList) Auditable() map[string]interface{} {
 		"deleted":    r.Deleted,
 		"labels":     r.Labels,
 		"limit":      r.Limit,
+		"incTotal":   r.IncTotal,
 		"pageCursor": r.PageCursor,
 		"sort":       r.Sort,
 	}
@@ -223,6 +229,11 @@ func (r ReportList) GetLabels() map[string]string {
 // Auditable returns all auditable/loggable parameters
 func (r ReportList) GetLimit() uint {
 	return r.Limit
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r ReportList) GetIncTotal() bool {
+	return r.IncTotal
 }
 
 // Auditable returns all auditable/loggable parameters
@@ -267,6 +278,12 @@ func (r *ReportList) Fill(req *http.Request) (err error) {
 		}
 		if val, ok := tmp["limit"]; ok && len(val) > 0 {
 			r.Limit, err = payload.ParseUint(val[0]), nil
+			if err != nil {
+				return err
+			}
+		}
+		if val, ok := tmp["incTotal"]; ok && len(val) > 0 {
+			r.IncTotal, err = payload.ParseBool(val[0]), nil
 			if err != nil {
 				return err
 			}
@@ -759,7 +776,7 @@ func (r ReportDescribe) GetSources() types.ReportDataSourceSet {
 }
 
 // Auditable returns all auditable/loggable parameters
-func (r ReportDescribe) GetSteps() report.StepDefinitionSet {
+func (r ReportDescribe) GetSteps() types.ReportStepSet {
 	return r.Steps
 }
 
@@ -807,7 +824,7 @@ func (r *ReportDescribe) Fill(req *http.Request) (err error) {
 		//}
 
 		//if val, ok := req.Form["steps[]"]; ok && len(val) > 0  {
-		//    r.Steps, err = report.StepDefinitionSet(val), nil
+		//    r.Steps, err = types.ReportStepSet(val), nil
 		//    if err != nil {
 		//        return err
 		//    }
@@ -843,7 +860,7 @@ func (r ReportRun) GetReportID() uint64 {
 }
 
 // Auditable returns all auditable/loggable parameters
-func (r ReportRun) GetFrames() report.FrameDefinitionSet {
+func (r ReportRun) GetFrames() reporting.FrameDefinitionSet {
 	return r.Frames
 }
 
@@ -879,7 +896,7 @@ func (r *ReportRun) Fill(req *http.Request) (err error) {
 		// POST params
 
 		//if val, ok := req.Form["frames[]"]; ok && len(val) > 0  {
-		//    r.Frames, err = report.FrameDefinitionSet(val), nil
+		//    r.Frames, err = reporting.FrameDefinitionSet(val), nil
 		//    if err != nil {
 		//        return err
 		//    }

@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	authService "github.com/cortezaproject/corteza-server/auth"
-	authHandlers "github.com/cortezaproject/corteza-server/auth/handlers"
-	"github.com/cortezaproject/corteza-server/auth/oauth2"
 	"github.com/cortezaproject/corteza-server/auth/saml"
 	authSettings "github.com/cortezaproject/corteza-server/auth/settings"
 	autService "github.com/cortezaproject/corteza-server/automation/service"
@@ -21,10 +21,10 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/apigw"
 	"github.com/cortezaproject/corteza-server/pkg/auth"
 	"github.com/cortezaproject/corteza-server/pkg/corredor"
+	"github.com/cortezaproject/corteza-server/pkg/dal"
 	"github.com/cortezaproject/corteza-server/pkg/eventbus"
 	"github.com/cortezaproject/corteza-server/pkg/healthcheck"
 	"github.com/cortezaproject/corteza-server/pkg/http"
-	"github.com/cortezaproject/corteza-server/pkg/id"
 	"github.com/cortezaproject/corteza-server/pkg/locale"
 	"github.com/cortezaproject/corteza-server/pkg/logger"
 	"github.com/cortezaproject/corteza-server/pkg/mail"
@@ -36,6 +36,8 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/scheduler"
 	"github.com/cortezaproject/corteza-server/pkg/seeder"
 	"github.com/cortezaproject/corteza-server/pkg/sentry"
+	"github.com/cortezaproject/corteza-server/pkg/valuestore"
+	"github.com/cortezaproject/corteza-server/pkg/version"
 	"github.com/cortezaproject/corteza-server/pkg/websocket"
 	"github.com/cortezaproject/corteza-server/store"
 	"github.com/cortezaproject/corteza-server/system/service"
@@ -92,6 +94,22 @@ func (app *CortezaApp) Setup() (err error) {
 					"so instead use environment variable MINIO_BUCKET, " +
 					"we have extended it to have more flexibility over minio bucket name")
 		}
+
+		if _, is := os.LookupEnv("AUTH_JWT_EXPIRY"); is {
+			log.Warn("AUTH_JWT_EXPIRY is removed. " +
+				"JWT expiration value is set from AUTH_OAUTH2_ACCESS_TOKEN_LIFETIME")
+		}
+
+		if app.Opt.Auth.SessionLifetime < time.Hour {
+			log.Warn("AUTH_SESSION_LIFETIME is set to less then an hour, this might not be what you want." +
+				"When user logs-in without 'remember-me',  AUTH_SESSION_LIFETIME is used to set a maximum time before session is expired if user does not interacts with Corteza. " +
+				"Recommended session lifetime value is between one hour (default) and a day")
+		}
+
+		if app.Opt.Auth.SessionPermLifetime < time.Hour {
+			log.Warn("AUTH_SESSION_PERM_LIFETIME is set to less then an hour, this might not be what you want. " +
+				"Recommended permanent session lifetime values are between a day and a year (default)")
+		}
 	}
 
 	hcd := healthcheck.Defaults()
@@ -117,7 +135,7 @@ func (app *CortezaApp) Setup() (err error) {
 		}
 
 		if languages, err := locale.Service(localeLog, app.Opt.Locale); err != nil {
-			return err
+			return fmt.Errorf("locale service setup: %w", err)
 		} else {
 			locale.SetGlobal(languages)
 		}
@@ -143,7 +161,7 @@ func (app *CortezaApp) Setup() (err error) {
 	}
 
 	if err = corredor.Setup(app.Log, app.Opt.Corredor); err != nil {
-		return err
+		return fmt.Errorf("corredor setup failed: %w", err)
 	}
 
 	{
@@ -154,10 +172,6 @@ func (app *CortezaApp) Setup() (err error) {
 		if !app.Opt.Messagebus.Enabled {
 			app.Log.Debug("messagebus disabled (MESSAGEBUS_ENABLED=false)")
 		}
-	}
-
-	if err = app.plugins.Setup(app.Log.Named("plugin")); err != nil {
-		return
 	}
 
 	app.lvl = bootLevelSetup
@@ -171,7 +185,7 @@ func (app *CortezaApp) InitStore(ctx context.Context) (err error) {
 		return nil
 	} else if err = app.Setup(); err != nil {
 		// Initialize previous level
-		return err
+		return fmt.Errorf("app setup failed: %w", err)
 	}
 
 	// Do not re-initialize store
@@ -181,73 +195,37 @@ func (app *CortezaApp) InitStore(ctx context.Context) (err error) {
 
 		app.Store, err = store.Connect(ctx, app.Log, app.Opt.DB.DSN, app.Opt.Environment.IsDevelopment())
 		if err != nil {
-			return err
+			return fmt.Errorf("could not connect to primary store: %w", err)
 		}
 	}
-
-	app.Log.Info("running store update")
 
 	if !app.Opt.Upgrade.Always {
 		app.Log.Info("store upgrade skipped (UPGRADE_ALWAYS=false)")
 	} else {
+		log := app.Log.Named("store")
+		log.Info("running schema upgrade")
 		ctx = actionlog.RequestOriginToContext(ctx, actionlog.RequestOrigin_APP_Upgrade)
 
 		// If not explicitly set (UPGRADE_DEBUG=true) suppress logging in upgrader
-		log := zap.NewNop()
 		if app.Opt.Upgrade.Debug {
-			log = app.Log.Named("store.upgrade")
 			log.Info("store upgrade running in debug mode (UPGRADE_DEBUG=true)")
 		} else {
-			app.Log.Info("store upgrade running (to enable upgrade debug logging set UPGRADE_DEBUG=true)")
+			log.Info("store upgrade running (to enable upgrade debug logging set UPGRADE_DEBUG=true)")
+			log = zap.NewNop()
 		}
 
 		if err = store.Upgrade(ctx, log, app.Store); err != nil {
-			return err
+			return fmt.Errorf("could not upgrade primary store: %w", err)
 		}
 
-		// @todo refactor this to make more sense and put it where it belongs
-		{
-			var set types.SettingValueSet
-			set, _, err = store.SearchSettings(ctx, app.Store, types.SettingsFilter{Prefix: "auth.external"})
-			if err != nil {
-				return err
-			}
+		healthcheck.Defaults().Add(app.Store.Healthcheck, "Primary store")
+	}
 
-			err = set.Walk(func(old *types.SettingValue) error {
-				if strings.HasSuffix(old.Name, ".redirect-url") {
-					// remove obsolete redirect-url
-					if err = store.DeleteSetting(ctx, app.Store, old); err != nil {
-						return err
-					}
-
-					return nil
-				}
-
-				if strings.Contains(old.Name, ".provider.gplus.") {
-					var new = *old
-					new.Name = strings.Replace(new.Name, "provider.gplus.", "provider.google.", 1)
-
-					log.Info("renaming settings", zap.String("old", old.Name), zap.String("new", new.Name))
-
-					if err = store.CreateSetting(ctx, app.Store, &new); err != nil {
-						if store.ErrNotUnique != err {
-							return err
-						}
-					}
-
-					if err = store.DeleteSetting(ctx, app.Store, old); err != nil {
-						return err
-					}
-				}
-
-				return nil
-			})
-
-			if err != nil {
-				return err
-			}
+	{
+		// Initialize Data Access Layer (DAL)
+		if err = app.initDAL(ctx, app.Log); err != nil {
+			return fmt.Errorf("can not initialize DAL: %w", err)
 		}
-
 	}
 
 	app.lvl = bootLevelStoreInitialized
@@ -262,11 +240,11 @@ func (app *CortezaApp) Provision(ctx context.Context) (err error) {
 	}
 
 	if err = app.InitStore(ctx); err != nil {
-		return err
+		return
 	}
 
 	if err = app.initSystemEntities(ctx); err != nil {
-		return
+		return fmt.Errorf("could not initialize system entities: %w", err)
 	}
 
 	{
@@ -297,7 +275,7 @@ func (app *CortezaApp) Provision(ctx context.Context) (err error) {
 		ctx = auth.SetIdentityToContext(ctx, auth.ProvisionUser())
 
 		if err = provision.Run(ctx, app.Log, app.Store, app.Opt.Provision, app.Opt.Auth); err != nil {
-			return err
+			return fmt.Errorf("could not run provision: %w", err)
 		}
 	}
 
@@ -319,67 +297,11 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 		return
 	}
 
-	if app.Opt.Auth.DefaultClient != "" {
-		// default client will help streamline authorization with default clients
-		app.DefaultAuthClient, err = store.LookupAuthClientByHandle(ctx, app.Store, app.Opt.Auth.DefaultClient)
-		if err != nil {
-			return fmt.Errorf("cannot load default client: %w", err)
-		}
+	if err = app.initAuth(ctx); err != nil {
+		return fmt.Errorf("can not initialize auth: %w", err)
 	}
 
-	{
-		app.oa2m = oauth2.NewManager(
-			app.Opt.Auth,
-			app.Log,
-			oauth2.NewClientStore(app.Store, app.DefaultAuthClient),
-			oauth2.NewTokenStore(app.Store),
-		)
-
-		// set base path for links&routes in auth server
-		authHandlers.BasePath = app.Opt.HTTPServer.BaseUrl
-
-		auth.DefaultSigner = auth.HmacSigner(app.Opt.Auth.Secret)
-
-		if auth.HttpTokenVerifier, err = auth.TokenVerifierMiddlewareWithSecretSigner(app.Opt.Auth.Secret); err != nil {
-			return fmt.Errorf("could not set token verifier")
-		}
-
-		auth.TokenIssuer, err = auth.NewTokenIssuer(
-			auth.WithSecretSigner(app.Opt.Auth.Secret),
-			// @todo implement configurable issuer claim
-			//auth.WithDefaultIssuer(app.Opt.Auth.TokenClaimIssuer),
-			auth.WithDefaultExpiration(app.Opt.Auth.Expiry),
-			auth.WithDefaultClientID(app.DefaultAuthClient.ID),
-			auth.WithLookup(func(ctx context.Context, accessToken string) (err error) {
-				_, err = store.LookupAuthOa2tokenByAccess(ctx, app.Store, accessToken)
-				return err
-			}),
-			auth.WithStore(func(ctx context.Context, req auth.TokenRequest) error {
-				var (
-					eti       = auth.GetExtraReqInfoFromContext(ctx)
-					createdAt = req.IssuedAt
-
-					oa2t = &types.AuthOa2token{
-						ID:         id.Next(),
-						Access:     req.AccessToken,
-						Refresh:    req.RefreshToken,
-						CreatedAt:  createdAt,
-						RemoteAddr: eti.RemoteAddr,
-						UserAgent:  eti.UserAgent,
-						ClientID:   req.ClientID,
-						UserID:     req.UserID,
-						ExpiresAt:  createdAt.Add(req.Expiration),
-					}
-				)
-
-				return store.CreateAuthOa2token(ctx, app.Store, oa2t)
-			}),
-		)
-
-		if err != nil {
-			return
-		}
-	}
+	initValuestore(app.Opt)
 
 	app.WsServer = websocket.Server(
 		app.Log,
@@ -411,7 +333,7 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 	defer sentry.Recover()
 
 	if err = corredor.Service().Connect(ctx); err != nil {
-		return
+		return fmt.Errorf("could not connecto to corredor service: %w", err)
 	}
 
 	if rbac.Global() == nil {
@@ -432,7 +354,7 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 	// Initialize resource translation stuff
 	locale.Global().BindStore(app.Store)
 	if err = locale.Global().ReloadResourceTranslations(ctx); err != nil {
-		return err
+		return fmt.Errorf("could not reload resource translations: %w", err)
 	}
 
 	// Initializes system services
@@ -444,6 +366,7 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 		Discovery: app.Opt.Discovery,
 		Storage:   app.Opt.ObjStore,
 		Template:  app.Opt.Template,
+		DB:        app.Opt.DB,
 		Auth:      app.Opt.Auth,
 		RBAC:      app.Opt.RBAC,
 		Limit:     app.Opt.Limit,
@@ -469,7 +392,7 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 	})
 
 	if err != nil {
-		return
+		return fmt.Errorf("could not initialize automation services: %w", err)
 	}
 
 	// Initializes compose services
@@ -484,7 +407,7 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 	})
 
 	if err != nil {
-		return
+		return fmt.Errorf("could not initialize compose services: %w", err)
 	}
 
 	corredor.Service().SetUserFinder(sysService.DefaultUser)
@@ -493,7 +416,7 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 	// Initialize API GW bits
 	apigw.Setup(*options.Apigw(), app.Log, app.Store)
 	if err = apigw.Service().Reload(ctx); err != nil {
-		return err
+		return fmt.Errorf("could not initialize api gateway services: %w", err)
 	}
 
 	if app.Opt.Federation.Enabled {
@@ -504,10 +427,11 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 		err = fedService.Initialize(ctx, app.Log, app.Store, fedService.Config{
 			ActionLog:  app.Opt.ActionLog,
 			Federation: app.Opt.Federation,
+			Server:     app.Opt.HTTPServer,
 		})
 
 		if err != nil {
-			return
+			return fmt.Errorf("could not initialize federation services: %w", err)
 		}
 	}
 
@@ -515,24 +439,12 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 	if app.Opt.Discovery.Enabled {
 		err = discoveryService.Initialize(ctx, app.Opt.Discovery, app.Store)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not initialize discovery services: %w", err)
 		}
 	}
 
-	// Register reporters
-	// @todo additional datasource providers; generate?
-	sysService.DefaultReport.RegisterReporter("composeRecords", cmpService.DefaultRecord)
-
 	// Initializing seeder
-	_ = seeder.Seeder(ctx, app.Store, seeder.Faker())
-
-	if err = app.plugins.Initialize(ctx, app.Log); err != nil {
-		return
-	}
-
-	if err = app.plugins.RegisterAutomation(autService.Registry()); err != nil {
-		return
-	}
+	_ = seeder.Seeder(ctx, app.Store, dal.Service(), seeder.Faker())
 
 	app.lvl = bootLevelServicesInitialized
 	return
@@ -544,7 +456,7 @@ func (app *CortezaApp) Activate(ctx context.Context) (err error) {
 		return
 	}
 
-	if err := app.InitServices(ctx); err != nil {
+	if err = app.InitServices(ctx); err != nil {
 		return err
 	}
 
@@ -576,19 +488,22 @@ func (app *CortezaApp) Activate(ctx context.Context) (err error) {
 	rbac.Global().Watch(ctx)
 
 	if err = sysService.Activate(ctx); err != nil {
-		return err
+		return fmt.Errorf("could not activate system services: %w", err)
+
 	}
 
 	if err = autService.Activate(ctx); err != nil {
-		return err
+		return fmt.Errorf("could not activate automation services: %w", err)
+
 	}
 
 	if err = cmpService.Activate(ctx); err != nil {
-		return err
+		return fmt.Errorf("could not activate compose services: %w", err)
+
 	}
 
 	if err = applySmtpOptionsToSettings(ctx, app.Log, app.Opt.SMTP, sysService.CurrentSettings); err != nil {
-		return err
+		return fmt.Errorf("could not apply SMTP options to settings: %w", err)
 	}
 
 	updateSmtpSettings(app.Log, sysService.CurrentSettings)
@@ -611,6 +526,16 @@ func (app *CortezaApp) Activate(ctx context.Context) (err error) {
 
 		updateAuthSettings(app.AuthService, appSettings)
 		updatePasswdSettings(app.Opt.Auth, sysService.CurrentSettings)
+	})
+
+	cmpService.DefaultPage.UpdateConfig(sysService.CurrentSettings)
+	sysService.DefaultSettings.Register("compose.ui.record-toolbar", func(ctx context.Context, current interface{}, set types.SettingValueSet) {
+		appSettings, is := current.(*types.AppSettings)
+		if !is {
+			return
+		}
+
+		cmpService.DefaultPage.UpdateConfig(appSettings)
 	})
 
 	updateDiscoverySettings(app.Opt.Discovery, service.CurrentSettings)
@@ -648,12 +573,12 @@ func (app *CortezaApp) initSystemEntities(ctx context.Context) (err error) {
 
 	// Basic provision for system resources that we need before anything else
 	if rr, err = provision.SystemRoles(ctx, app.Log, app.Store); err != nil {
-		return
+		return fmt.Errorf("could not provision system roles: %w", err)
 	}
 
 	// Basic provision for system users that we need before anything else
 	if uu, err = provision.SystemUsers(ctx, app.Log, app.Store); err != nil {
-		return
+		return fmt.Errorf("could not provision system users: %w", err)
 	}
 
 	// set system users & roles with so that the whole app knows what to use
@@ -746,7 +671,10 @@ func updateLocaleSettings(opt options.LocaleOpt) {
 		} else {
 			// when resource translation is disabled,
 			// add only default (first) language to the list
-			out = append(out, locale.Global().Default().Tag.String())
+			def := locale.Global().Default()
+			if def != nil {
+				out = append(out, def.Tag.String())
+			}
 		}
 
 		appSettings.ResourceTranslations.Languages = out
@@ -761,6 +689,76 @@ func updateLocaleSettings(opt options.LocaleOpt) {
 
 		updateResourceLanguages(appSettings)
 	})
+}
+
+// initValuestore initializes and sets the global valuestore with environment variables
+func initValuestore(opt *options.Options) {
+	s := valuestore.New()
+
+	apiHostname := options.GuessApiHostname()
+
+	// Base variables
+	vars := map[string]any{
+		// General environment variables such as environment name and version info
+		"name":           opt.Environment.Environment,
+		"is-development": opt.Environment.IsDevelopment(),
+		"is-test":        opt.Environment.IsTest(),
+		"is-production":  opt.Environment.IsProduction(),
+
+		"version":    version.Version,
+		"build-time": version.BuildTime,
+	}
+
+	// Auth variables
+	vars["auth.base-url"] = opt.Auth.BaseURL
+	vars["auth.domain"] = apiHostname
+
+	// In case there is a missmatch in the auth base URL and server domain,
+	// guess the domain from the auth baseURL.
+	if !strings.Contains(opt.Auth.BaseURL, apiHostname) {
+		u, err := url.Parse(opt.Auth.BaseURL)
+		if err != nil {
+			panic(err.Error())
+		}
+		vars["auth.domain"] = u.Host
+	}
+
+	// API variables
+
+	// API related values -- domain, base url, base sink route, ...
+	vars["api.domain"] = apiHostname
+	vars["api.base-url"] = options.FullURL(opt.HTTPServer.BaseUrl, opt.HTTPServer.ApiBaseUrl)
+
+	// Web applications
+	webappDomain := ""
+	webappBaseURL := ""
+	webappBaseURLWebapps := map[string]string{}
+
+	if opt.HTTPServer.WebappEnabled {
+		// When served from the server container, use server variables
+		webappDomain = apiHostname
+		webappBaseURL = options.FullURL(opt.HTTPServer.BaseUrl, opt.HTTPServer.WebappBaseUrl)
+	} else {
+		// When not served from the server, use client variables
+		webappDomain = options.GuessWebappHostname()
+		webappBaseURL = options.FullWebappURL(opt.HTTPServer.BaseUrl, opt.HTTPServer.WebappBaseUrl)
+	}
+	// Web applications
+	for _, w := range strings.Split(opt.HTTPServer.WebappList, ",") {
+		webappBaseURLWebapps[w] = fmt.Sprintf("%s/%s", strings.TrimRight(webappBaseURL, "/"), strings.TrimSpace(w))
+	}
+
+	// Webapp related values -- domain, base url (for webapps), ...
+	// Splitting the two since the webapps can be served somewhere else on
+	// a completely different domain
+	vars["webapp.domain"] = webappDomain
+	vars["webapp.base-url"] = webappBaseURL
+	for k, v := range webappBaseURLWebapps {
+		vars[fmt.Sprintf("webapp.base-url.%s", k)] = v
+	}
+
+	s.SetEnv(vars)
+	valuestore.SetGlobal(s)
 }
 
 // takes current options (SMTP_* env variables) and copies their values to settings
@@ -793,7 +791,7 @@ func applySmtpOptionsToSettings(ctx context.Context, log *zap.Logger, opt option
 			log.Warn(
 				"Environmental variables (SMTP_*) and SMTP settings " +
 					"(most likely changed via admin console) are not the same. " +
-					"When server was restarted, values from environmental" +
+					"When server was restarted, values from environmental " +
 					"variables were copied to settings for easier management. " +
 					"To avoid confusion and potential issues, we suggest you to " +
 					"remove all SMTP_* variables")

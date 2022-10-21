@@ -1,11 +1,17 @@
 editor:
+  external-auth-providers:
+    label: Label
+    title: Manage external auth providers
+    type: Type
   info:
     confirmEmail: Confirm email address
     createdAt: Created at
     delete: Delete
     deletedAt: Deleted at
-    email: Email
-    handle: Handle
+    email: Email *
+    handle: Handle *
+    placeholder-handle: handle (a - z, 0 - 9, underscore, dash)
+    invalid-handle-characters: Should be at least 2 characters long and start with a letter. Can contain only letters, numbers, dashes, underscores and dots
     name: Full name
     revokeAllSession: Revoke all active sessions
     suspend: Suspend
@@ -47,9 +53,8 @@ editor:
   permissions: Permissions
   roles:
     add: Add
-    count: Roles ({{count}})
+    count: roles
     remove: Remove
-    searchRoles: Search roles
     title: Role membership
     unnamed: Unnamed role
   title:
@@ -63,6 +68,12 @@ list:
     enabled: Enabled
     handle: Handle
     name: Name
+    state: State
+  export: Export
+  rows:
+    filters:
+      deleted: Deleted
+      suspended: Suspended
   filterForm:
     deleted:
       label: deleted users
@@ -84,3 +95,14 @@ list:
   permissions: Permissions
   title: Users
   yaml: YAML
+export:
+  buttonLabel: Export
+  title: Export users
+  inclRoleMembership: Include role membership
+  inclRoles: Include roles
+  membershipRequiredLabel: Roles can only be exported when role membership is selected
+  export: Export
+import:
+  buttonLabel: Import
+  title: Import users
+  uploadFilePlaceholder: Click or drop files here to import

@@ -49,7 +49,7 @@ type (
 		CanManageSessionsOnWorkflow(context.Context, *types.Workflow) bool
 	}
 
-	WaitFn func(ctx context.Context) (*expr.Vars, wfexec.SessionStatus, types.Stacktrace, error)
+	WaitFn func(ctx context.Context) (*expr.Vars, uint64, wfexec.SessionStatus, types.Stacktrace, error)
 )
 
 const (
@@ -175,23 +175,23 @@ func (svc *session) PendingPrompts(ctx context.Context) (pp []*wfexec.PendingPro
 // used for the execution of the workflow. See watch function!
 //
 // It does not check user's permissions to execute workflow(s) so it should be used only when !
-func (svc *session) Start(ctx context.Context, g *wfexec.Graph, ssp types.SessionStartParams) (wait WaitFn, err error) {
+func (svc *session) Start(ctx context.Context, g *wfexec.Graph, ssp types.SessionStartParams) (wait WaitFn, _ uint64, err error) {
 	var (
 		start wfexec.Step
 	)
 
 	if g == nil {
-		return nil, errors.InvalidData("cannot start workflow, uninitialized graph")
+		return nil, 0, errors.InvalidData("cannot start workflow, uninitialized graph")
 	}
 
 	if len(ssp.CallStack) > svc.opt.CallStackSize {
-		return nil, WorkflowErrMaximumCallStackSizeExceeded()
+		return nil, 0, WorkflowErrMaximumCallStackSizeExceeded()
 	}
 
 	ssp.CallStack = append(ssp.CallStack, ssp.WorkflowID)
 
 	if ssp.Invoker == nil {
-		return nil, errors.InvalidData("cannot start workflow without user")
+		return nil, 0, errors.InvalidData("cannot start workflow without user")
 	}
 
 	if ssp.Runner == nil {
@@ -205,14 +205,14 @@ func (svc *session) Start(ctx context.Context, g *wfexec.Graph, ssp types.Sessio
 		case 1:
 			start = oo[0]
 		case 0:
-			return nil, errors.InvalidData("could not find starting step")
+			return nil, 0, errors.InvalidData("could not find starting step")
 		default:
-			return nil, errors.InvalidData("cannot start workflow session multiple starting steps found")
+			return nil, 0, errors.InvalidData("cannot start workflow session multiple starting steps found")
 		}
 	} else if start = g.StepByID(ssp.StepID); start == nil {
-		return nil, errors.InvalidData("trigger staring step references non-existing step")
+		return nil, 0, errors.InvalidData("trigger staring step references non-existing step")
 	} else if len(g.Parents(g.StepByID(ssp.StepID))) > 0 {
-		return nil, errors.InvalidData("cannot start workflow on a step with parents")
+		return nil, 0, errors.InvalidData("cannot start workflow on a step with parents")
 	}
 
 	var (
@@ -233,14 +233,19 @@ func (svc *session) Start(ctx context.Context, g *wfexec.Graph, ssp types.Sessio
 		return
 	}
 
-	return func(ctx context.Context) (*expr.Vars, wfexec.SessionStatus, types.Stacktrace, error) {
-		return ses.WaitResults(ctx)
-	}, nil
+	return func(ctx context.Context) (scope *expr.Vars, sessionID uint64, status wfexec.SessionStatus, stacktrace types.Stacktrace, err error) {
+		sessionID = ses.ID
+		scope, status, stacktrace, err = ses.WaitResults(ctx)
+		return
+	}, ses.ID, nil
 }
 
 // Resume resumes suspended session/state
 //
 // Session can only be resumed by knowing session and state ID. Resume is an asynchronous operation
+//
+// There is minimum access-control deep inside wfexec.Session.Resume function
+// that compares identity with state owner
 func (svc *session) Resume(sessionID, stateID uint64, i auth.Identifiable, input *expr.Vars) error {
 	var (
 		ctx = auth.SetIdentityToContext(context.Background(), i)
@@ -262,6 +267,36 @@ func (svc *session) Resume(sessionID, stateID uint64, i auth.Identifiable, input
 		svc.log.Error("failed to send prompt resume status to user", zap.Error(err))
 	}
 
+	return nil
+}
+
+// Terminates session ID
+func (svc *session) Cancel(ctx context.Context, sessionID uint64) (err error) {
+	svc.mux.RLock()
+
+	var (
+		wf  *types.Workflow
+		ses = svc.pool[sessionID]
+	)
+
+	// unlock right away!
+	// when session is canceled, handler pick it up and
+	// locks it again
+	svc.mux.RUnlock()
+
+	if ses == nil {
+		return errors.NotFound("session not found or already canceled")
+	}
+
+	if wf, err = loadWorkflow(ctx, svc.store, ses.WorkflowID); err != nil {
+		return
+	}
+
+	if !svc.ac.CanManageSessionsOnWorkflow(ctx, wf) {
+		return SessionErrNotAllowedToManage()
+	}
+
+	ses.Cancel()
 	return nil
 }
 
@@ -412,7 +447,10 @@ func (svc *session) stateChangeHandler(ctx context.Context) wfexec.StateChangeHa
 		svc.mux.Lock()
 		defer svc.mux.Unlock()
 
-		log := svc.log.With(zap.Uint64("sessionID", s.ID()))
+		log := svc.log.With(
+			zap.Uint64("sessionID", s.ID()),
+			zap.Stringer("status", i),
+		)
 
 		ses := svc.pool[s.ID()]
 		if ses == nil {
@@ -422,18 +460,23 @@ func (svc *session) stateChangeHandler(ctx context.Context) wfexec.StateChangeHa
 
 		log = log.With(zap.Uint64("workflowID", ses.WorkflowID))
 
+		log.Debug("state change handler")
+
 		var (
-			// By default, we want to update session when new status is prompted, delayed, completed or failed
+			// By default, we want to update session when new status is prompted, delayed, completed, canceled or failed
 			// But if status is active, we'll flush it every X frames (sessionStateFlushFrequency)
 			update = true
 
-			frame = state.MakeFrame()
+			frame *wfexec.Frame
 		)
 
-		// Stacktrace will be set to !nil if frame collection is needed
-		if len(ses.RuntimeStacktrace) > 0 {
-			// calculate how long it took to get to this step
-			frame.ElapsedTime = uint(frame.CreatedAt.Sub(ses.RuntimeStacktrace[0].CreatedAt) / time.Millisecond)
+		if state != nil {
+			frame = state.MakeFrame()
+			// Stacktrace will be set to !nil if frame collection is needed
+			if len(ses.RuntimeStacktrace) > 0 {
+				// calculate how long it took to get to this step
+				frame.ElapsedTime = uint(frame.CreatedAt.Sub(ses.RuntimeStacktrace[0].CreatedAt) / time.Millisecond)
+			}
 		}
 
 		ses.AppendRuntimeStacktrace(frame)
@@ -474,8 +517,15 @@ func (svc *session) stateChangeHandler(ctx context.Context) wfexec.StateChangeHa
 		case wfexec.SessionFailed:
 			ses.SuspendedAt = nil
 			ses.CompletedAt = now()
-			ses.Error = state.Error()
+			if state != nil {
+				ses.Error = state.Error()
+			}
 			ses.Status = types.SessionFailed
+
+		case wfexec.SessionCanceled:
+			ses.SuspendedAt = nil
+			ses.CompletedAt = now()
+			ses.Status = types.SessionCanceled
 
 		default:
 			// force update on every F new frames (F=sessionStateFlushFrequency) but only when stacktrace is not nil
@@ -488,7 +538,7 @@ func (svc *session) stateChangeHandler(ctx context.Context) wfexec.StateChangeHa
 
 		ses.CopyRuntimeStacktrace()
 
-		if err := svc.store.UpsertAutomationSession(ctx, ses); err != nil {
+		if err := store.UpsertAutomationSession(ctx, svc.store, ses); err != nil {
 			log.Error("failed to update session", zap.Error(err))
 		}
 	}

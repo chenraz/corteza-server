@@ -10,27 +10,34 @@ import (
 	"context"
 	"fmt"
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
+	internalAuth "github.com/cortezaproject/corteza-server/pkg/auth"
 	"github.com/cortezaproject/corteza-server/pkg/rbac"
+	"github.com/cortezaproject/corteza-server/store"
 	"github.com/cortezaproject/corteza-server/system/types"
+	systemTypes "github.com/cortezaproject/corteza-server/system/types"
 	"github.com/spf13/cast"
 	"strings"
 )
 
 type (
+	rbacService interface {
+		Can(rbac.Session, string, rbac.Resource) bool
+		Trace(rbac.Session, string, rbac.Resource) *rbac.Trace
+		Grant(context.Context, ...*rbac.Rule) error
+		FindRulesByRoleID(roleID uint64) (rr rbac.RuleSet)
+	}
+
 	accessControl struct {
 		actionlog actionlog.Recorder
 
-		rbac interface {
-			Can(rbac.Session, string, rbac.Resource) bool
-			Grant(context.Context, ...*rbac.Rule) error
-			FindRulesByRoleID(roleID uint64) (rr rbac.RuleSet)
-			CloneRulesByRoleID(ctx context.Context, fromRoleID uint64, toRoleID ...uint64) error
-		}
+		store store.Storer
+		rbac  rbacService
 	}
 )
 
-func AccessControl() *accessControl {
+func AccessControl(s store.Storer) *accessControl {
 	return &accessControl{
+		store:     s,
 		rbac:      rbac.Global(),
 		actionlog: DefaultActionlog,
 	}
@@ -41,6 +48,8 @@ func (svc accessControl) can(ctx context.Context, op string, res rbac.Resource) 
 }
 
 // Effective returns a list of effective permissions for all given resource
+//
+// This function is auto-generated
 func (svc accessControl) Effective(ctx context.Context, rr ...rbac.Resource) (ee rbac.EffectiveSet) {
 	for _, res := range rr {
 		r := res.RbacResource()
@@ -52,36 +61,128 @@ func (svc accessControl) Effective(ctx context.Context, rr ...rbac.Resource) (ee
 	return
 }
 
+// Evaluate returns a list of permissions evaluated for the given user/roles combo
+//
+// This function is auto-generated
+func (svc accessControl) Trace(ctx context.Context, userID uint64, roles []uint64, rr ...string) (ee []*rbac.Trace, err error) {
+	// Reusing the grant permission since this is who the feature is for
+	if !svc.CanGrant(ctx) {
+		// @todo should be altered to check grant permissions PER resource
+		return nil, AccessControlErrNotAllowedToSetPermissions()
+	}
+
+	var (
+		resource  rbac.Resource
+		resources []rbac.Resource
+		members   systemTypes.RoleMemberSet
+	)
+	if len(rr) > 0 {
+		resources = make([]rbac.Resource, 0, len(rr))
+		for _, r := range rr {
+			if err = rbacResourceValidator(r); err != nil {
+				return nil, fmt.Errorf("can not use resource %q: %w", r, err)
+			}
+
+			resource, err = svc.resourceLoader(ctx, r)
+			if err != nil {
+				return
+			}
+
+			resources = append(resources, resource)
+		}
+	} else {
+		resources = svc.Resources()
+	}
+
+	// User ID specified, load its roles
+	if userID != 0 {
+		if len(roles) > 0 {
+			// should be prevented on the client
+			return nil, fmt.Errorf("userID and roles are mutually exclusive")
+		}
+
+		members, _, err = store.SearchRoleMembers(ctx, svc.store, systemTypes.RoleMemberFilter{UserID: userID})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, m := range members {
+			roles = append(roles, m.RoleID)
+		}
+
+		for _, r := range internalAuth.AuthenticatedRoles() {
+			roles = append(roles, r.ID)
+		}
+	}
+
+	if len(roles) == 0 {
+		// should be prevented on the client
+		return nil, fmt.Errorf("no roles specified")
+	}
+
+	session := rbac.ParamsToSession(ctx, userID, roles...)
+	for _, res := range resources {
+		r := res.RbacResource()
+		for op := range rbacResourceOperations(r) {
+			ee = append(ee, svc.rbac.Trace(session, op, res))
+		}
+	}
+
+	return
+}
+
+// Resources returns list of resources
+//
+// This function is auto-generated
+func (svc accessControl) Resources() []rbac.Resource {
+	return []rbac.Resource{
+		rbac.NewResource(types.ApplicationRbacResource(0)),
+		rbac.NewResource(types.ApigwRouteRbacResource(0)),
+		rbac.NewResource(types.AuthClientRbacResource(0)),
+		rbac.NewResource(types.DataPrivacyRequestRbacResource(0)),
+		rbac.NewResource(types.QueueRbacResource(0)),
+		rbac.NewResource(types.ReportRbacResource(0)),
+		rbac.NewResource(types.RoleRbacResource(0)),
+		rbac.NewResource(types.TemplateRbacResource(0)),
+		rbac.NewResource(types.UserRbacResource(0)),
+		rbac.NewResource(types.DalConnectionRbacResource(0)),
+		rbac.NewResource(types.ComponentRbacResource()),
+	}
+}
+
+// List returns list of operations on all resources
+//
+// This function is auto-generated
 func (svc accessControl) List() (out []map[string]string) {
 	def := []map[string]string{
 		{
-			"type": types.ApigwRouteResourceType,
-			"any":  types.ApigwRouteRbacResource(0),
+			"type": types.ApplicationResourceType,
+			"any":  types.ApplicationRbacResource(0),
 			"op":   "read",
 		},
 		{
-			"type": types.ApigwRouteResourceType,
-			"any":  types.ApigwRouteRbacResource(0),
+			"type": types.ApplicationResourceType,
+			"any":  types.ApplicationRbacResource(0),
 			"op":   "update",
 		},
 		{
-			"type": types.ApigwRouteResourceType,
-			"any":  types.ApigwRouteRbacResource(0),
+			"type": types.ApplicationResourceType,
+			"any":  types.ApplicationRbacResource(0),
 			"op":   "delete",
 		},
 		{
-			"type": types.ApplicationResourceType,
-			"any":  types.ApplicationRbacResource(0),
+			"type": types.ApigwRouteResourceType,
+			"any":  types.ApigwRouteRbacResource(0),
 			"op":   "read",
 		},
 		{
-			"type": types.ApplicationResourceType,
-			"any":  types.ApplicationRbacResource(0),
+			"type": types.ApigwRouteResourceType,
+			"any":  types.ApigwRouteRbacResource(0),
 			"op":   "update",
 		},
 		{
-			"type": types.ApplicationResourceType,
-			"any":  types.ApplicationRbacResource(0),
+			"type": types.ApigwRouteResourceType,
+			"any":  types.ApigwRouteRbacResource(0),
 			"op":   "delete",
 		},
 		{
@@ -103,6 +204,16 @@ func (svc accessControl) List() (out []map[string]string) {
 			"type": types.AuthClientResourceType,
 			"any":  types.AuthClientRbacResource(0),
 			"op":   "authorize",
+		},
+		{
+			"type": types.DataPrivacyRequestResourceType,
+			"any":  types.DataPrivacyRequestRbacResource(0),
+			"op":   "read",
+		},
+		{
+			"type": types.DataPrivacyRequestResourceType,
+			"any":  types.DataPrivacyRequestRbacResource(0),
+			"op":   "approve",
 		},
 		{
 			"type": types.QueueResourceType,
@@ -230,6 +341,31 @@ func (svc accessControl) List() (out []map[string]string) {
 			"op":   "impersonate",
 		},
 		{
+			"type": types.UserResourceType,
+			"any":  types.UserRbacResource(0),
+			"op":   "credentials.manage",
+		},
+		{
+			"type": types.DalConnectionResourceType,
+			"any":  types.DalConnectionRbacResource(0),
+			"op":   "read",
+		},
+		{
+			"type": types.DalConnectionResourceType,
+			"any":  types.DalConnectionRbacResource(0),
+			"op":   "update",
+		},
+		{
+			"type": types.DalConnectionResourceType,
+			"any":  types.DalConnectionRbacResource(0),
+			"op":   "delete",
+		},
+		{
+			"type": types.DalConnectionResourceType,
+			"any":  types.DalConnectionRbacResource(0),
+			"op":   "dal-config.manage",
+		},
+		{
 			"type": types.ComponentResourceType,
 			"any":  types.ComponentRbacResource(),
 			"op":   "grant",
@@ -278,6 +414,21 @@ func (svc accessControl) List() (out []map[string]string) {
 			"type": types.ComponentResourceType,
 			"any":  types.ComponentRbacResource(),
 			"op":   "users.search",
+		},
+		{
+			"type": types.ComponentResourceType,
+			"any":  types.ComponentRbacResource(),
+			"op":   "dal-connection.create",
+		},
+		{
+			"type": types.ComponentResourceType,
+			"any":  types.ComponentRbacResource(),
+			"op":   "dal-connections.search",
+		},
+		{
+			"type": types.ComponentResourceType,
+			"any":  types.ComponentRbacResource(),
+			"op":   "dal-sensitivity-level.manage",
 		},
 		{
 			"type": types.ComponentResourceType,
@@ -349,6 +500,16 @@ func (svc accessControl) List() (out []map[string]string) {
 			"any":  types.ComponentRbacResource(),
 			"op":   "resource-translations.manage",
 		},
+		{
+			"type": types.ComponentResourceType,
+			"any":  types.ComponentRbacResource(),
+			"op":   "data-privacy-request.create",
+		},
+		{
+			"type": types.ComponentResourceType,
+			"any":  types.ComponentRbacResource(),
+			"op":   "data-privacy-requests.search",
+		},
 	}
 
 	func(svc interface{}) {
@@ -400,6 +561,36 @@ func (svc accessControl) logGrants(ctx context.Context, rr []*rbac.Rule) {
 	}
 }
 
+// FindRules find all rules based on filters
+//
+// This function is auto-generated
+func (svc accessControl) FindRules(ctx context.Context, roleID uint64, rr ...string) (out rbac.RuleSet, err error) {
+	if !svc.CanGrant(ctx) {
+		return nil, AccessControlErrNotAllowedToSetPermissions()
+	}
+
+	out, err = svc.FindRulesByRoleID(ctx, roleID)
+	if err != nil {
+		return
+	}
+
+	var resources []rbac.Resource
+	if len(rr) > 0 {
+		resources = make([]rbac.Resource, 0, len(rr))
+		for _, r := range rr {
+			if err = rbacResourceValidator(r); err != nil {
+				return nil, fmt.Errorf("can not use resource %q: %w", r, err)
+			}
+
+			resources = append(resources, rbac.NewResource(r))
+		}
+	} else {
+		resources = svc.Resources()
+	}
+
+	return out.FilterResource(resources...), nil
+}
+
 // FindRulesByRoleID find all rules for a specific role
 //
 // This function is auto-generated
@@ -409,38 +600,6 @@ func (svc accessControl) FindRulesByRoleID(ctx context.Context, roleID uint64) (
 	}
 
 	return svc.rbac.FindRulesByRoleID(roleID), nil
-}
-
-// CloneRulesByRoleID clone all rules of a Role S to a specific Role T
-//
-// This function is auto-generated
-func (svc accessControl) CloneRulesByRoleID(ctx context.Context, fromRoleID uint64, toRoleID ...uint64) error {
-	if !svc.CanGrant(ctx) {
-		return AccessControlErrNotAllowedToSetPermissions()
-	}
-
-	return svc.rbac.CloneRulesByRoleID(ctx, fromRoleID, toRoleID...)
-}
-
-// CanReadApigwRoute checks if current user can read api gateway route
-//
-// This function is auto-generated
-func (svc accessControl) CanReadApigwRoute(ctx context.Context, r *types.ApigwRoute) bool {
-	return svc.can(ctx, "read", r)
-}
-
-// CanUpdateApigwRoute checks if current user can update api gateway route
-//
-// This function is auto-generated
-func (svc accessControl) CanUpdateApigwRoute(ctx context.Context, r *types.ApigwRoute) bool {
-	return svc.can(ctx, "update", r)
-}
-
-// CanDeleteApigwRoute checks if current user can delete api gateway route
-//
-// This function is auto-generated
-func (svc accessControl) CanDeleteApigwRoute(ctx context.Context, r *types.ApigwRoute) bool {
-	return svc.can(ctx, "delete", r)
 }
 
 // CanReadApplication checks if current user can read application
@@ -461,6 +620,27 @@ func (svc accessControl) CanUpdateApplication(ctx context.Context, r *types.Appl
 //
 // This function is auto-generated
 func (svc accessControl) CanDeleteApplication(ctx context.Context, r *types.Application) bool {
+	return svc.can(ctx, "delete", r)
+}
+
+// CanReadApigwRoute checks if current user can read api gateway route
+//
+// This function is auto-generated
+func (svc accessControl) CanReadApigwRoute(ctx context.Context, r *types.ApigwRoute) bool {
+	return svc.can(ctx, "read", r)
+}
+
+// CanUpdateApigwRoute checks if current user can update api gateway route
+//
+// This function is auto-generated
+func (svc accessControl) CanUpdateApigwRoute(ctx context.Context, r *types.ApigwRoute) bool {
+	return svc.can(ctx, "update", r)
+}
+
+// CanDeleteApigwRoute checks if current user can delete api gateway route
+//
+// This function is auto-generated
+func (svc accessControl) CanDeleteApigwRoute(ctx context.Context, r *types.ApigwRoute) bool {
 	return svc.can(ctx, "delete", r)
 }
 
@@ -490,6 +670,20 @@ func (svc accessControl) CanDeleteAuthClient(ctx context.Context, r *types.AuthC
 // This function is auto-generated
 func (svc accessControl) CanAuthorizeAuthClient(ctx context.Context, r *types.AuthClient) bool {
 	return svc.can(ctx, "authorize", r)
+}
+
+// CanReadDataPrivacyRequest checks if current user can read data privacy request
+//
+// This function is auto-generated
+func (svc accessControl) CanReadDataPrivacyRequest(ctx context.Context, r *types.DataPrivacyRequest) bool {
+	return svc.can(ctx, "read", r)
+}
+
+// CanApproveDataPrivacyRequest checks if current user can approve/reject data privacy request
+//
+// This function is auto-generated
+func (svc accessControl) CanApproveDataPrivacyRequest(ctx context.Context, r *types.DataPrivacyRequest) bool {
+	return svc.can(ctx, "approve", r)
 }
 
 // CanReadQueue checks if current user can read queue
@@ -667,6 +861,41 @@ func (svc accessControl) CanImpersonateUser(ctx context.Context, r *types.User) 
 	return svc.can(ctx, "impersonate", r)
 }
 
+// CanManageCredentialsOnUser checks if current user can manage user's credentials
+//
+// This function is auto-generated
+func (svc accessControl) CanManageCredentialsOnUser(ctx context.Context, r *types.User) bool {
+	return svc.can(ctx, "credentials.manage", r)
+}
+
+// CanReadDalConnection checks if current user can read connection
+//
+// This function is auto-generated
+func (svc accessControl) CanReadDalConnection(ctx context.Context, r *types.DalConnection) bool {
+	return svc.can(ctx, "read", r)
+}
+
+// CanUpdateDalConnection checks if current user can update connection
+//
+// This function is auto-generated
+func (svc accessControl) CanUpdateDalConnection(ctx context.Context, r *types.DalConnection) bool {
+	return svc.can(ctx, "update", r)
+}
+
+// CanDeleteDalConnection checks if current user can delete connection
+//
+// This function is auto-generated
+func (svc accessControl) CanDeleteDalConnection(ctx context.Context, r *types.DalConnection) bool {
+	return svc.can(ctx, "delete", r)
+}
+
+// CanManageDalConfigOnDalConnection checks if current user can manage dal configuration
+//
+// This function is auto-generated
+func (svc accessControl) CanManageDalConfigOnDalConnection(ctx context.Context, r *types.DalConnection) bool {
+	return svc.can(ctx, "dal-config.manage", r)
+}
+
 // CanGrant checks if current user can manage system permissions
 //
 // This function is auto-generated
@@ -745,6 +974,30 @@ func (svc accessControl) CanCreateUser(ctx context.Context) bool {
 func (svc accessControl) CanSearchUsers(ctx context.Context) bool {
 	r := &types.Component{}
 	return svc.can(ctx, "users.search", r)
+}
+
+// CanCreateDalConnection checks if current user can create dal connections
+//
+// This function is auto-generated
+func (svc accessControl) CanCreateDalConnection(ctx context.Context) bool {
+	r := &types.Component{}
+	return svc.can(ctx, "dal-connection.create", r)
+}
+
+// CanSearchDalConnections checks if current user can list, search or filter dal connections
+//
+// This function is auto-generated
+func (svc accessControl) CanSearchDalConnections(ctx context.Context) bool {
+	r := &types.Component{}
+	return svc.can(ctx, "dal-connections.search", r)
+}
+
+// CanManageDalSensitivityLevel checks if current user can can manage dal sensitivity levels
+//
+// This function is auto-generated
+func (svc accessControl) CanManageDalSensitivityLevel(ctx context.Context) bool {
+	r := &types.Component{}
+	return svc.can(ctx, "dal-sensitivity-level.manage", r)
 }
 
 // CanCreateApplication checks if current user can create applications
@@ -859,17 +1112,35 @@ func (svc accessControl) CanManageResourceTranslations(ctx context.Context) bool
 	return svc.can(ctx, "resource-translations.manage", r)
 }
 
+// CanCreateDataPrivacyRequest checks if current user can create data privacy requests
+//
+// This function is auto-generated
+func (svc accessControl) CanCreateDataPrivacyRequest(ctx context.Context) bool {
+	r := &types.Component{}
+	return svc.can(ctx, "data-privacy-request.create", r)
+}
+
+// CanSearchDataPrivacyRequests checks if current user can list, search or filter data privacy requests
+//
+// This function is auto-generated
+func (svc accessControl) CanSearchDataPrivacyRequests(ctx context.Context) bool {
+	r := &types.Component{}
+	return svc.can(ctx, "data-privacy-requests.search", r)
+}
+
 // rbacResourceValidator validates known component's resource by routing it to the appropriate validator
 //
 // This function is auto-generated
 func rbacResourceValidator(r string, oo ...string) error {
 	switch rbac.ResourceType(r) {
-	case types.ApigwRouteResourceType:
-		return rbacApigwRouteResourceValidator(r, oo...)
 	case types.ApplicationResourceType:
 		return rbacApplicationResourceValidator(r, oo...)
+	case types.ApigwRouteResourceType:
+		return rbacApigwRouteResourceValidator(r, oo...)
 	case types.AuthClientResourceType:
 		return rbacAuthClientResourceValidator(r, oo...)
+	case types.DataPrivacyRequestResourceType:
+		return rbacDataPrivacyRequestResourceValidator(r, oo...)
 	case types.QueueResourceType:
 		return rbacQueueResourceValidator(r, oo...)
 	case types.ReportResourceType:
@@ -880,11 +1151,100 @@ func rbacResourceValidator(r string, oo ...string) error {
 		return rbacTemplateResourceValidator(r, oo...)
 	case types.UserResourceType:
 		return rbacUserResourceValidator(r, oo...)
+	case types.DalConnectionResourceType:
+		return rbacDalConnectionResourceValidator(r, oo...)
 	case types.ComponentResourceType:
 		return rbacComponentResourceValidator(r, oo...)
 	}
 
-	return fmt.Errorf("unknown resource type '%q'", r)
+	return fmt.Errorf("unknown resource type %q", r)
+}
+
+// resourceLoader loads resource from store
+//
+// function assumes existence of loader functions for all resource types
+//
+// This function is auto-generated
+func (svc accessControl) resourceLoader(ctx context.Context, resource string) (rbac.Resource, error) {
+	var (
+		hasWildcard       = false
+		resourceType, ids = rbac.ParseResourceID(resource)
+	)
+
+	for _, id := range ids {
+		if id == 0 {
+			hasWildcard = true
+			break
+		}
+	}
+
+	switch rbac.ResourceType(resourceType) {
+	case types.ApplicationResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.ApplicationRbacResource(0)), nil
+		}
+
+		return loadApplication(ctx, svc.store, ids[0])
+	case types.ApigwRouteResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.ApigwRouteRbacResource(0)), nil
+		}
+
+		return loadApigwRoute(ctx, svc.store, ids[0])
+	case types.AuthClientResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.AuthClientRbacResource(0)), nil
+		}
+
+		return loadAuthClient(ctx, svc.store, ids[0])
+	case types.DataPrivacyRequestResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.DataPrivacyRequestRbacResource(0)), nil
+		}
+
+		return loadDataPrivacyRequest(ctx, svc.store, ids[0])
+	case types.QueueResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.QueueRbacResource(0)), nil
+		}
+
+		return loadQueue(ctx, svc.store, ids[0])
+	case types.ReportResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.ReportRbacResource(0)), nil
+		}
+
+		return loadReport(ctx, svc.store, ids[0])
+	case types.RoleResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.RoleRbacResource(0)), nil
+		}
+
+		return loadRole(ctx, svc.store, ids[0])
+	case types.TemplateResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.TemplateRbacResource(0)), nil
+		}
+
+		return loadTemplate(ctx, svc.store, ids[0])
+	case types.UserResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.UserRbacResource(0)), nil
+		}
+
+		return loadUser(ctx, svc.store, ids[0])
+	case types.DalConnectionResourceType:
+		if hasWildcard {
+			return rbac.NewResource(types.DalConnectionRbacResource(0)), nil
+		}
+
+		return loadDalConnection(ctx, svc.store, ids[0])
+	case types.ComponentResourceType:
+		return &types.Component{}, nil
+	}
+
+	_ = ids
+	return nil, fmt.Errorf("unknown resource type %q", resourceType)
 }
 
 // rbacResourceOperations returns defined operations for a requested resource
@@ -892,13 +1252,13 @@ func rbacResourceValidator(r string, oo ...string) error {
 // This function is auto-generated
 func rbacResourceOperations(r string) map[string]bool {
 	switch rbac.ResourceType(r) {
-	case types.ApigwRouteResourceType:
+	case types.ApplicationResourceType:
 		return map[string]bool{
 			"read":   true,
 			"update": true,
 			"delete": true,
 		}
-	case types.ApplicationResourceType:
+	case types.ApigwRouteResourceType:
 		return map[string]bool{
 			"read":   true,
 			"update": true,
@@ -910,6 +1270,11 @@ func rbacResourceOperations(r string) map[string]bool {
 			"update":    true,
 			"delete":    true,
 			"authorize": true,
+		}
+	case types.DataPrivacyRequestResourceType:
+		return map[string]bool{
+			"read":    true,
+			"approve": true,
 		}
 	case types.QueueResourceType:
 		return map[string]bool{
@@ -942,14 +1307,22 @@ func rbacResourceOperations(r string) map[string]bool {
 		}
 	case types.UserResourceType:
 		return map[string]bool{
-			"read":         true,
-			"update":       true,
-			"delete":       true,
-			"suspend":      true,
-			"unsuspend":    true,
-			"email.unmask": true,
-			"name.unmask":  true,
-			"impersonate":  true,
+			"read":               true,
+			"update":             true,
+			"delete":             true,
+			"suspend":            true,
+			"unsuspend":          true,
+			"email.unmask":       true,
+			"name.unmask":        true,
+			"impersonate":        true,
+			"credentials.manage": true,
+		}
+	case types.DalConnectionResourceType:
+		return map[string]bool{
+			"read":              true,
+			"update":            true,
+			"delete":            true,
+			"dal-config.manage": true,
 		}
 	case types.ComponentResourceType:
 		return map[string]bool{
@@ -963,6 +1336,9 @@ func rbacResourceOperations(r string) map[string]bool {
 			"roles.search":                 true,
 			"user.create":                  true,
 			"users.search":                 true,
+			"dal-connection.create":        true,
+			"dal-connections.search":       true,
+			"dal-sensitivity-level.manage": true,
 			"application.create":           true,
 			"applications.search":          true,
 			"application.flag.self":        true,
@@ -977,53 +1353,11 @@ func rbacResourceOperations(r string) map[string]bool {
 			"apigw-route.create":           true,
 			"apigw-routes.search":          true,
 			"resource-translations.manage": true,
+			"data-privacy-request.create":  true,
+			"data-privacy-requests.search": true,
 		}
 	}
 
-	return nil
-}
-
-// rbacApigwRouteResourceValidator checks validity of RBAC resource and operations
-//
-// Can be called without operations to check for validity of resource string only
-//
-// This function is auto-generated
-func rbacApigwRouteResourceValidator(r string, oo ...string) error {
-	if !strings.HasPrefix(r, types.ApigwRouteResourceType) {
-		// expecting resource to always include path
-		return fmt.Errorf("invalid resource type")
-	}
-
-	defOps := rbacResourceOperations(r)
-	for _, o := range oo {
-		if !defOps[o] {
-			return fmt.Errorf("invalid operation '%s' for apigwRoute resource", o)
-		}
-	}
-
-	const sep = "/"
-	var (
-		pp  = strings.Split(strings.Trim(r[len(types.ApigwRouteResourceType):], sep), sep)
-		prc = []string{
-			"ID",
-		}
-	)
-
-	if len(pp) != len(prc) {
-		return fmt.Errorf("invalid resource path structure")
-	}
-
-	for i := 0; i < len(pp); i++ {
-		if pp[i] != "*" {
-			if i > 0 && pp[i-1] == "*" {
-				return fmt.Errorf("invalid path wildcard level (%d) for apigwRoute resource", i)
-			}
-
-			if _, err := cast.ToUint64E(pp[i]); err != nil {
-				return fmt.Errorf("invalid reference for %s: '%s'", prc[i], pp[i])
-			}
-		}
-	}
 	return nil
 }
 
@@ -1071,6 +1405,50 @@ func rbacApplicationResourceValidator(r string, oo ...string) error {
 	return nil
 }
 
+// rbacApigwRouteResourceValidator checks validity of RBAC resource and operations
+//
+// Can be called without operations to check for validity of resource string only
+//
+// This function is auto-generated
+func rbacApigwRouteResourceValidator(r string, oo ...string) error {
+	if !strings.HasPrefix(r, types.ApigwRouteResourceType) {
+		// expecting resource to always include path
+		return fmt.Errorf("invalid resource type")
+	}
+
+	defOps := rbacResourceOperations(r)
+	for _, o := range oo {
+		if !defOps[o] {
+			return fmt.Errorf("invalid operation '%s' for apigwRoute resource", o)
+		}
+	}
+
+	const sep = "/"
+	var (
+		pp  = strings.Split(strings.Trim(r[len(types.ApigwRouteResourceType):], sep), sep)
+		prc = []string{
+			"ID",
+		}
+	)
+
+	if len(pp) != len(prc) {
+		return fmt.Errorf("invalid resource path structure")
+	}
+
+	for i := 0; i < len(pp); i++ {
+		if pp[i] != "*" {
+			if i > 0 && pp[i-1] == "*" {
+				return fmt.Errorf("invalid path wildcard level (%d) for apigwRoute resource", i)
+			}
+
+			if _, err := cast.ToUint64E(pp[i]); err != nil {
+				return fmt.Errorf("invalid reference for %s: '%s'", prc[i], pp[i])
+			}
+		}
+	}
+	return nil
+}
+
 // rbacAuthClientResourceValidator checks validity of RBAC resource and operations
 //
 // Can be called without operations to check for validity of resource string only
@@ -1105,6 +1483,50 @@ func rbacAuthClientResourceValidator(r string, oo ...string) error {
 		if pp[i] != "*" {
 			if i > 0 && pp[i-1] == "*" {
 				return fmt.Errorf("invalid path wildcard level (%d) for authClient resource", i)
+			}
+
+			if _, err := cast.ToUint64E(pp[i]); err != nil {
+				return fmt.Errorf("invalid reference for %s: '%s'", prc[i], pp[i])
+			}
+		}
+	}
+	return nil
+}
+
+// rbacDataPrivacyRequestResourceValidator checks validity of RBAC resource and operations
+//
+// Can be called without operations to check for validity of resource string only
+//
+// This function is auto-generated
+func rbacDataPrivacyRequestResourceValidator(r string, oo ...string) error {
+	if !strings.HasPrefix(r, types.DataPrivacyRequestResourceType) {
+		// expecting resource to always include path
+		return fmt.Errorf("invalid resource type")
+	}
+
+	defOps := rbacResourceOperations(r)
+	for _, o := range oo {
+		if !defOps[o] {
+			return fmt.Errorf("invalid operation '%s' for dataPrivacyRequest resource", o)
+		}
+	}
+
+	const sep = "/"
+	var (
+		pp  = strings.Split(strings.Trim(r[len(types.DataPrivacyRequestResourceType):], sep), sep)
+		prc = []string{
+			"ID",
+		}
+	)
+
+	if len(pp) != len(prc) {
+		return fmt.Errorf("invalid resource path structure")
+	}
+
+	for i := 0; i < len(pp); i++ {
+		if pp[i] != "*" {
+			if i > 0 && pp[i-1] == "*" {
+				return fmt.Errorf("invalid path wildcard level (%d) for dataPrivacyRequest resource", i)
 			}
 
 			if _, err := cast.ToUint64E(pp[i]); err != nil {
@@ -1335,15 +1757,59 @@ func rbacUserResourceValidator(r string, oo ...string) error {
 	return nil
 }
 
+// rbacDalConnectionResourceValidator checks validity of RBAC resource and operations
+//
+// Can be called without operations to check for validity of resource string only
+//
+// This function is auto-generated
+func rbacDalConnectionResourceValidator(r string, oo ...string) error {
+	if !strings.HasPrefix(r, types.DalConnectionResourceType) {
+		// expecting resource to always include path
+		return fmt.Errorf("invalid resource type")
+	}
+
+	defOps := rbacResourceOperations(r)
+	for _, o := range oo {
+		if !defOps[o] {
+			return fmt.Errorf("invalid operation '%s' for dalConnection resource", o)
+		}
+	}
+
+	const sep = "/"
+	var (
+		pp  = strings.Split(strings.Trim(r[len(types.DalConnectionResourceType):], sep), sep)
+		prc = []string{
+			"ID",
+		}
+	)
+
+	if len(pp) != len(prc) {
+		return fmt.Errorf("invalid resource path structure")
+	}
+
+	for i := 0; i < len(pp); i++ {
+		if pp[i] != "*" {
+			if i > 0 && pp[i-1] == "*" {
+				return fmt.Errorf("invalid path wildcard level (%d) for dalConnection resource", i)
+			}
+
+			if _, err := cast.ToUint64E(pp[i]); err != nil {
+				return fmt.Errorf("invalid reference for %s: '%s'", prc[i], pp[i])
+			}
+		}
+	}
+	return nil
+}
+
 // rbacComponentResourceValidator checks validity of RBAC resource and operations
 //
 // Can be called without operations to check for validity of resource string only
 //
 // This function is auto-generated
 func rbacComponentResourceValidator(r string, oo ...string) error {
-	if !strings.HasPrefix(r, types.ComponentResourceType) {
+	if r != types.ComponentResourceType+"/" {
 		// expecting resource to always include path
-		return fmt.Errorf("invalid resource type")
+		return fmt.Errorf("invalid component resource, expecting " + types.ComponentResourceType + "/")
 	}
 
 	defOps := rbacResourceOperations(r)

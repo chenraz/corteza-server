@@ -3,6 +3,8 @@ package apigw
 import (
 	"context"
 	"errors"
+	"github.com/cortezaproject/corteza-server/pkg/dal"
+	"github.com/cortezaproject/corteza-server/store/adapters/rdbms/drivers/sqlite"
 	"os"
 	"path"
 	"testing"
@@ -25,7 +27,6 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/logger"
 	"github.com/cortezaproject/corteza-server/pkg/options"
 	"github.com/cortezaproject/corteza-server/store"
-	"github.com/cortezaproject/corteza-server/store/sqlite3"
 	"github.com/cortezaproject/corteza-server/system/rest"
 	"github.com/cortezaproject/corteza-server/system/service"
 	sysTypes "github.com/cortezaproject/corteza-server/system/types"
@@ -63,7 +64,7 @@ func InitTestApp() {
 	if testApp == nil {
 
 		testApp = helpers.NewIntegrationTestApp(ctx, func(app *app.CortezaApp) (err error) {
-			service.DefaultStore, err = sqlite3.ConnectInMemory(ctx)
+			service.DefaultStore, err = sqlite.ConnectInMemory(ctx)
 			if err != nil {
 				return err
 			}
@@ -209,7 +210,7 @@ func parseEnvoy(ctx context.Context, s store.Storer, h helper, path string) {
 	h.a.NoError(err)
 
 	// import into the store
-	se := es.NewStoreEncoder(s, nil)
+	se := es.NewStoreEncoder(s, dal.Service(), nil)
 	bld := envoy.NewBuilder(se)
 	g, err := bld.Build(ctx, nn...)
 	h.a.NoError(err)

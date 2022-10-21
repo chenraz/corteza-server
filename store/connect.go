@@ -3,10 +3,11 @@ package store
 import (
 	"context"
 	"fmt"
-	"go.uber.org/zap"
 	"os"
 	"regexp"
 	"strings"
+
+	"go.uber.org/zap"
 )
 
 type (
@@ -47,7 +48,7 @@ func Connect(ctx context.Context, log *zap.Logger, dsn string, isDevelopment boo
 	if conn, ok := registered[storeType]; ok {
 		return conn(ctx, dsn)
 	} else {
-		return nil, fmt.Errorf("unknown store type used: %q (check your storage configuration)", storeType)
+		return nil, fmt.Errorf("unknown store type used: %q (check your database configuration)", storeType)
 	}
 }
 

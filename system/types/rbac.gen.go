@@ -23,17 +23,35 @@ var (
 	_ = strconv.FormatUint
 )
 
-const (
-	ApigwRouteResourceType  = "corteza::system:apigw-route"
-	ApplicationResourceType = "corteza::system:application"
-	AuthClientResourceType  = "corteza::system:auth-client"
-	QueueResourceType       = "corteza::system:queue"
-	ReportResourceType      = "corteza::system:report"
-	RoleResourceType        = "corteza::system:role"
-	TemplateResourceType    = "corteza::system:template"
-	UserResourceType        = "corteza::system:user"
-	ComponentResourceType   = "corteza::system"
-)
+// RbacResource returns string representation of RBAC resource for Application by calling ApplicationRbacResource fn
+//
+// RBAC resource is in the corteza::system:application/... format
+//
+// This function is auto-generated
+func (r Application) RbacResource() string {
+	return ApplicationRbacResource(r.ID)
+}
+
+// ApplicationRbacResource returns string representation of RBAC resource for Application
+//
+// RBAC resource is in the corteza::system:application/... format
+//
+// This function is auto-generated
+func ApplicationRbacResource(id uint64) string {
+	cpts := []interface{}{ApplicationResourceType}
+	if id != 0 {
+		cpts = append(cpts, strconv.FormatUint(id, 10))
+	} else {
+		cpts = append(cpts, "*")
+	}
+
+	return fmt.Sprintf(ApplicationRbacResourceTpl(), cpts...)
+
+}
+
+func ApplicationRbacResourceTpl() string {
+	return "%s/%s"
+}
 
 // RbacResource returns string representation of RBAC resource for ApigwRoute by calling ApigwRouteRbacResource fn
 //
@@ -65,36 +83,6 @@ func ApigwRouteRbacResourceTpl() string {
 	return "%s/%s"
 }
 
-// RbacResource returns string representation of RBAC resource for Application by calling ApplicationRbacResource fn
-//
-// RBAC resource is in the corteza::system:application/... format
-//
-// This function is auto-generated
-func (r Application) RbacResource() string {
-	return ApplicationRbacResource(r.ID)
-}
-
-// ApplicationRbacResource returns string representation of RBAC resource for Application
-//
-// RBAC resource is in the corteza::system:application/... format
-//
-// This function is auto-generated
-func ApplicationRbacResource(id uint64) string {
-	cpts := []interface{}{ApplicationResourceType}
-	if id != 0 {
-		cpts = append(cpts, strconv.FormatUint(id, 10))
-	} else {
-		cpts = append(cpts, "*")
-	}
-
-	return fmt.Sprintf(ApplicationRbacResourceTpl(), cpts...)
-
-}
-
-func ApplicationRbacResourceTpl() string {
-	return "%s/%s"
-}
-
 // RbacResource returns string representation of RBAC resource for AuthClient by calling AuthClientRbacResource fn
 //
 // RBAC resource is in the corteza::system:auth-client/... format
@@ -122,6 +110,36 @@ func AuthClientRbacResource(id uint64) string {
 }
 
 func AuthClientRbacResourceTpl() string {
+	return "%s/%s"
+}
+
+// RbacResource returns string representation of RBAC resource for DataPrivacyRequest by calling DataPrivacyRequestRbacResource fn
+//
+// RBAC resource is in the corteza::system:data-privacy-request/... format
+//
+// This function is auto-generated
+func (r DataPrivacyRequest) RbacResource() string {
+	return DataPrivacyRequestRbacResource(r.ID)
+}
+
+// DataPrivacyRequestRbacResource returns string representation of RBAC resource for DataPrivacyRequest
+//
+// RBAC resource is in the corteza::system:data-privacy-request/... format
+//
+// This function is auto-generated
+func DataPrivacyRequestRbacResource(id uint64) string {
+	cpts := []interface{}{DataPrivacyRequestResourceType}
+	if id != 0 {
+		cpts = append(cpts, strconv.FormatUint(id, 10))
+	} else {
+		cpts = append(cpts, "*")
+	}
+
+	return fmt.Sprintf(DataPrivacyRequestRbacResourceTpl(), cpts...)
+
+}
+
+func DataPrivacyRequestRbacResourceTpl() string {
 	return "%s/%s"
 }
 
@@ -272,6 +290,36 @@ func UserRbacResource(id uint64) string {
 }
 
 func UserRbacResourceTpl() string {
+	return "%s/%s"
+}
+
+// RbacResource returns string representation of RBAC resource for DalConnection by calling DalConnectionRbacResource fn
+//
+// RBAC resource is in the corteza::system:dal-connection/... format
+//
+// This function is auto-generated
+func (r DalConnection) RbacResource() string {
+	return DalConnectionRbacResource(r.ID)
+}
+
+// DalConnectionRbacResource returns string representation of RBAC resource for DalConnection
+//
+// RBAC resource is in the corteza::system:dal-connection/... format
+//
+// This function is auto-generated
+func DalConnectionRbacResource(id uint64) string {
+	cpts := []interface{}{DalConnectionResourceType}
+	if id != 0 {
+		cpts = append(cpts, strconv.FormatUint(id, 10))
+	} else {
+		cpts = append(cpts, "*")
+	}
+
+	return fmt.Sprintf(DalConnectionRbacResourceTpl(), cpts...)
+
+}
+
+func DalConnectionRbacResourceTpl() string {
 	return "%s/%s"
 }
 

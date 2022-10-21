@@ -65,7 +65,7 @@ $(MODOUTDATED):
 	$(GOINSTALL) github.com/psampaz/go-mod-outdated@latest
 
 $(CUE):
-	$(GOINSTALL) cuelang.org/go/cmd/cue@latest
+	$(GOINSTALL) cuelang.org/go/cmd/cue@v0.4.2
 
 $(CODEGEN):
 	$(GO) build -o $@ $(ROOT_DIR)/cmd/codegen/main.go
@@ -82,6 +82,7 @@ clean-corteza-tools:
 ########################################################################################################################
 
 COLOUR_GREEN=\033[0;32m
+COLOUR_YELLOW=\033[0;33m
 COLOUR_RED=\033[0;31m
 COLOUR_BLUE=\033[0;34m
 COLOUR_END=\033[0m

@@ -94,6 +94,7 @@ func (ctrl SyncData) ReadExposedAll(ctx context.Context, r *request.SyncDataRead
 		}
 
 		// todo - handle error properly
+		// @todo !!!
 		if list, _, err := (cs.Record()).Find(ctx, rf); err != nil || len(list) == 0 {
 			continue
 		}
@@ -221,6 +222,7 @@ func (ctrl SyncData) readExposed(ctx context.Context, r *request.SyncDataReadExp
 		return nil, err
 	}
 
+	// @todo !!!
 	list, f, err := (cs.Record()).Find(ctx, f)
 
 	if err != nil {

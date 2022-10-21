@@ -13,11 +13,15 @@ import (
 type (
 	ApigwRoute struct {
 		svc routeService
-		ac  templateAccessController
+		ac  apiGwRouteAccessController
 	}
 
 	routePayload struct {
 		*types.ApigwRoute
+
+		CanGrant            bool `json:"canGrant"`
+		CanUpdateApigwRoute bool `json:"canUpdateApigwRoute"`
+		CanDeleteApigwRoute bool `json:"canDeleteApigwRoute"`
 	}
 
 	routeSetPayload struct {
@@ -33,6 +37,14 @@ type (
 		UndeleteByID(ctx context.Context, ID uint64) error
 		Search(ctx context.Context, filter types.ApigwRouteFilter) (types.ApigwRouteSet, types.ApigwRouteFilter, error)
 	}
+
+	apiGwRouteAccessController interface {
+		CanGrant(context.Context) bool
+
+		CanCreateApigwRoute(context.Context) bool
+		CanUpdateApigwRoute(context.Context, *types.ApigwRoute) bool
+		CanDeleteApigwRoute(context.Context, *types.ApigwRoute) bool
+	}
 )
 
 func (ApigwRoute) New() *ApigwRoute {
@@ -46,7 +58,9 @@ func (ctrl *ApigwRoute) List(ctx context.Context, r *request.ApigwRouteList) (in
 	var (
 		err error
 		f   = types.ApigwRouteFilter{
-			Deleted: filter.State(r.Deleted),
+			// todo: this should renamed to r.Endpoint after UI is aligned with this
+			Endpoint: r.Query,
+			Deleted:  filter.State(r.Deleted),
 
 			// todo: this should dynamic as Delete
 			//		but making it default to `1`, until UI is aligned with this
@@ -57,6 +71,8 @@ func (ctrl *ApigwRoute) List(ctx context.Context, r *request.ApigwRouteList) (in
 	if f.Paging, err = filter.NewPaging(r.Limit, r.PageCursor); err != nil {
 		return nil, err
 	}
+
+	f.IncTotal = r.IncTotal
 
 	if f.Sorting, err = filter.NewSorting(r.Sort); err != nil {
 		return nil, err
@@ -83,7 +99,8 @@ func (ctrl *ApigwRoute) Create(ctx context.Context, r *request.ApigwRouteCreate)
 }
 
 func (ctrl *ApigwRoute) Read(ctx context.Context, r *request.ApigwRouteRead) (interface{}, error) {
-	return ctrl.svc.FindByID(ctx, r.RouteID)
+	res, err := ctrl.svc.FindByID(ctx, r.RouteID)
+	return ctrl.makePayload(ctx, res, err)
 }
 
 func (ctrl *ApigwRoute) Update(ctx context.Context, r *request.ApigwRouteUpdate) (interface{}, error) {
@@ -93,7 +110,7 @@ func (ctrl *ApigwRoute) Update(ctx context.Context, r *request.ApigwRouteUpdate)
 			ID:       r.RouteID,
 			Endpoint: r.Endpoint,
 			Method:   r.Method,
-			Group:    uint64(r.Group),
+			Group:    r.Group,
 			Enabled:  r.Enabled,
 		}
 	)
@@ -118,6 +135,11 @@ func (ctrl *ApigwRoute) makePayload(ctx context.Context, q *types.ApigwRoute, er
 
 	qq := &routePayload{
 		ApigwRoute: q,
+
+		CanGrant: ctrl.ac.CanGrant(ctx),
+
+		CanUpdateApigwRoute: ctrl.ac.CanUpdateApigwRoute(ctx, q),
+		CanDeleteApigwRoute: ctrl.ac.CanDeleteApigwRoute(ctx, q),
 	}
 
 	return qq, nil

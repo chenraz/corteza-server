@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	ct "github.com/cortezaproject/corteza-server/compose/types"
+	"github.com/cortezaproject/corteza-server/federation/service/decoder"
 	"github.com/cortezaproject/corteza-server/federation/types"
 	"github.com/cortezaproject/corteza-server/pkg/auth"
-	"github.com/cortezaproject/corteza-server/pkg/decoder"
 	st "github.com/cortezaproject/corteza-server/system/types"
 )
 
@@ -91,10 +91,11 @@ func (dp *dataProcesser) Process(ctx context.Context, payload []byte) (Processer
 				ModuleID:    dp.ComposeModuleID,
 				NamespaceID: dp.ComposeNamespaceID,
 				Values:      *dp.ModuleMappingValues,
+				Meta: map[string]any{
+					"federation":           dp.NodeBaseURL,
+					"federation_extrecord": fmt.Sprintf("%d", er.ID),
+				},
 			}
-
-			AddFederationLabel(rec, "federation", dp.NodeBaseURL)
-			AddFederationLabel(rec, "federation_extrecord", fmt.Sprintf("%d", er.ID))
 		}
 
 		if rec.ID != 0 {
@@ -121,7 +122,7 @@ func (dp *dataProcesser) findRecordByFederationID(ctx context.Context, recordID,
 	filter := ct.RecordFilter{
 		NamespaceID: namespaceID,
 		ModuleID:    moduleID,
-		Labels:      map[string]string{"federation_extrecord": fmt.Sprintf("%d", recordID)}}
+		Meta:        map[string]any{"federation_extrecord": fmt.Sprintf("%d", recordID)}}
 
 	if s, err := dp.SyncService.FindRecords(ctx, filter); err == nil {
 		if len(s) == 1 {

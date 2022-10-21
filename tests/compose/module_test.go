@@ -22,10 +22,16 @@ func (h helper) clearModules() {
 	h.clearNamespaces()
 	h.noError(store.TruncateComposeModules(context.Background(), service.DefaultStore))
 	h.noError(store.TruncateComposeModuleFields(context.Background(), service.DefaultStore))
+
+	models, err := defDal.SearchModels(context.Background())
+	h.noError(err)
+	for _, m := range models {
+		h.noError(defDal.RemoveModel(context.Background(), m.ConnectionID, m.ResourceID))
+	}
 }
 
 func (h helper) makeModule(ns *types.Namespace, name string, ff ...*types.ModuleField) *types.Module {
-	return h.createModule(&types.Module{
+	return h.createModule(ns, &types.Module{
 		Name:        name,
 		NamespaceID: ns.ID,
 		Fields:      ff,
@@ -33,10 +39,14 @@ func (h helper) makeModule(ns *types.Namespace, name string, ff ...*types.Module
 	})
 }
 
-func (h helper) createModule(res *types.Module) *types.Module {
+func (h helper) createModule(ns *types.Namespace, res *types.Module) *types.Module {
 	res.ID = id.Next()
 	res.CreatedAt = time.Now()
 	h.noError(store.CreateComposeModule(context.Background(), service.DefaultStore, res))
+
+	if res.Config.DAL.ConnectionID == 0 {
+		res.Config.DAL.ConnectionID = defDal.GetConnectionByID(0).ID
+	}
 
 	_ = res.Fields.Walk(func(f *types.ModuleField) error {
 		f.ID = id.Next()
@@ -47,6 +57,8 @@ func (h helper) createModule(res *types.Module) *types.Module {
 	})
 
 	h.noError(store.CreateComposeModuleField(context.Background(), service.DefaultStore, res.Fields...))
+
+	h.noError(service.DalModelReplace(context.Background(), defDal, ns, res))
 
 	return res
 }
@@ -122,7 +134,7 @@ func TestModuleListQuery(t *testing.T) {
 	helpers.AllowMe(h, types.NamespaceRbacResource(0), "read", "modules.search")
 	ns := h.makeNamespace("some-namespace")
 
-	h.createModule(&types.Module{
+	h.createModule(ns, &types.Module{
 		Name:        "name",
 		Handle:      "handle",
 		NamespaceID: ns.ID,
@@ -190,6 +202,25 @@ func TestModuleCreate(t *testing.T) {
 		Expect(t).
 		Status(http.StatusOK).
 		Assert(helpers.AssertNoErrors).
+		End()
+}
+
+func TestModuleCreateInvalidField(t *testing.T) {
+	h := newHelper(t)
+	h.clearModules()
+
+	helpers.AllowMe(h, types.NamespaceRbacResource(0), "read", "modules.search")
+	helpers.AllowMe(h, types.NamespaceRbacResource(0), "module.create")
+
+	ns := h.makeNamespace("some-namespace")
+
+	h.apiInit().
+		Post(fmt.Sprintf("/namespace/%d/module/", ns.ID)).
+		JSON(`{ "name": "mod", "fields": [{ "name": "a", "kind": "Number" }] }`).
+		Header("Accept", "application/json").
+		Expect(t).
+		Status(http.StatusOK).
+		Assert(helpers.AssertError("module.errors.invalidHandle")).
 		End()
 }
 
@@ -265,6 +296,30 @@ func TestModuleFieldsUpdate(t *testing.T) {
 	h.a.Nil(m.Fields[1].UpdatedAt)
 	h.a.Equal(m.Fields[1].Name, "new")
 	h.a.Equal(m.Fields[1].Kind, "DateTime")
+}
+
+func TestModuleFieldsUpdate_invalidHandle(t *testing.T) {
+	h := newHelper(t)
+	h.clearModules()
+
+	helpers.AllowMe(h, types.NamespaceRbacResource(0), "read", "modules.search")
+	helpers.AllowMe(h, types.NamespaceRbacResource(0), "module.create")
+	helpers.AllowMe(h, types.ModuleRbacResource(0, 0), "update")
+
+	ns := h.makeNamespace("some-namespace")
+	mod := h.makeModule(ns, "mod", &types.ModuleField{
+		Name: "a",
+		Kind: "String",
+	})
+
+	h.apiInit().
+		Post(fmt.Sprintf("/namespace/%d/module/%d", ns.ID, mod.ID)).
+		JSON(`{ "name": "mod", "fields": [{ "name": "a", "kind": "String" }] }`).
+		Header("Accept", "application/json").
+		Expect(t).
+		Status(http.StatusOK).
+		Assert(helpers.AssertNoErrors).
+		End()
 }
 
 func TestModuleUpdateWithReservedFieldName(t *testing.T) {

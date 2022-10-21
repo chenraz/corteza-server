@@ -3,6 +3,7 @@ package types
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"github.com/cortezaproject/corteza-server/pkg/sql"
 	"strconv"
 	"strings"
 	"time"
@@ -10,8 +11,6 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/filter"
 	"github.com/cortezaproject/corteza-server/pkg/locale"
 	"github.com/spf13/cast"
-
-	"github.com/pkg/errors"
 )
 
 type (
@@ -73,6 +72,21 @@ type (
 
 	PageBlockStyle struct {
 		Variants map[string]string `json:"variants,omitempty"`
+		Wrap     map[string]string `json:"wrap,omitempty"`
+	}
+
+	PageButton struct {
+		Label   string `json:"label"`
+		Enabled bool   `json:"enabled"`
+	}
+
+	PageButtonConfig struct {
+		New    PageButton `json:"new"`
+		Edit   PageButton `json:"edit"`
+		Submit PageButton `json:"submit"`
+		Delete PageButton `json:"delete"`
+		Clone  PageButton `json:"clone"`
+		Back   PageButton `json:"back"`
 	}
 
 	PageConfig struct {
@@ -80,6 +94,8 @@ type (
 		NavItem struct {
 			Icon *PageConfigIcon `json:"icon,omitempty"`
 		} `json:"navItem"`
+
+		Buttons *PageButtonConfig `json:"buttons,omitempty"`
 
 		//// Example how page-config structure can evolve in the future
 		//Views []struct {
@@ -166,6 +182,28 @@ func (m Page) Clone() *Page {
 func (p *Page) decodeTranslations(tt locale.ResourceTranslationIndex) {
 	var aux *locale.ResourceTranslation
 
+	// Buttons here
+	if p.Config.Buttons != nil {
+		if aux = tt.FindByKey(LocaleKeyPageRecordToolbarNewLabel.Path); aux != nil {
+			p.Config.Buttons.New.Label = aux.Msg
+		}
+		if aux = tt.FindByKey(LocaleKeyPageRecordToolbarEditLabel.Path); aux != nil {
+			p.Config.Buttons.Edit.Label = aux.Msg
+		}
+		if aux = tt.FindByKey(LocaleKeyPageRecordToolbarSubmitLabel.Path); aux != nil {
+			p.Config.Buttons.Submit.Label = aux.Msg
+		}
+		if aux = tt.FindByKey(LocaleKeyPageRecordToolbarDeleteLabel.Path); aux != nil {
+			p.Config.Buttons.Delete.Label = aux.Msg
+		}
+		if aux = tt.FindByKey(LocaleKeyPageRecordToolbarCloneLabel.Path); aux != nil {
+			p.Config.Buttons.Clone.Label = aux.Msg
+		}
+		if aux = tt.FindByKey(LocaleKeyPageRecordToolbarBackLabel.Path); aux != nil {
+			p.Config.Buttons.Back.Label = aux.Msg
+		}
+	}
+
 	for i, block := range p.Blocks {
 		blockID := locale.ContentID(block.BlockID, i)
 		rpl := strings.NewReplacer(
@@ -213,7 +251,10 @@ func (p *Page) decodeTranslations(tt locale.ResourceTranslationIndex) {
 }
 
 func (p *Page) encodeTranslations() (out locale.ResourceTranslationSet) {
-	out = make(locale.ResourceTranslationSet, 0, 3)
+	out = make(locale.ResourceTranslationSet, 0, 12)
+
+	// Button translations don't need to happen here as we don't do anything with buttons at the moment
+	// @todo when we add custom buttons this should change
 
 	// Page blocks
 	for i, block := range p.Blocks {
@@ -289,24 +330,8 @@ func (set PageSet) FindByHandle(handle string) *Page {
 	return nil
 }
 
-func (bb *PageBlocks) Scan(value interface{}) error {
-	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
-	switch value.(type) {
-	case nil:
-		*bb = PageBlocks{}
-	case []uint8:
-		b := value.([]byte)
-		if err := json.Unmarshal(b, bb); err != nil {
-			return errors.Wrapf(err, "cannot scan '%v' into PageBlocks", string(b))
-		}
-	}
-
-	return nil
-}
-
-func (bb PageBlocks) Value() (driver.Value, error) {
-	return json.Marshal(bb)
-}
+func (bb *PageBlocks) Scan(src any) error          { return sql.ParseJSON(src, bb) }
+func (bb PageBlocks) Value() (driver.Value, error) { return json.Marshal(bb) }
 
 // Helper to extract old encoding to new one
 func (b *PageBlock) UnmarshalJSON(data []byte) (err error) {
@@ -370,21 +395,9 @@ func (set PageSet) RecursiveWalk(parent *Page, fn func(c *Page, parent *Page) er
 	return
 }
 
-func (bb *PageConfig) Scan(value interface{}) error {
-	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
-	switch value.(type) {
-	case nil:
-		*bb = PageConfig{}
-	case []uint8:
-		b := value.([]byte)
-		if err := json.Unmarshal(b, bb); err != nil {
-			return errors.Wrapf(err, "cannot scan '%v' into PageConfig", string(b))
-		}
-	}
-
-	return nil
-}
-
+func (bb *PageConfig) Scan(src any) error { return sql.ParseJSON(src, bb) }
 func (bb PageConfig) Value() (driver.Value, error) {
+	// We're not saving button config to the DB; no need for it
+	bb.Buttons = nil
 	return json.Marshal(bb)
 }

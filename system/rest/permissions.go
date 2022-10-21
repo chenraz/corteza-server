@@ -3,7 +3,6 @@ package rest
 import (
 	"context"
 	"github.com/cortezaproject/corteza-server/pkg/api"
-	"github.com/cortezaproject/corteza-server/pkg/payload"
 	"github.com/cortezaproject/corteza-server/pkg/rbac"
 	"github.com/cortezaproject/corteza-server/system/rest/request"
 	"github.com/cortezaproject/corteza-server/system/service"
@@ -17,9 +16,10 @@ type (
 
 	permissionsAccessController interface {
 		Effective(context.Context, ...rbac.Resource) rbac.EffectiveSet
+		Trace(context.Context, uint64, []uint64, ...string) ([]*rbac.Trace, error)
 		List() []map[string]string
 		FindRulesByRoleID(context.Context, uint64) (rbac.RuleSet, error)
-		CloneRulesByRoleID(ctx context.Context, roleID uint64, toRoleID ...uint64) error
+		FindRules(ctx context.Context, roleID uint64, rr ...string) (rbac.RuleSet, error)
 		Grant(ctx context.Context, rr ...*rbac.Rule) error
 	}
 )
@@ -34,12 +34,16 @@ func (ctrl Permissions) Effective(ctx context.Context, r *request.PermissionsEff
 	return ctrl.ac.Effective(ctx, types.Component{}), nil
 }
 
+func (ctrl Permissions) Trace(ctx context.Context, r *request.PermissionsTrace) (interface{}, error) {
+	return ctrl.ac.Trace(ctx, r.UserID, r.RoleID, r.Resource...)
+}
+
 func (ctrl Permissions) List(ctx context.Context, r *request.PermissionsList) (interface{}, error) {
 	return ctrl.ac.List(), nil
 }
 
 func (ctrl Permissions) Read(ctx context.Context, r *request.PermissionsRead) (interface{}, error) {
-	return ctrl.ac.FindRulesByRoleID(ctx, r.RoleID)
+	return ctrl.ac.FindRules(ctx, r.RoleID, r.Resource...)
 }
 
 func (ctrl Permissions) Delete(ctx context.Context, r *request.PermissionsDelete) (interface{}, error) {
@@ -62,9 +66,4 @@ func (ctrl Permissions) Update(ctx context.Context, r *request.PermissionsUpdate
 	}
 
 	return api.OK(), ctrl.ac.Grant(ctx, r.Rules...)
-}
-
-func (ctrl Permissions) Clone(ctx context.Context, r *request.PermissionsClone) (interface{}, error) {
-	// Clone rules from role S to role T
-	return api.OK(), ctrl.ac.CloneRulesByRoleID(ctx, r.RoleID, payload.ParseUint64s(r.CloneToRoleID)...)
 }

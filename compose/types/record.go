@@ -6,7 +6,11 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/cortezaproject/corteza-server/pkg/cast2"
+
 	"github.com/cortezaproject/corteza-server/pkg/filter"
+	"github.com/modern-go/reflect2"
+	"github.com/spf13/cast"
 )
 
 type (
@@ -34,11 +38,13 @@ type (
 		ID       uint64 `json:"recordID,string"`
 		ModuleID uint64 `json:"moduleID,string"`
 
+		Revision uint `json:"revision,omitempty"`
+
 		module *Module
 
 		Values RecordValueSet `json:"values,omitempty"`
 
-		Labels map[string]string `json:"labels,omitempty"`
+		Meta map[string]any `json:"meta,omitempty"`
 
 		NamespaceID uint64 `json:"namespaceID,string"`
 
@@ -46,9 +52,9 @@ type (
 		CreatedAt time.Time  `json:"createdAt,omitempty"`
 		CreatedBy uint64     `json:"createdBy,string" `
 		UpdatedAt *time.Time `json:"updatedAt,omitempty"`
-		UpdatedBy uint64     `json:"updatedBy,string,omitempty" `
+		UpdatedBy uint64     `json:"updatedBy,string,omitempty"`
 		DeletedAt *time.Time `json:"deletedAt,omitempty"`
-		DeletedBy uint64     `json:"deletedBy,string,omitempty" `
+		DeletedBy uint64     `json:"deletedBy,string,omitempty"`
 	}
 
 	RecordFilter struct {
@@ -56,8 +62,7 @@ type (
 		NamespaceID uint64 `json:"namespaceID,string"`
 		Query       string `json:"query"`
 
-		LabeledIDs []uint64          `json:"-"`
-		Labels     map[string]string `json:"labels,omitempty"`
+		Meta map[string]any `json:"meta,omitempty"`
 
 		Deleted filter.State `json:"deleted"`
 
@@ -71,6 +76,20 @@ type (
 		filter.Sorting
 		filter.Paging
 	}
+
+	SensitiveRecord struct {
+		RecordID uint64
+		Values   []map[string]any
+	}
+
+	SensitiveRecordSet struct {
+		// Contextual metadata
+		ConnectionID uint64
+		Module       *Module
+		Namespace    *Namespace
+
+		Records []SensitiveRecord
+	}
 )
 
 const (
@@ -78,6 +97,19 @@ const (
 	OperationTypeUpdate OperationType = "update"
 	OperationTypeDelete OperationType = "delete"
 )
+
+func (f RecordFilter) ToConstraintedFilter(c map[string][]any) filter.Filter {
+	return filter.Generic(
+		// combine constraints with namespace and module
+		filter.WithConstraints(c),
+		filter.WithExpression(f.Query),
+		filter.WithOrderBy(f.Sort),
+		filter.WithLimit(f.Limit),
+		filter.WithCursor(f.PageCursor),
+		filter.WithMetaConstraints(f.Meta),
+		filter.WithStateConstraint("deletedAt", f.Deleted),
+	)
+}
 
 // UserIDs returns a slice of user IDs from all items in the set
 func (set RecordSet) UserIDs() (IDs []uint64) {
@@ -116,12 +148,164 @@ func (r Record) Clone() *Record {
 	return c
 }
 
+func (r *Record) GetValue(name string, pos uint) (any, error) {
+	switch name {
+	case "ID":
+		return r.ID, nil
+	case "moduleID":
+		return r.ModuleID, nil
+	case "namespaceID":
+		return r.NamespaceID, nil
+	case "revision":
+		return r.Revision, nil
+	case "meta":
+		return r.Meta, nil
+	case "createdAt":
+		return r.CreatedAt, nil
+	case "createdBy":
+		return r.CreatedBy, nil
+	case "updatedAt":
+		return r.UpdatedAt, nil
+	case "updatedBy":
+		return r.UpdatedBy, nil
+	case "deletedAt":
+		return r.DeletedAt, nil
+	case "deletedBy":
+		return r.DeletedBy, nil
+	case "ownedBy":
+		return r.OwnedBy, nil
+	default:
+		if val := r.Values.Get(name, pos); val != nil {
+			return val.Value, nil
+		}
+
+		return nil, nil
+	}
+}
+
+// CountValues returns how many values per field are there
+func (r *Record) CountValues() (pos map[string]uint) {
+	var (
+		mod = r.GetModule()
+	)
+
+	pos = map[string]uint{
+		"ID":          1,
+		"moduleID":    1,
+		"namespaceID": 1,
+		"meta":        1,
+		"revision":    1,
+		"createdAt":   1,
+		"createdBy":   1,
+		"updatedAt":   1,
+		"updatedBy":   1,
+		"deletedAt":   1,
+		"deletedBy":   1,
+		"ownedBy":     1,
+	}
+
+	// if mod == nil {
+	// 	// count record values
+	// 	// only when module is known
+	// 	return
+	// }
+
+	if mod != nil {
+		for _, f := range mod.Fields {
+			pos[f.Name] = 0
+		}
+	}
+
+	for _, val := range r.Values {
+		pos[val.Name]++
+	}
+
+	return
+}
+
+func (r *Record) SetValue(name string, pos uint, value any) (err error) {
+	switch name {
+	case "ID":
+		return cast2.Uint64(value, &r.ID)
+	case "moduleID":
+		return cast2.Uint64(value, &r.ModuleID)
+	case "namespaceID":
+		return cast2.Uint64(value, &r.NamespaceID)
+	case "createdBy":
+		return cast2.Uint64(value, &r.CreatedBy)
+	case "updatedBy":
+		return cast2.Uint64(value, &r.UpdatedBy)
+	case "deletedBy":
+		return cast2.Uint64(value, &r.DeletedBy)
+	case "ownedBy":
+		return cast2.Uint64(value, &r.OwnedBy)
+	case "revision":
+		return cast2.Uint(value, &r.Revision)
+	case "meta":
+		return cast2.Meta(value, &r.Meta)
+	case "createdAt":
+		return cast2.Time(value, &r.CreatedAt)
+	case "updatedAt":
+		return cast2.TimePtr(value, &r.UpdatedAt)
+	case "deletedAt":
+		return cast2.TimePtr(value, &r.DeletedAt)
+	default:
+		if reflect2.IsNil(value) {
+			r.Values, _ = r.Values.Filter(func(rv *RecordValue) (bool, error) {
+				if rv.Name == name && rv.Place == pos {
+					return false, nil
+				}
+
+				return true, nil
+			})
+
+			return
+		}
+
+		rv := &RecordValue{Name: name, Place: pos}
+		var auxv string
+
+		switch aux := value.(type) {
+		case *time.Time:
+			auxv = aux.Format(time.RFC3339)
+
+		case time.Time:
+			auxv = aux.Format(time.RFC3339)
+
+		default:
+			auxv, err = cast.ToStringE(aux)
+		}
+
+		if err != nil {
+			return
+		}
+
+		// Try to utilize the module when possible
+		// It can be omitted for some cases for easier test cases
+		if r.module != nil {
+			f := r.module.Fields.FindByName(name)
+			if f != nil {
+				switch f.Kind {
+				case "Record", "User", "File":
+					rv.Ref = cast.ToUint64(value)
+				}
+			}
+		}
+
+		rv.Value = auxv
+		r.Values = r.Values.Set(rv)
+	}
+
+	return
+}
+
 func (r Record) Dict() map[string]interface{} {
 	dict := map[string]interface{}{
 		"ID":          r.ID,
 		"recordID":    r.ID,
 		"moduleID":    r.ModuleID,
-		"labels":      r.Labels,
+		"revision":    r.Revision,
+		"meta":        r.Meta,
 		"namespaceID": r.NamespaceID,
 		"ownedBy":     r.OwnedBy,
 		"createdAt":   r.CreatedAt,
@@ -192,6 +376,32 @@ func (set RecordBulkSet) ToBulkOperations(dftModule uint64, dftNamespace uint64)
 
 			oo = append(oo, b)
 		}
+	}
+
+	return
+}
+
+// GetValuesByName filters values for records by names
+func (set RecordSet) GetValuesByName(names ...string) (out RecordValueSet) {
+	nameMap := make(map[string]bool)
+	for _, n := range names {
+		if len(n) > 0 {
+			nameMap[n] = true
+		}
+	}
+
+	err := set.Walk(func(rec *Record) error {
+		_ = rec.Values.Walk(func(val *RecordValue) error {
+			if val != nil && nameMap[val.Name] {
+				val.RecordID = rec.ID
+				out = append(out, val)
+			}
+			return nil
+		})
+		return nil
+	})
+	if err != nil {
+		return
 	}
 
 	return

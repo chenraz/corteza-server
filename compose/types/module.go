@@ -3,22 +3,38 @@ package types
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"time"
+
 	discovery "github.com/cortezaproject/corteza-server/discovery/types"
+
+	"github.com/cortezaproject/corteza-server/pkg/sql"
+	"github.com/jmoiron/sqlx/types"
+
+	"github.com/cortezaproject/corteza-server/pkg/dal"
 	"github.com/cortezaproject/corteza-server/pkg/filter"
 	"github.com/cortezaproject/corteza-server/pkg/locale"
-	"github.com/jmoiron/sqlx/types"
-	"github.com/pkg/errors"
-	"time"
 )
 
 type (
 	Module struct {
-		ID     uint64         `json:"moduleID,string"`
-		Handle string         `json:"handle"`
-		Meta   types.JSONText `json:"meta"`
+		ID     uint64 `json:"moduleID,string"`
+		Handle string `json:"handle"`
+
+		// collection of configurations for various subsystems that
+		// use this module and how it affects their behaviour
+		Config ModuleConfig `json:"config"`
+
+		// @todo should be removed and placed into a separate subsystem
+		//       mostly because we want to allow client apps to store
+		//       application configs away from the module config
+		//       using separate access-control
+		Meta types.JSONText `json:"meta"`
+
 		Fields ModuleFieldSet `json:"fields"`
 
 		Labels map[string]string `json:"labels,omitempty"`
+
+		Issues []string `json:"issues,omitempty"`
 
 		NamespaceID uint64 `json:"namespaceID,string"`
 
@@ -32,8 +48,60 @@ type (
 		Name string `json:"name"`
 	}
 
-	ModuleMeta struct {
+	ModuleConfig struct {
+		// How and where the records of this module are stored in the database
+		DAL ModuleConfigDAL `json:"dal"`
+
+		// Record data privacy settings
+		Privacy ModuleConfigDataPrivacy `json:"privacy"`
+
+		// @todo we need to transfer this from meta!!
 		Discovery discovery.ModuleMeta `json:"discovery"`
+
+		RecordRevisions ModuleConfigRecordRevisions `json:"recordRevisions"`
+
+		// RecordDeDup value duplicate detection settings
+		RecordDeDup ModuleConfigRecordDeDup `json:"recordDeDup"`
+	}
+
+	ModuleConfigDAL struct {
+		ConnectionID uint64 `json:"connectionID,string"`
+
+		Constraints map[string][]any `json:"constraints"`
+
+		// model identifier (table, collection on the database)
+		// can contain {{placeholders}}
+		Ident string `json:"ident"`
+
+		SystemFieldEncoding SystemFieldEncoding `json:"systemFieldEncoding"`
+	}
+
+	ModuleConfigRecordRevisions struct {
+		// enable or disable revisions
+		Enabled bool `json:"enabled"`
+
+		// where are record revisions stored
+		Ident string `json:"ident"`
+	}
+
+	ModuleConfigDataPrivacy struct {
+		// Define the highest sensitivity level which
+		// can be configured on the module fields
+		SensitivityLevelID uint64 `json:"sensitivityLevelID,string,omitempty"`
+
+		UsageDisclosure string `json:"usageDisclosure"`
+	}
+
+	ModuleConfigRecordDeDup struct {
+		// enable or disable duplicate detection
+		Enabled bool `json:"enabled"`
+
+		// strictly restrict record saving
+		// 		otherwise show a warning with list of duplicated records
+		Strict bool `json:"strict"`
+
+		// list of duplicate detection rules applied to module's fields
+		Rules DeDupRuleSet `json:"rules,omitempty"`
 	}
 
 	ModuleFilter struct {
@@ -66,6 +134,10 @@ func (m Module) Clone() *Module {
 	return c
 }
 
+func (m Module) HasIssues() bool {
+	return len(m.Issues) > 0
+}
+
 // We won't worry about fields at this point
 func (m *Module) decodeTranslations(tt locale.ResourceTranslationIndex) {
 	return
@@ -74,6 +146,18 @@ func (m *Module) decodeTranslations(tt locale.ResourceTranslationIndex) {
 // We won't worry about fields at this point
 func (m *Module) encodeTranslations() (out locale.ResourceTranslationSet) {
 	return
+}
+
+func (m *Module) ModelRef() dal.ModelRef {
+	return dal.ModelRef{
+		ConnectionID: m.Config.DAL.ConnectionID,
+
+		ResourceID: m.ID,
+
+		ResourceType: ModuleResourceType,
+		// @todo will use this for now but should probably change
+		Resource: m.RbacResource(),
+	}
 }
 
 // FindByHandle finds module by it's handle
@@ -87,21 +171,14 @@ func (set ModuleSet) FindByHandle(handle string) *Module {
 	return nil
 }
 
-func (nm *ModuleMeta) Scan(value interface{}) error {
-	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
-	switch value.(type) {
-	case nil:
-		*nm = ModuleMeta{}
-	case []uint8:
-		b := value.([]byte)
-		if err := json.Unmarshal(b, nm); err != nil {
-			return errors.Wrapf(err, "cannot scan '%v' into ModuleMeta", string(b))
-		}
+func (c *ModuleConfig) Scan(src any) error          { return sql.ParseJSON(src, c) }
+func (c ModuleConfig) Value() (driver.Value, error) { return json.Marshal(c) }
+
+func ParseModuleConfig(ss []string) (m ModuleConfig, err error) {
+	if len(ss) == 0 {
+		return
 	}
 
-	return nil
-}
-
-func (nm ModuleMeta) Value() (driver.Value, error) {
-	return json.Marshal(nm)
+	err = json.Unmarshal([]byte(ss[0]), &m)
+	return
 }

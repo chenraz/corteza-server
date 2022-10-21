@@ -24,7 +24,7 @@ type (
 			Update(ctx context.Context, upd *types.Workflow) (*types.Workflow, error)
 			DeleteByID(ctx context.Context, workflowID uint64) error
 			UndeleteByID(ctx context.Context, workflowID uint64) error
-			Exec(ctx context.Context, workflowID uint64, p types.WorkflowExecParams) (*expr.Vars, types.Stacktrace, error)
+			Exec(ctx context.Context, workflowID uint64, p types.WorkflowExecParams) (*expr.Vars, uint64, types.Stacktrace, error)
 		}
 
 		// cross-link with compose service to load module on resolved records
@@ -64,9 +64,10 @@ type (
 	}
 
 	workflowExecPayload struct {
-		Results *expr.Vars       `json:"results"`
-		Trace   types.Stacktrace `json:"trace,omitempty"`
-		Error   string           `json:"error,omitempty"`
+		Results   *expr.Vars       `json:"results"`
+		Trace     types.Stacktrace `json:"trace,omitempty"`
+		SessionID uint64           `json:"sessionID,string,omitempty"`
+		Error     string           `json:"error,omitempty"`
 	}
 )
 
@@ -82,17 +83,20 @@ func (ctrl Workflow) List(ctx context.Context, r *request.WorkflowList) (interfa
 	var (
 		err error
 		f   = types.WorkflowFilter{
-			WorkflowID: payload.ParseUint64s(r.WorkflowID),
-			Query:      r.Query,
-			Labels:     r.Labels,
-			Deleted:    filter.State(r.Deleted),
-			Disabled:   filter.State(r.Disabled),
+			WorkflowID:  payload.ParseUint64s(r.WorkflowID),
+			Query:       r.Query,
+			Labels:      r.Labels,
+			Deleted:     filter.State(r.Deleted),
+			Disabled:    filter.State(r.Disabled),
+			SubWorkflow: filter.State(r.SubWorkflow),
 		}
 	)
 
 	if f.Paging, err = filter.NewPaging(r.Limit, r.PageCursor); err != nil {
 		return nil, err
 	}
+
+	f.IncTotal = r.IncTotal
 
 	if f.Sorting, err = filter.NewSorting(r.Sort); err != nil {
 		return nil, err
@@ -178,7 +182,7 @@ func (ctrl Workflow) Exec(ctx context.Context, r *request.WorkflowExec) (interfa
 		}
 	}
 
-	// Now that all types are resolved we have to load modules and link them to records
+	// Now when all types are resolved we have to load modules and link them to records
 	//
 	// Very naive approach for now.
 	execParams.Input.Each(func(k string, v expr.TypedValue) error {
@@ -199,7 +203,7 @@ func (ctrl Workflow) Exec(ctx context.Context, r *request.WorkflowExec) (interfa
 		return nil
 	})
 
-	wep.Results, wep.Trace, err = ctrl.svc.Exec(ctx, r.WorkflowID, execParams)
+	wep.Results, wep.SessionID, wep.Trace, err = ctrl.svc.Exec(ctx, r.WorkflowID, execParams)
 
 	if err != nil && wep.Trace != nil && r.Trace {
 		// in case of an error & trace enabled (and stacktrace present)

@@ -57,6 +57,11 @@ type (
 		// Exclude (0, default), include (1) or return only (2) disabled workflows
 		Disabled uint
 
+		// SubWorkflow GET parameter
+		//
+		// Exclude (0, default), include (1) or return only (2) sub workflows
+		SubWorkflow uint
+
 		// Labels GET parameter
 		//
 		// Labels
@@ -66,6 +71,11 @@ type (
 		//
 		// Limit
 		Limit uint
+
+		// IncTotal GET parameter
+		//
+		// Include total rows counter
+		IncTotal bool
 
 		// PageCursor GET parameter
 		//
@@ -276,14 +286,16 @@ func NewWorkflowList() *WorkflowList {
 // Auditable returns all auditable/loggable parameters
 func (r WorkflowList) Auditable() map[string]interface{} {
 	return map[string]interface{}{
-		"workflowID": r.WorkflowID,
-		"query":      r.Query,
-		"deleted":    r.Deleted,
-		"disabled":   r.Disabled,
-		"labels":     r.Labels,
-		"limit":      r.Limit,
-		"pageCursor": r.PageCursor,
-		"sort":       r.Sort,
+		"workflowID":  r.WorkflowID,
+		"query":       r.Query,
+		"deleted":     r.Deleted,
+		"disabled":    r.Disabled,
+		"subWorkflow": r.SubWorkflow,
+		"labels":      r.Labels,
+		"limit":       r.Limit,
+		"incTotal":    r.IncTotal,
+		"pageCursor":  r.PageCursor,
+		"sort":        r.Sort,
 	}
 }
 
@@ -308,6 +320,11 @@ func (r WorkflowList) GetDisabled() uint {
 }
 
 // Auditable returns all auditable/loggable parameters
+func (r WorkflowList) GetSubWorkflow() uint {
+	return r.SubWorkflow
+}
+
+// Auditable returns all auditable/loggable parameters
 func (r WorkflowList) GetLabels() map[string]string {
 	return r.Labels
 }
@@ -315,6 +332,11 @@ func (r WorkflowList) GetLabels() map[string]string {
 // Auditable returns all auditable/loggable parameters
 func (r WorkflowList) GetLimit() uint {
 	return r.Limit
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r WorkflowList) GetIncTotal() bool {
+	return r.IncTotal
 }
 
 // Auditable returns all auditable/loggable parameters
@@ -363,6 +385,12 @@ func (r *WorkflowList) Fill(req *http.Request) (err error) {
 				return err
 			}
 		}
+		if val, ok := tmp["subWorkflow"]; ok && len(val) > 0 {
+			r.SubWorkflow, err = payload.ParseUint(val[0]), nil
+			if err != nil {
+				return err
+			}
+		}
 		if val, ok := tmp["labels[]"]; ok {
 			r.Labels, err = label.ParseStrings(val)
 			if err != nil {
@@ -376,6 +404,12 @@ func (r *WorkflowList) Fill(req *http.Request) (err error) {
 		}
 		if val, ok := tmp["limit"]; ok && len(val) > 0 {
 			r.Limit, err = payload.ParseUint(val[0]), nil
+			if err != nil {
+				return err
+			}
+		}
+		if val, ok := tmp["incTotal"]; ok && len(val) > 0 {
+			r.IncTotal, err = payload.ParseBool(val[0]), nil
 			if err != nil {
 				return err
 			}

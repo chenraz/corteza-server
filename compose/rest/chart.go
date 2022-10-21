@@ -37,7 +37,8 @@ type (
 			Update(ctx context.Context, chart *types.Chart) (*types.Chart, error)
 			DeleteByID(ctx context.Context, namespaceID, chartID uint64) error
 		}
-		ac chartAccessController
+		locale service.ResourceTranslationsManagerService
+		ac     chartAccessController
 	}
 
 	chartAccessController interface {
@@ -50,8 +51,9 @@ type (
 
 func (Chart) New() *Chart {
 	return &Chart{
-		chart: service.DefaultChart,
-		ac:    service.DefaultAccessControl,
+		chart:  service.DefaultChart,
+		locale: service.DefaultResourceTranslation,
+		ac:     service.DefaultAccessControl,
 	}
 }
 
@@ -70,6 +72,8 @@ func (ctrl Chart) List(ctx context.Context, r *request.ChartList) (interface{}, 
 	if f.Paging, err = filter.NewPaging(r.Limit, r.PageCursor); err != nil {
 		return nil, err
 	}
+
+	f.IncTotal = r.IncTotal
 
 	if f.Sorting, err = filter.NewSorting(r.Sort); err != nil {
 		return nil, err
@@ -132,6 +136,14 @@ func (ctrl Chart) Delete(ctx context.Context, r *request.ChartDelete) (interface
 	}
 
 	return api.OK(), ctrl.chart.DeleteByID(ctx, r.NamespaceID, r.ChartID)
+}
+
+func (ctrl Chart) ListTranslations(ctx context.Context, r *request.ChartListTranslations) (interface{}, error) {
+	return ctrl.locale.Chart(ctx, r.NamespaceID, r.ChartID)
+}
+
+func (ctrl Chart) UpdateTranslations(ctx context.Context, r *request.ChartUpdateTranslations) (interface{}, error) {
+	return api.OK(), ctrl.locale.Upsert(ctx, r.Translations)
 }
 
 func (ctrl Chart) makePayload(ctx context.Context, c *types.Chart, err error) (*chartPayload, error) {

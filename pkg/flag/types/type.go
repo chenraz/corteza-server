@@ -21,5 +21,10 @@ type (
 		ResourceID []uint64
 		OwnedBy    []uint64
 		Name       []string
+		Limit      uint
 	}
+)
+
+const (
+	FlagResourceType = "corteza::generic:flag"
 )

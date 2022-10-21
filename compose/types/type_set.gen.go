@@ -20,6 +20,11 @@ type (
 	// This type is auto-generated.
 	ChartSet []*Chart
 
+	// DeDupRuleSet slice of DeDupRule
+	//
+	// This type is auto-generated.
+	DeDupRuleSet []*DeDupRule
+
 	// ModuleSet slice of Module
 	//
 	// This type is auto-generated.
@@ -39,6 +44,11 @@ type (
 	//
 	// This type is auto-generated.
 	PageSet []*Page
+
+	// PrivacyModuleSet slice of PrivacyModule
+	//
+	// This type is auto-generated.
+	PrivacyModuleSet []*PrivacyModule
 
 	// RecordSet slice of Record
 	//
@@ -158,6 +168,36 @@ func (set ChartSet) IDs() (IDs []uint64) {
 
 	for i := range set {
 		IDs[i] = set[i].ID
+	}
+
+	return
+}
+
+// Walk iterates through every slice item and calls w(DeDupRule) err
+//
+// This function is auto-generated.
+func (set DeDupRuleSet) Walk(w func(*DeDupRule) error) (err error) {
+	for i := range set {
+		if err = w(set[i]); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// Filter iterates through every slice item, calls f(DeDupRule) (bool, err) and return filtered slice
+//
+// This function is auto-generated.
+func (set DeDupRuleSet) Filter(f func(*DeDupRule) (bool, error)) (out DeDupRuleSet, err error) {
+	var ok bool
+	out = DeDupRuleSet{}
+	for i := range set {
+		if ok, err = f(set[i]); err != nil {
+			return
+		} else if ok {
+			out = append(out, set[i])
+		}
 	}
 
 	return
@@ -382,6 +422,36 @@ func (set PageSet) IDs() (IDs []uint64) {
 
 	for i := range set {
 		IDs[i] = set[i].ID
+	}
+
+	return
+}
+
+// Walk iterates through every slice item and calls w(PrivacyModule) err
+//
+// This function is auto-generated.
+func (set PrivacyModuleSet) Walk(w func(*PrivacyModule) error) (err error) {
+	for i := range set {
+		if err = w(set[i]); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+// Filter iterates through every slice item, calls f(PrivacyModule) (bool, err) and return filtered slice
+//
+// This function is auto-generated.
+func (set PrivacyModuleSet) Filter(f func(*PrivacyModule) (bool, error)) (out PrivacyModuleSet, err error) {
+	var ok bool
+	out = PrivacyModuleSet{}
+	for i := range set {
+		if ok, err = f(set[i]); err != nil {
+			return
+		} else if ok {
+			out = append(out, set[i])
+		}
 	}
 
 	return

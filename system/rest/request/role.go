@@ -66,6 +66,11 @@ type (
 		// Limit
 		Limit uint
 
+		// IncTotal GET parameter
+		//
+		// Include total counter
+		IncTotal bool
+
 		// PageCursor GET parameter
 		//
 		// Page cursor
@@ -242,6 +247,18 @@ type (
 		// Arguments to pass to the script
 		Args map[string]interface{}
 	}
+
+	RoleCloneRules struct {
+		// RoleID PATH parameter
+		//
+		// Role ID
+		RoleID uint64 `json:",string"`
+
+		// CloneToRoleID GET parameter
+		//
+		// Clone set of rules to roleID
+		CloneToRoleID []string
+	}
 )
 
 // NewRoleList request
@@ -258,6 +275,7 @@ func (r RoleList) Auditable() map[string]interface{} {
 		"archived":   r.Archived,
 		"labels":     r.Labels,
 		"limit":      r.Limit,
+		"incTotal":   r.IncTotal,
 		"pageCursor": r.PageCursor,
 		"sort":       r.Sort,
 	}
@@ -291,6 +309,11 @@ func (r RoleList) GetLabels() map[string]string {
 // Auditable returns all auditable/loggable parameters
 func (r RoleList) GetLimit() uint {
 	return r.Limit
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r RoleList) GetIncTotal() bool {
+	return r.IncTotal
 }
 
 // Auditable returns all auditable/loggable parameters
@@ -347,6 +370,12 @@ func (r *RoleList) Fill(req *http.Request) (err error) {
 		}
 		if val, ok := tmp["limit"]; ok && len(val) > 0 {
 			r.Limit, err = payload.ParseUint(val[0]), nil
+			if err != nil {
+				return err
+			}
+		}
+		if val, ok := tmp["incTotal"]; ok && len(val) > 0 {
+			r.IncTotal, err = payload.ParseBool(val[0]), nil
 			if err != nil {
 				return err
 			}
@@ -1264,6 +1293,64 @@ func (r *RoleTriggerScript) Fill(req *http.Request) (err error) {
 			}
 		} else if val, ok := req.Form["args"]; ok {
 			r.Args, err = parseMapStringInterface(val)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	{
+		var val string
+		// path params
+
+		val = chi.URLParam(req, "roleID")
+		r.RoleID, err = payload.ParseUint64(val), nil
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return err
+}
+
+// NewRoleCloneRules request
+func NewRoleCloneRules() *RoleCloneRules {
+	return &RoleCloneRules{}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r RoleCloneRules) Auditable() map[string]interface{} {
+	return map[string]interface{}{
+		"roleID":        r.RoleID,
+		"cloneToRoleID": r.CloneToRoleID,
+	}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r RoleCloneRules) GetRoleID() uint64 {
+	return r.RoleID
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r RoleCloneRules) GetCloneToRoleID() []string {
+	return r.CloneToRoleID
+}
+
+// Fill processes request and fills internal variables
+func (r *RoleCloneRules) Fill(req *http.Request) (err error) {
+
+	{
+		// GET params
+		tmp := req.URL.Query()
+
+		if val, ok := tmp["cloneToRoleID[]"]; ok {
+			r.CloneToRoleID, err = val, nil
+			if err != nil {
+				return err
+			}
+		} else if val, ok := tmp["cloneToRoleID"]; ok {
+			r.CloneToRoleID, err = val, nil
 			if err != nil {
 				return err
 			}

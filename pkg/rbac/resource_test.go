@@ -73,11 +73,11 @@ func TestResourceMatch(t *testing.T) {
 }
 
 //cpu: Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz
-//Benchmark_MatchResource100-16        	 7353837	       157.0 ns/op
-//Benchmark_MatchResource1000-16       	 6868928	       166.0 ns/op
-//Benchmark_MatchResource10000-16      	 7373701	       164.8 ns/op
-//Benchmark_MatchResource100000-16     	 7556944	       156.5 ns/op
-//Benchmark_MatchResource1000000-16    	 7445456	       157.8 ns/op
+//Benchmark_MatchResource100-16        	 6527383	       183.2 ns/op
+//Benchmark_MatchResource1000-16       	 6335626	       183.5 ns/op
+//Benchmark_MatchResource10000-16      	 6565214	       183.5 ns/op
+//Benchmark_MatchResource100000-16     	 6541002	       183.7 ns/op
+//Benchmark_MatchResource1000000-16    	 6542052	       183.5 ns/op
 func benchmarkMatchResource(b *testing.B, c int) {
 	b.StartTimer()
 
@@ -112,6 +112,53 @@ func TestLevel(t *testing.T) {
 	for _, tc := range tcc {
 		t.Run(tc.r, func(t *testing.T) {
 			require.Equal(t, tc.l, level(tc.r))
+		})
+	}
+}
+
+func TestIsSpecific(t *testing.T) {
+	var (
+		tcc = []struct {
+			r string
+			e bool
+		}{
+			{"corteza::test/a/b/c", true},
+			{"corteza::test/a/b/*", true},
+			{"corteza::test/a/*/*", true},
+			{"corteza::test/a/*/123", true},
+			{"corteza::test/*/*/*", false},
+			{"corteza::test/*/*", false},
+			{"corteza::test/*", false},
+			{"corteza::test/", false},
+		}
+	)
+
+	for _, tc := range tcc {
+		t.Run(tc.r, func(t *testing.T) {
+			require.Equal(t, tc.e, isSpecific(tc.r))
+		})
+	}
+}
+
+func TestParseResourceID(t *testing.T) {
+	var (
+		tcc = []struct {
+			in      string
+			outType string
+			outIDs  []uint64
+		}{
+			{"corteza::test/*/*/*", "corteza::test", []uint64{0, 0, 0}},
+			{"corteza::test/234/*/123", "corteza::test", []uint64{234, 0, 123}},
+			{"corteza::test/3/2/1", "corteza::test", []uint64{3, 2, 1}},
+		}
+	)
+
+	for _, tc := range tcc {
+		t.Run(tc.in, func(t *testing.T) {
+			outType, outIDs := ParseResourceID(tc.in)
+
+			require.Equal(t, tc.outType, outType)
+			require.Equal(t, tc.outIDs, outIDs)
 		})
 	}
 }

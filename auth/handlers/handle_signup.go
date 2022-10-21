@@ -44,7 +44,7 @@ func (h *AuthHandlers) signupProc(req *request.AuthReq) error {
 			)
 			req.RedirectTo = GetLinks().Profile
 
-			req.AuthUser = request.NewAuthUser(h.Settings, newUser, false, h.Opt.SessionLifetime)
+			req.AuthUser = request.NewAuthUser(h.Settings, newUser, false)
 
 			// auto-complete EmailOTP
 			req.AuthUser.CompleteEmailOTP()
@@ -58,6 +58,15 @@ func (h *AuthHandlers) signupProc(req *request.AuthReq) error {
 		return nil
 	}
 
+	fallback := func(req *request.AuthReq) {
+		req.SetKV(map[string]string{
+			"error":  err.Error(),
+			"email":  payload.Email,
+			"handle": payload.Handle,
+			"name":   payload.Name,
+		})
+	}
+
 	switch {
 	case service.AuthErrInternalSignupDisabledByConfig().Is(err):
 		h.signupDisabledAlert(req)
@@ -66,17 +75,14 @@ func (h *AuthHandlers) signupProc(req *request.AuthReq) error {
 		service.AuthErrInvalidHandle().Is(err),
 		service.AuthErrPasswordNotSecure().Is(err),
 		service.AuthErrInvalidCredentials().Is(err):
-		req.SetKV(map[string]string{
-			"error":  err.Error(),
-			"email":  payload.Email,
-			"handle": payload.Handle,
-			"name":   payload.Name,
-		})
+		fallback(req)
 
 		h.Log.Warn("handled error", zap.Error(err))
 		return nil
 
 	default:
+		fallback(req)
+
 		h.Log.Error("unhandled error", zap.Error(err))
 		return err
 	}
@@ -110,7 +116,7 @@ func (h *AuthHandlers) confirmEmail(req *request.AuthReq) (err error) {
 
 			req.RedirectTo = GetLinks().Profile
 
-			req.AuthUser = request.NewAuthUser(h.Settings, user, false, h.Opt.SessionLifetime)
+			req.AuthUser = request.NewAuthUser(h.Settings, user, false)
 
 			// auto-complete EmailOTP
 			req.AuthUser.CompleteEmailOTP()
@@ -126,7 +132,7 @@ func (h *AuthHandlers) confirmEmail(req *request.AuthReq) (err error) {
 	// redirect to the right page
 	// not doing this here and relying on handler on subseq. request
 	// will cause alerts to be removed
-	if req.AuthUser == nil && req.AuthUser.User == nil {
+	if req.AuthUser == nil || req.AuthUser.User == nil {
 		req.RedirectTo = GetLinks().Login
 	} else {
 		req.RedirectTo = GetLinks().Profile

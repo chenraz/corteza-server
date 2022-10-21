@@ -3,10 +3,13 @@ general:
   success: Success
   warning: Warning
 notAllowed: Not allowed to access Admin Area. Redirecting
-list: 
+list:
   load:
     error: 'Failed to load resource list'
 user:
+  external-auth-providers:
+    error: External auth providers fetch failed
+    success: External auth providers updated
   fetch:
     error: User fetch failed
   roles:
@@ -174,6 +177,9 @@ session:
     error: Session fetch failed
   trigger:
     error: Trigger fetch failed
+  cancel:
+    success: Session canceled
+    error: Session cancel failed
 federation:
   fetch:
     error: Node fetch failed
@@ -200,6 +206,22 @@ federation:
   handshake:
     success: Handshake complete paired
     error: Handshake failed
+sensitivityLevel:
+  create:
+    success: Sensitivity level created
+    error: Sensitivity level create failed
+  delete:
+    success: Sensitivity level deleted
+    error: Sensitivity level delete failed
+  fetch:
+    success: Sensitivity level fetched
+    error: Sensitivity level fetch failed
+  undelete:
+    success: Sensitivity level restored
+    error: Sensitivity level restore failed
+  update:
+    success: Sensitivity level updated
+    error: Sensitivity level update failed
 settings:
   system:
     fetch:
@@ -227,4 +249,18 @@ permissions:
     error: Permissions update failed
   role:
     error: Failed to add role
-
+connection:
+  fetch:
+    error: Connection fetch failed
+  update:
+    success: Connection updated
+    error: Connection update failed
+  create:
+    success: Connection created
+    error: Connection create failed
+  delete:
+    success: Connection deleted
+    error: Connection delete failed
+  undelete:
+    success: Connection restored
+    error: Connection restore failed

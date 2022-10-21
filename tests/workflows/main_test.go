@@ -3,6 +3,8 @@ package workflows
 import (
 	"context"
 	"fmt"
+
+	// "fmt"
 	"path"
 	"testing"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/cortezaproject/corteza-server/automation/service"
 	autTypes "github.com/cortezaproject/corteza-server/automation/types"
 	"github.com/cortezaproject/corteza-server/pkg/auth"
+	"github.com/cortezaproject/corteza-server/pkg/dal"
 	"github.com/cortezaproject/corteza-server/pkg/envoy"
 	"github.com/cortezaproject/corteza-server/pkg/envoy/csv"
 	"github.com/cortezaproject/corteza-server/pkg/envoy/directory"
@@ -18,6 +21,7 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/envoy/yaml"
 	"github.com/cortezaproject/corteza-server/pkg/eventbus"
 	"github.com/cortezaproject/corteza-server/pkg/expr"
+	"github.com/cortezaproject/corteza-server/pkg/filter"
 	"github.com/cortezaproject/corteza-server/pkg/id"
 	"github.com/cortezaproject/corteza-server/pkg/logger"
 	"github.com/cortezaproject/corteza-server/store"
@@ -26,9 +30,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type (
+	dalSvc interface {
+		Purge(ctx context.Context)
+
+		GetConnectionByID(uint64) *dal.ConnectionWrap
+
+		SearchModels(ctx context.Context) (out dal.ModelSet, err error)
+		RemoveModel(ctx context.Context, connectionID, ID uint64) (err error)
+		ReplaceModel(ctx context.Context, model *dal.Model) (err error)
+		ReplaceModelAttribute(ctx context.Context, model *dal.Model, old, new *dal.Attribute, trans ...dal.TransformationFunction) (err error)
+		SearchModelIssues(resourceID uint64) (out []error)
+
+		Create(ctx context.Context, m dal.ModelRef, operations dal.OperationSet, vv ...dal.ValueGetter) error
+		Update(ctx context.Context, m dal.ModelRef, operations dal.OperationSet, rr ...dal.ValueGetter) (err error)
+		Search(ctx context.Context, m dal.ModelRef, operations dal.OperationSet, f filter.Filter) (dal.Iterator, error)
+		Lookup(ctx context.Context, m dal.ModelRef, operations dal.OperationSet, lookup dal.ValueGetter, dst dal.ValueSetter) (err error)
+		Delete(ctx context.Context, m dal.ModelRef, operations dal.OperationSet, pkv ...dal.ValueGetter) (err error)
+		Truncate(ctx context.Context, m dal.ModelRef, operations dal.OperationSet) (err error)
+	}
+)
+
 var (
 	defApp   *app.CortezaApp
 	defStore store.Storer
+	defDal   dalSvc
 	eventBus = eventbus.New()
 )
 
@@ -48,6 +74,8 @@ func TestMain(m *testing.M) {
 		return nil
 	})
 
+	defDal = dal.Service()
+
 	if err := defApp.Activate(ctx); err != nil {
 		panic(fmt.Errorf("could not activate corteza: %v", err))
 	}
@@ -63,6 +91,20 @@ func cleanup(t *testing.T) {
 	if err := defStore.TruncateAutomationWorkflows(ctx); err != nil {
 		t.Fatalf("failed to decode scenario data: %v", err)
 	}
+}
+
+func truncateRecords(ctx context.Context) error {
+	models, err := defDal.SearchModels(ctx)
+	if err != nil {
+		return err
+	}
+	for _, model := range models {
+		err = defDal.Truncate(ctx, model.ToFilter(), nil)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func loadScenario(ctx context.Context, t *testing.T) {
@@ -94,7 +136,7 @@ func loadScenarioWithName(ctx context.Context, t *testing.T, scenario string) {
 		t.Fatalf("failed to decode scenario data: %v", err)
 	}
 
-	storeEnc := envoyStore.NewStoreEncoder(defStore, &envoyStore.EncoderConfig{})
+	storeEnc := envoyStore.NewStoreEncoder(defStore, dal.Service(), &envoyStore.EncoderConfig{})
 
 	b := envoy.NewBuilder(storeEnc)
 	g, err := b.Build(ctx, decoded...)
@@ -125,10 +167,10 @@ func bypassRBAC(ctx context.Context) context.Context {
 	return auth.SetIdentityToContext(ctx, u)
 }
 
-func execWorkflow(ctx context.Context, name string, p autTypes.WorkflowExecParams) (*expr.Vars, autTypes.Stacktrace, error) {
+func execWorkflow(ctx context.Context, name string, p autTypes.WorkflowExecParams) (*expr.Vars, uint64, autTypes.Stacktrace, error) {
 	wf, err := defStore.LookupAutomationWorkflowByHandle(ctx, name)
 	if err != nil {
-		return nil, nil, err
+		return nil, 0, nil, err
 	}
 
 	return service.DefaultWorkflow.Exec(ctx, wf.ID, p)
@@ -136,7 +178,7 @@ func execWorkflow(ctx context.Context, name string, p autTypes.WorkflowExecParam
 
 func mustExecWorkflow(ctx context.Context, t *testing.T, name string, p autTypes.WorkflowExecParams) (vars *expr.Vars, strace autTypes.Stacktrace) {
 	var err error
-	vars, strace, err = execWorkflow(ctx, name, p)
+	vars, _, strace, err = execWorkflow(ctx, name, p)
 	if err != nil {
 		if issues, is := err.(autTypes.WorkflowIssueSet); is {
 			for _, i := range issues {

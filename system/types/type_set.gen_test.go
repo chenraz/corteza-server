@@ -778,33 +778,33 @@ func TestAuthSessionSetFilter(t *testing.T) {
 	}
 }
 
-func TestCredentialsSetWalk(t *testing.T) {
+func TestCredentialSetWalk(t *testing.T) {
 	var (
-		value = make(CredentialsSet, 3)
+		value = make(CredentialSet, 3)
 		req   = require.New(t)
 	)
 
 	// check walk with no errors
 	{
-		err := value.Walk(func(*Credentials) error {
+		err := value.Walk(func(*Credential) error {
 			return nil
 		})
 		req.NoError(err)
 	}
 
 	// check walk with error
-	req.Error(value.Walk(func(*Credentials) error { return fmt.Errorf("walk error") }))
+	req.Error(value.Walk(func(*Credential) error { return fmt.Errorf("walk error") }))
 }
 
-func TestCredentialsSetFilter(t *testing.T) {
+func TestCredentialSetFilter(t *testing.T) {
 	var (
-		value = make(CredentialsSet, 3)
+		value = make(CredentialSet, 3)
 		req   = require.New(t)
 	)
 
 	// filter nothing
 	{
-		set, err := value.Filter(func(*Credentials) (bool, error) {
+		set, err := value.Filter(func(*Credential) (bool, error) {
 			return true, nil
 		})
 		req.NoError(err)
@@ -814,7 +814,7 @@ func TestCredentialsSetFilter(t *testing.T) {
 	// filter one item
 	{
 		found := false
-		set, err := value.Filter(func(*Credentials) (bool, error) {
+		set, err := value.Filter(func(*Credential) (bool, error) {
 			if !found {
 				found = true
 				return found, nil
@@ -827,23 +827,473 @@ func TestCredentialsSetFilter(t *testing.T) {
 
 	// filter error
 	{
-		_, err := value.Filter(func(*Credentials) (bool, error) {
+		_, err := value.Filter(func(*Credential) (bool, error) {
 			return false, fmt.Errorf("filter error")
 		})
 		req.Error(err)
 	}
 }
 
-func TestCredentialsSetIDs(t *testing.T) {
+func TestCredentialSetIDs(t *testing.T) {
 	var (
-		value = make(CredentialsSet, 3)
+		value = make(CredentialSet, 3)
 		req   = require.New(t)
 	)
 
 	// construct objects
-	value[0] = new(Credentials)
-	value[1] = new(Credentials)
-	value[2] = new(Credentials)
+	value[0] = new(Credential)
+	value[1] = new(Credential)
+	value[2] = new(Credential)
+	// set ids
+	value[0].ID = 1
+	value[1].ID = 2
+	value[2].ID = 3
+
+	// Find existing
+	{
+		val := value.FindByID(2)
+		req.Equal(uint64(2), val.ID)
+	}
+
+	// Find non-existing
+	{
+		val := value.FindByID(4)
+		req.Nil(val)
+	}
+
+	// List IDs from set
+	{
+		val := value.IDs()
+		req.Equal(len(val), len(value))
+	}
+}
+
+func TestDalConnectionSetWalk(t *testing.T) {
+	var (
+		value = make(DalConnectionSet, 3)
+		req   = require.New(t)
+	)
+
+	// check walk with no errors
+	{
+		err := value.Walk(func(*DalConnection) error {
+			return nil
+		})
+		req.NoError(err)
+	}
+
+	// check walk with error
+	req.Error(value.Walk(func(*DalConnection) error { return fmt.Errorf("walk error") }))
+}
+
+func TestDalConnectionSetFilter(t *testing.T) {
+	var (
+		value = make(DalConnectionSet, 3)
+		req   = require.New(t)
+	)
+
+	// filter nothing
+	{
+		set, err := value.Filter(func(*DalConnection) (bool, error) {
+			return true, nil
+		})
+		req.NoError(err)
+		req.Equal(len(set), len(value))
+	}
+
+	// filter one item
+	{
+		found := false
+		set, err := value.Filter(func(*DalConnection) (bool, error) {
+			if !found {
+				found = true
+				return found, nil
+			}
+			return false, nil
+		})
+		req.NoError(err)
+		req.Len(set, 1)
+	}
+
+	// filter error
+	{
+		_, err := value.Filter(func(*DalConnection) (bool, error) {
+			return false, fmt.Errorf("filter error")
+		})
+		req.Error(err)
+	}
+}
+
+func TestDalConnectionSetIDs(t *testing.T) {
+	var (
+		value = make(DalConnectionSet, 3)
+		req   = require.New(t)
+	)
+
+	// construct objects
+	value[0] = new(DalConnection)
+	value[1] = new(DalConnection)
+	value[2] = new(DalConnection)
+	// set ids
+	value[0].ID = 1
+	value[1].ID = 2
+	value[2].ID = 3
+
+	// Find existing
+	{
+		val := value.FindByID(2)
+		req.Equal(uint64(2), val.ID)
+	}
+
+	// Find non-existing
+	{
+		val := value.FindByID(4)
+		req.Nil(val)
+	}
+
+	// List IDs from set
+	{
+		val := value.IDs()
+		req.Equal(len(val), len(value))
+	}
+}
+
+func TestDalSensitivityLevelSetWalk(t *testing.T) {
+	var (
+		value = make(DalSensitivityLevelSet, 3)
+		req   = require.New(t)
+	)
+
+	// check walk with no errors
+	{
+		err := value.Walk(func(*DalSensitivityLevel) error {
+			return nil
+		})
+		req.NoError(err)
+	}
+
+	// check walk with error
+	req.Error(value.Walk(func(*DalSensitivityLevel) error { return fmt.Errorf("walk error") }))
+}
+
+func TestDalSensitivityLevelSetFilter(t *testing.T) {
+	var (
+		value = make(DalSensitivityLevelSet, 3)
+		req   = require.New(t)
+	)
+
+	// filter nothing
+	{
+		set, err := value.Filter(func(*DalSensitivityLevel) (bool, error) {
+			return true, nil
+		})
+		req.NoError(err)
+		req.Equal(len(set), len(value))
+	}
+
+	// filter one item
+	{
+		found := false
+		set, err := value.Filter(func(*DalSensitivityLevel) (bool, error) {
+			if !found {
+				found = true
+				return found, nil
+			}
+			return false, nil
+		})
+		req.NoError(err)
+		req.Len(set, 1)
+	}
+
+	// filter error
+	{
+		_, err := value.Filter(func(*DalSensitivityLevel) (bool, error) {
+			return false, fmt.Errorf("filter error")
+		})
+		req.Error(err)
+	}
+}
+
+func TestDalSensitivityLevelSetIDs(t *testing.T) {
+	var (
+		value = make(DalSensitivityLevelSet, 3)
+		req   = require.New(t)
+	)
+
+	// construct objects
+	value[0] = new(DalSensitivityLevel)
+	value[1] = new(DalSensitivityLevel)
+	value[2] = new(DalSensitivityLevel)
+	// set ids
+	value[0].ID = 1
+	value[1].ID = 2
+	value[2].ID = 3
+
+	// Find existing
+	{
+		val := value.FindByID(2)
+		req.Equal(uint64(2), val.ID)
+	}
+
+	// Find non-existing
+	{
+		val := value.FindByID(4)
+		req.Nil(val)
+	}
+
+	// List IDs from set
+	{
+		val := value.IDs()
+		req.Equal(len(val), len(value))
+	}
+}
+
+func TestDataPrivacyRequestSetWalk(t *testing.T) {
+	var (
+		value = make(DataPrivacyRequestSet, 3)
+		req   = require.New(t)
+	)
+
+	// check walk with no errors
+	{
+		err := value.Walk(func(*DataPrivacyRequest) error {
+			return nil
+		})
+		req.NoError(err)
+	}
+
+	// check walk with error
+	req.Error(value.Walk(func(*DataPrivacyRequest) error { return fmt.Errorf("walk error") }))
+}
+
+func TestDataPrivacyRequestSetFilter(t *testing.T) {
+	var (
+		value = make(DataPrivacyRequestSet, 3)
+		req   = require.New(t)
+	)
+
+	// filter nothing
+	{
+		set, err := value.Filter(func(*DataPrivacyRequest) (bool, error) {
+			return true, nil
+		})
+		req.NoError(err)
+		req.Equal(len(set), len(value))
+	}
+
+	// filter one item
+	{
+		found := false
+		set, err := value.Filter(func(*DataPrivacyRequest) (bool, error) {
+			if !found {
+				found = true
+				return found, nil
+			}
+			return false, nil
+		})
+		req.NoError(err)
+		req.Len(set, 1)
+	}
+
+	// filter error
+	{
+		_, err := value.Filter(func(*DataPrivacyRequest) (bool, error) {
+			return false, fmt.Errorf("filter error")
+		})
+		req.Error(err)
+	}
+}
+
+func TestDataPrivacyRequestSetIDs(t *testing.T) {
+	var (
+		value = make(DataPrivacyRequestSet, 3)
+		req   = require.New(t)
+	)
+
+	// construct objects
+	value[0] = new(DataPrivacyRequest)
+	value[1] = new(DataPrivacyRequest)
+	value[2] = new(DataPrivacyRequest)
+	// set ids
+	value[0].ID = 1
+	value[1].ID = 2
+	value[2].ID = 3
+
+	// Find existing
+	{
+		val := value.FindByID(2)
+		req.Equal(uint64(2), val.ID)
+	}
+
+	// Find non-existing
+	{
+		val := value.FindByID(4)
+		req.Nil(val)
+	}
+
+	// List IDs from set
+	{
+		val := value.IDs()
+		req.Equal(len(val), len(value))
+	}
+}
+
+func TestDataPrivacyRequestCommentSetWalk(t *testing.T) {
+	var (
+		value = make(DataPrivacyRequestCommentSet, 3)
+		req   = require.New(t)
+	)
+
+	// check walk with no errors
+	{
+		err := value.Walk(func(*DataPrivacyRequestComment) error {
+			return nil
+		})
+		req.NoError(err)
+	}
+
+	// check walk with error
+	req.Error(value.Walk(func(*DataPrivacyRequestComment) error { return fmt.Errorf("walk error") }))
+}
+
+func TestDataPrivacyRequestCommentSetFilter(t *testing.T) {
+	var (
+		value = make(DataPrivacyRequestCommentSet, 3)
+		req   = require.New(t)
+	)
+
+	// filter nothing
+	{
+		set, err := value.Filter(func(*DataPrivacyRequestComment) (bool, error) {
+			return true, nil
+		})
+		req.NoError(err)
+		req.Equal(len(set), len(value))
+	}
+
+	// filter one item
+	{
+		found := false
+		set, err := value.Filter(func(*DataPrivacyRequestComment) (bool, error) {
+			if !found {
+				found = true
+				return found, nil
+			}
+			return false, nil
+		})
+		req.NoError(err)
+		req.Len(set, 1)
+	}
+
+	// filter error
+	{
+		_, err := value.Filter(func(*DataPrivacyRequestComment) (bool, error) {
+			return false, fmt.Errorf("filter error")
+		})
+		req.Error(err)
+	}
+}
+
+func TestDataPrivacyRequestCommentSetIDs(t *testing.T) {
+	var (
+		value = make(DataPrivacyRequestCommentSet, 3)
+		req   = require.New(t)
+	)
+
+	// construct objects
+	value[0] = new(DataPrivacyRequestComment)
+	value[1] = new(DataPrivacyRequestComment)
+	value[2] = new(DataPrivacyRequestComment)
+	// set ids
+	value[0].ID = 1
+	value[1].ID = 2
+	value[2].ID = 3
+
+	// Find existing
+	{
+		val := value.FindByID(2)
+		req.Equal(uint64(2), val.ID)
+	}
+
+	// Find non-existing
+	{
+		val := value.FindByID(4)
+		req.Nil(val)
+	}
+
+	// List IDs from set
+	{
+		val := value.IDs()
+		req.Equal(len(val), len(value))
+	}
+}
+
+func TestPrivacyDalConnectionSetWalk(t *testing.T) {
+	var (
+		value = make(PrivacyDalConnectionSet, 3)
+		req   = require.New(t)
+	)
+
+	// check walk with no errors
+	{
+		err := value.Walk(func(*PrivacyDalConnection) error {
+			return nil
+		})
+		req.NoError(err)
+	}
+
+	// check walk with error
+	req.Error(value.Walk(func(*PrivacyDalConnection) error { return fmt.Errorf("walk error") }))
+}
+
+func TestPrivacyDalConnectionSetFilter(t *testing.T) {
+	var (
+		value = make(PrivacyDalConnectionSet, 3)
+		req   = require.New(t)
+	)
+
+	// filter nothing
+	{
+		set, err := value.Filter(func(*PrivacyDalConnection) (bool, error) {
+			return true, nil
+		})
+		req.NoError(err)
+		req.Equal(len(set), len(value))
+	}
+
+	// filter one item
+	{
+		found := false
+		set, err := value.Filter(func(*PrivacyDalConnection) (bool, error) {
+			if !found {
+				found = true
+				return found, nil
+			}
+			return false, nil
+		})
+		req.NoError(err)
+		req.Len(set, 1)
+	}
+
+	// filter error
+	{
+		_, err := value.Filter(func(*PrivacyDalConnection) (bool, error) {
+			return false, fmt.Errorf("filter error")
+		})
+		req.Error(err)
+	}
+}
+
+func TestPrivacyDalConnectionSetIDs(t *testing.T) {
+	var (
+		value = make(PrivacyDalConnectionSet, 3)
+		req   = require.New(t)
+	)
+
+	// construct objects
+	value[0] = new(PrivacyDalConnection)
+	value[1] = new(PrivacyDalConnection)
+	value[2] = new(PrivacyDalConnection)
 	// set ids
 	value[0].ID = 1
 	value[1].ID = 2

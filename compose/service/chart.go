@@ -2,14 +2,15 @@ package service
 
 import (
 	"context"
-	"reflect"
-
 	"github.com/cortezaproject/corteza-server/compose/types"
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
 	"github.com/cortezaproject/corteza-server/pkg/errors"
 	"github.com/cortezaproject/corteza-server/pkg/handle"
 	"github.com/cortezaproject/corteza-server/pkg/label"
+	"github.com/cortezaproject/corteza-server/pkg/locale"
 	"github.com/cortezaproject/corteza-server/store"
+	"reflect"
+	"strconv"
 )
 
 type (
@@ -17,9 +18,11 @@ type (
 		actionlog actionlog.Recorder
 		ac        chartAccessController
 		store     store.Storer
+		locale    ResourceTranslationsManagerService
 	}
 
 	chartAccessController interface {
+		CanManageResourceTranslations(ctx context.Context) bool
 		CanSearchChartsOnNamespace(context.Context, *types.Namespace) bool
 		CanReadNamespace(context.Context, *types.Namespace) bool
 		CanCreateChartOnNamespace(context.Context, *types.Namespace) bool
@@ -44,12 +47,14 @@ func Chart() *chart {
 		ac:        DefaultAccessControl,
 		actionlog: DefaultActionlog,
 		store:     DefaultStore,
+		locale:    DefaultResourceTranslation,
 	}
 }
 
 func (svc chart) Find(ctx context.Context, filter types.ChartFilter) (set types.ChartSet, f types.ChartFilter, err error) {
 	var (
 		aProps = &chartActionProps{filter: &filter}
+		ns     *types.Namespace
 	)
 
 	// For each fetched item, store backend will check if it is valid or not
@@ -62,7 +67,7 @@ func (svc chart) Find(ctx context.Context, filter types.ChartFilter) (set types.
 	}
 
 	err = func() error {
-		ns, err := loadNamespace(ctx, svc.store, filter.NamespaceID)
+		ns, err = loadNamespace(ctx, svc.store, filter.NamespaceID)
 		if err != nil {
 			return err
 		}
@@ -99,6 +104,11 @@ func (svc chart) Find(ctx context.Context, filter types.ChartFilter) (set types.
 			return err
 		}
 
+		set.Walk(func(c *types.Chart) error {
+			svc.proc(ctx, c)
+			return nil
+		})
+
 		return nil
 	}()
 
@@ -107,12 +117,7 @@ func (svc chart) Find(ctx context.Context, filter types.ChartFilter) (set types.
 
 func (svc chart) FindByID(ctx context.Context, namespaceID, chartID uint64) (c *types.Chart, err error) {
 	return svc.lookup(ctx, namespaceID, func(aProps *chartActionProps) (*types.Chart, error) {
-		if chartID == 0 {
-			return nil, ChartErrInvalidID()
-		}
-
-		aProps.chart.ID = chartID
-		return store.LookupComposeChartByID(ctx, svc.store, chartID)
+		return loadChart(ctx, svc.store, namespaceID, chartID)
 	})
 }
 
@@ -127,11 +132,20 @@ func (svc chart) FindByHandle(ctx context.Context, namespaceID uint64, h string)
 	})
 }
 
+func (svc chart) proc(ctx context.Context, c *types.Chart) {
+	if svc.locale == nil || svc.locale.Locale() == nil {
+		return
+	}
+
+	tag := locale.GetAcceptLanguageFromContext(ctx)
+	c.DecodeTranslations(svc.locale.Locale().ResourceTranslations(tag, c.ResourceTranslation()))
+}
+
 func (svc chart) Create(ctx context.Context, new *types.Chart) (*types.Chart, error) {
 	var (
 		err    error
 		ns     *types.Namespace
-		aProps = &chartActionProps{changed: new}
+		aProps = &chartActionProps{chart: new}
 	)
 
 	err = store.Tx(ctx, svc.store, func(ctx context.Context, s store.Storer) (err error) {
@@ -158,8 +172,17 @@ func (svc chart) Create(ctx context.Context, new *types.Chart) (*types.Chart, er
 		new.UpdatedAt = nil
 		new.DeletedAt = nil
 
+		// generate config element IDs
+		new.Config.GenerateIDs(nextID)
+
+		aProps.setChanged(new)
+
 		if err = store.CreateComposeChart(ctx, s, new); err != nil {
 			return err
+		}
+
+		if err = updateTranslations(ctx, svc.ac, svc.locale, new.EncodeTranslations()...); err != nil {
+			return
 		}
 
 		if err = label.Create(ctx, s, new); err != nil {
@@ -207,6 +230,8 @@ func (svc chart) lookup(ctx context.Context, namespaceID uint64, lookup func(*ch
 			return ChartErrNotAllowedToRead()
 		}
 
+		svc.proc(ctx, c)
+
 		if err = label.Load(ctx, svc.store, c); err != nil {
 			return err
 		}
@@ -227,7 +252,7 @@ func (svc chart) updater(ctx context.Context, namespaceID, chartID uint64, actio
 	)
 
 	err = store.Tx(ctx, svc.store, func(ctx context.Context, s store.Storer) (err error) {
-		ns, c, err = loadChart(ctx, s, namespaceID, chartID)
+		ns, c, err = loadChartCombo(ctx, s, namespaceID, chartID)
 		if err != nil {
 			return
 		}
@@ -243,10 +268,17 @@ func (svc chart) updater(ctx context.Context, namespaceID, chartID uint64, actio
 			return err
 		}
 
+		// generate config element IDs if missing
+		c.Config.GenerateIDs(nextID)
+
 		if changes&chartChanged > 0 {
 			if err = store.UpdateComposeChart(ctx, s, c); err != nil {
 				return err
 			}
+		}
+
+		if err = updateTranslations(ctx, svc.ac, svc.locale, c.EncodeTranslations()...); err != nil {
+			return
 		}
 
 		if changes&chartLabelsChanged > 0 {
@@ -304,6 +336,25 @@ func (svc chart) handleUpdate(ctx context.Context, upd *types.Chart) chartUpdate
 			res.Config = upd.Config
 		}
 
+		// Assure ReportIDs
+		for i, r := range res.Config.Reports {
+			if r.ReportID == 0 {
+				r.ReportID = nextID()
+				res.Config.Reports[i] = r
+
+				changes |= chartChanged
+			}
+
+			// Ensure chart report metric IDs
+			for j, m := range r.Metrics {
+				if val, ok := m["metricID"]; !ok || val == 0 {
+					m["metricID"] = strconv.FormatUint(nextID(), 10)
+					res.Config.Reports[i].Metrics[j] = m
+
+					changes |= chartChanged
+				}
+			}
+		}
 		if changes&chartChanged > 0 {
 			res.UpdatedAt = now()
 		}
@@ -347,24 +398,31 @@ func (svc chart) handleUndelete(ctx context.Context, ns *types.Namespace, c *typ
 	return chartChanged, nil
 }
 
-func loadChart(ctx context.Context, s store.Storer, namespaceID, chartID uint64) (ns *types.Namespace, c *types.Chart, err error) {
-	if chartID == 0 {
-		return nil, nil, ChartErrInvalidID()
-	}
-
-	if ns, err = loadNamespace(ctx, s, namespaceID); err == nil {
-		if c, err = store.LookupComposeChartByID(ctx, s, chartID); errors.IsNotFound(err) {
-			err = ChartErrNotFound()
-		}
-	}
-
+func loadChartCombo(ctx context.Context, s interface {
+	store.ComposeCharts
+	store.ComposeNamespaces
+}, namespaceID, chartID uint64) (ns *types.Namespace, c *types.Chart, err error) {
+	ns, err = loadNamespace(ctx, s, namespaceID)
 	if err != nil {
-		return nil, nil, err
+		return
 	}
 
-	if namespaceID != c.NamespaceID {
+	c, err = loadChart(ctx, s, namespaceID, chartID)
+	return
+}
+
+func loadChart(ctx context.Context, s store.ComposeCharts, namespaceID, chartID uint64) (res *types.Chart, err error) {
+	if chartID == 0 || namespaceID == 0 {
+		return nil, ChartErrInvalidID()
+	}
+
+	if res, err = store.LookupComposeChartByID(ctx, s, chartID); errors.IsNotFound(err) {
+		err = ChartErrNotFound()
+	}
+
+	if err == nil && namespaceID != res.NamespaceID {
 		// Make sure chart belongs to the right namespace
-		return nil, nil, ChartErrNotFound()
+		return nil, ChartErrNotFound()
 	}
 
 	return

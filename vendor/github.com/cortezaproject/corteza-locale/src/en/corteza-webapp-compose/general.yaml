@@ -1,20 +1,28 @@
 label:
+  app-name:
+    public: Low Code
+    private: Low Code - Admin
   actions: Actions
   active: Active
   add: Add
+  add-with-plus: + Add
   addNew: Add new
   addValue: Add new value
+  ascending: Ascending
   attachmentFileInfo: '(File size: {{0}}, uploaded {{1}})'
   attributes: Attributes
   back: Back
   backWithoutSave: Back (without saving changes)
+  block: Block
   browse: Browse
   buttons: Buttons
   cancel: Cancel
+  clear: Clear
   clone: Clone
   close: Close
   create: Create
   delete: Delete
+  descending: Descending
   description: Description
   download: Download
   dropFiles: Click or drop files here to upload
@@ -31,18 +39,19 @@ label:
   makeDefault: Make default
   module: Module
   moduleName: Module name
-
   multi: Multi value
   name: Name
   next: Next
-  "no": "No"
+  no: No
   noHandle: No handle
   none: None
+  now: Now
   ok: Ok
   openBookmarks: Open bookmarks
   pageBuilder: Page builder
   permissions: Permissions
   private: Private
+  privacy: Privacy
   processing: Processing...
   record: Record
   recordPage: Record page
@@ -50,11 +59,14 @@ label:
   remove: Remove
   removeDefault: Remove default
   required: Required
+  reset: Reset
+  sensitive: Sensitive
   save: Save
   saveAndClose: Save and close
   status: Status
   timeHour: '{{t}}h'
   timeMinute: '{{t}}min'
+  today: Today
   title: Title
   type: Type
   updatedAt: Updated at
@@ -63,7 +75,7 @@ label:
   urlPlaceholder: https://example.tld
   validation: Validation
   view: View
-  "yes": "Yes"
+  yes: Yes
 navigation:
   chart: Charts
   namespace: Namespaces
@@ -89,6 +101,7 @@ reminder:
   snooze: Snooze
 tooltip:
   dragAndDrop: Drag and drop to change order
+  field: Configure field
 fieldKinds:
   Bool:
     label: Checkbox (Y/N)
@@ -110,16 +123,13 @@ fieldKinds:
     label: URL input
   User:
     label: User selector
+  Geometry:
+    label: Geometry
 field:
   selectAll: Select all
+  tooltip:
+    permissions: Field permissions
   unselectAll: Unselect all
   kind:
     user:
       suggestionPlaceholder: Start typing to search for users by email or name
-notification:
-  composeAccessNotAllowed: Not allowed to access Compose
-  import:
-    failed: Import failed
-    readingError: Error reading file
-    successful: Import successful
-    typeMissmatch: 'Import error: trying to import object of type "{{type1}}" into a list of objects of type "{{type2}}"'

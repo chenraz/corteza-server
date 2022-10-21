@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"context"
-	"time"
 
 	"github.com/cortezaproject/corteza-server/app"
 	"github.com/cortezaproject/corteza-server/pkg/cli"
@@ -12,7 +11,7 @@ import (
 	"github.com/cortezaproject/corteza-server/system/types"
 
 	// Explicitly register SQLite (not done in the app as for testing only)
-	_ "github.com/cortezaproject/corteza-server/store/sqlite3"
+	_ "github.com/cortezaproject/corteza-server/store/adapters/rdbms/drivers/sqlite"
 )
 
 func NewIntegrationTestApp(ctx context.Context, initTestServices func(*app.CortezaApp) error) *app.CortezaApp {
@@ -30,7 +29,6 @@ func NewIntegrationTestApp(ctx context.Context, initTestServices func(*app.Corte
 
 	// Create a new JWT secret (to prevent any security weirdness)
 	a.Opt.Auth.Secret = string(rand.Bytes(32))
-	a.Opt.Auth.Expiry = time.Minute
 	a.Opt.Auth.DefaultClient = ""
 
 	a.Log = logger.Default()

@@ -11,11 +11,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cortezaproject/corteza-server/pkg/revisions"
+
 	"github.com/cortezaproject/corteza-server/compose/rest/request"
 	"github.com/cortezaproject/corteza-server/compose/service"
 	"github.com/cortezaproject/corteza-server/compose/types"
 	"github.com/cortezaproject/corteza-server/pkg/api"
 	"github.com/cortezaproject/corteza-server/pkg/corredor"
+	"github.com/cortezaproject/corteza-server/pkg/dal"
 	"github.com/cortezaproject/corteza-server/pkg/envoy"
 	"github.com/cortezaproject/corteza-server/pkg/envoy/csv"
 	ejson "github.com/cortezaproject/corteza-server/pkg/envoy/json"
@@ -30,12 +33,16 @@ type (
 	recordPayload struct {
 		*types.Record
 
-		Records types.RecordSet `json:"records,omitempty"`
+		Records           types.RecordSet            `json:"records,omitempty"`
+		RecordValueErrors *types.RecordValueErrorSet `json:"valueErrors"`
 
-		CanUpdateRecord bool `json:"canUpdateRecord"`
-		CanReadRecord   bool `json:"canReadRecord"`
-		CanDeleteRecord bool `json:"canDeleteRecord"`
-		CanGrant        bool `json:"canGrant"`
+		CanManageOwnerOnRecord bool `json:"canManageOwnerOnRecord"`
+		CanUpdateRecord        bool `json:"canUpdateRecord"`
+		CanReadRecord          bool `json:"canReadRecord"`
+		CanDeleteRecord        bool `json:"canDeleteRecord"`
+		CanSearchRevisions     bool `json:"canSearchRevisions"`
+
+		CanGrant bool `json:"canGrant"`
 	}
 
 	recordSetPayload struct {
@@ -58,6 +65,8 @@ type (
 		CanUpdateRecord(context.Context, *types.Record) bool
 		CanReadRecord(context.Context, *types.Record) bool
 		CanDeleteRecord(context.Context, *types.Record) bool
+		CanManageOwnerOnRecord(context.Context, *types.Record) bool
+		CanSearchRevisionsOnRecord(context.Context, *types.Record) bool
 	}
 )
 
@@ -89,7 +98,7 @@ func (ctrl *Record) List(ctx context.Context, r *request.RecordList) (interface{
 		f = types.RecordFilter{
 			NamespaceID: r.NamespaceID,
 			ModuleID:    r.ModuleID,
-			Labels:      r.Labels,
+			Meta:        r.Meta,
 			Deleted:     filter.State(r.Deleted),
 		}
 	)
@@ -139,14 +148,14 @@ func (ctrl *Record) Read(ctx context.Context, r *request.RecordRead) (interface{
 		return nil, err
 	}
 
-	record, err := ctrl.record.FindByID(ctx, r.NamespaceID, r.ModuleID, r.RecordID)
+	record, dd, err := ctrl.record.FindByID(ctx, r.NamespaceID, r.ModuleID, r.RecordID)
 
 	// Temp workaround until we do proper by-module filtering for record findByID
 	if record != nil && record.ModuleID != r.ModuleID {
 		return nil, store.ErrNotFound
 	}
 
-	return ctrl.makePayload(ctx, m, record, err)
+	return ctrl.makePayload(ctx, m, record, dd, err)
 }
 
 func (ctrl *Record) Create(ctx context.Context, r *request.RecordCreate) (interface{}, error) {
@@ -167,8 +176,10 @@ func (ctrl *Record) Create(ctx context.Context, r *request.RecordCreate) (interf
 			NamespaceID: r.NamespaceID,
 			ModuleID:    r.ModuleID,
 			Values:      r.Values,
-			Labels:      r.Labels,
+			Meta:        r.Meta,
+			OwnedBy:     r.OwnedBy,
 		}
+
 		oo = append(oo, &types.RecordBulkOperation{
 			Record:    rr,
 			Operation: types.OperationTypeCreate,
@@ -190,12 +201,12 @@ func (ctrl *Record) Create(ctx context.Context, r *request.RecordCreate) (interf
 	}
 	oo = append(oo, oob...)
 
-	rr, err := ctrl.record.Bulk(ctx, oo...)
+	rr, dd, err := ctrl.record.Bulk(ctx, oo...)
 	if rve := types.IsRecordValueErrorSet(err); rve != nil {
 		return ctrl.handleValidationError(rve), nil
 	}
 
-	return ctrl.makeBulkPayload(ctx, m, err, rr...)
+	return ctrl.makeBulkPayload(ctx, m, dd, err, rr...)
 }
 
 func (ctrl *Record) Update(ctx context.Context, r *request.RecordUpdate) (interface{}, error) {
@@ -217,8 +228,10 @@ func (ctrl *Record) Update(ctx context.Context, r *request.RecordUpdate) (interf
 			NamespaceID: r.NamespaceID,
 			ModuleID:    r.ModuleID,
 			Values:      r.Values,
-			Labels:      r.Labels,
+			Meta:        r.Meta,
+			OwnedBy:     r.OwnedBy,
 		}
+
 		oo = append(oo, &types.RecordBulkOperation{
 			Record:    rr,
 			Operation: types.OperationTypeUpdate,
@@ -240,13 +253,12 @@ func (ctrl *Record) Update(ctx context.Context, r *request.RecordUpdate) (interf
 	}
 	oo = append(oo, oob...)
 
-	rr, err := ctrl.record.Bulk(ctx, oo...)
-
+	rr, dd, err := ctrl.record.Bulk(ctx, oo...)
 	if rve := types.IsRecordValueErrorSet(err); rve != nil {
 		return ctrl.handleValidationError(rve), nil
 	}
 
-	return ctrl.makeBulkPayload(ctx, m, err, rr...)
+	return ctrl.makeBulkPayload(ctx, m, dd, err, rr...)
 }
 
 func (ctrl *Record) Delete(ctx context.Context, r *request.RecordDelete) (interface{}, error) {
@@ -391,7 +403,7 @@ func (ctrl *Record) ImportRun(ctx context.Context, r *request.RecordImportRun) (
 			}
 			return err
 		}
-		se := estore.NewStoreEncoder(service.DefaultStore, cfg)
+		se := estore.NewStoreEncoder(service.DefaultStore, dal.Service(), cfg)
 		bld := envoy.NewBuilder(se)
 		g, err := bld.Build(ctx, ses.Resources...)
 		if err != nil {
@@ -460,7 +472,7 @@ func (ctrl *Record) Export(ctx context.Context, r *request.RecordExport) (interf
 		}
 
 		sd := estore.Decoder()
-		nn, err := sd.Decode(ctx, service.DefaultStore, f)
+		nn, err := sd.Decode(ctx, service.DefaultStore, dal.Service(), f)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("failed to fetch records: %s", err.Error()), http.StatusBadRequest)
 		}
@@ -538,7 +550,7 @@ func (ctrl *Record) TriggerScript(ctx context.Context, r *request.RecordTriggerS
 	module, record, err := ctrl.record.TriggerScript(ctx, r.NamespaceID, r.ModuleID, r.RecordID, r.Values, r.Script)
 
 	// Script can return modified record and we'll pass it on to the caller
-	return ctrl.makePayload(ctx, module, record, err)
+	return ctrl.makePayload(ctx, module, record, nil, err)
 }
 
 func (ctrl *Record) TriggerScriptOnList(ctx context.Context, r *request.RecordTriggerScriptOnList) (rsp interface{}, err error) {
@@ -562,34 +574,70 @@ func (ctrl *Record) TriggerScriptOnList(ctx context.Context, r *request.RecordTr
 	return api.OK(), err
 }
 
-func (ctrl Record) makeBulkPayload(ctx context.Context, m *types.Module, err error, rr ...*types.Record) (*recordPayload, error) {
+func (ctrl *Record) Revisions(ctx context.Context, r *request.RecordRevisions) (interface{}, error) {
+	var (
+		makeRev = func() dal.ValueSetter { return &revisions.Revision{} }
+	)
+
+	iter, err := ctrl.record.SearchRevisions(ctx, r.NamespaceID, r.ModuleID, r.RecordID)
+	if err != nil {
+		return nil, err
+	}
+
+	return func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if _, err = w.Write([]byte(`{"response":{"set":[`)); err != nil {
+			return
+		}
+
+		err = dal.IteratorEncodeJSON(ctx, w, iter, makeRev)
+		if err != nil {
+			return
+		}
+
+		if _, err = w.Write([]byte(`]}}`)); err != nil {
+			return
+		}
+
+		return
+	}, err
+}
+
+func (ctrl Record) makeBulkPayload(ctx context.Context, m *types.Module, dd *types.RecordValueErrorSet, err error, rr ...*types.Record) (*recordPayload, error) {
 	if err != nil || rr == nil {
 		return nil, err
 	}
 
 	return &recordPayload{
-		Record:  rr[0],
-		Records: rr[1:],
+		Record:            rr[0],
+		Records:           rr[1:],
+		RecordValueErrors: dd,
 
-		CanUpdateRecord: ctrl.ac.CanUpdateRecord(ctx, rr[0]),
-		CanReadRecord:   ctrl.ac.CanReadRecord(ctx, rr[0]),
-		CanDeleteRecord: ctrl.ac.CanDeleteRecord(ctx, rr[0]),
+		CanManageOwnerOnRecord: ctrl.ac.CanManageOwnerOnRecord(ctx, rr[0]),
+		CanUpdateRecord:        ctrl.ac.CanUpdateRecord(ctx, rr[0]),
+		CanReadRecord:          ctrl.ac.CanReadRecord(ctx, rr[0]),
+		CanDeleteRecord:        ctrl.ac.CanDeleteRecord(ctx, rr[0]),
+		CanSearchRevisions:     ctrl.ac.CanSearchRevisionsOnRecord(ctx, rr[0]),
 	}, nil
 }
 
-func (ctrl Record) makePayload(ctx context.Context, m *types.Module, r *types.Record, err error) (*recordPayload, error) {
+func (ctrl Record) makePayload(ctx context.Context, m *types.Module, r *types.Record, dd *types.RecordValueErrorSet, err error) (*recordPayload, error) {
 	if err != nil || r == nil {
 		return nil, err
 	}
 
 	return &recordPayload{
-		Record: r,
+		Record:            r,
+		RecordValueErrors: dd,
 
 		CanGrant: ctrl.ac.CanGrant(ctx),
 
-		CanUpdateRecord: ctrl.ac.CanUpdateRecord(ctx, r),
-		CanReadRecord:   ctrl.ac.CanReadRecord(ctx, r),
-		CanDeleteRecord: ctrl.ac.CanDeleteRecord(ctx, r),
+		CanManageOwnerOnRecord: ctrl.ac.CanManageOwnerOnRecord(ctx, r),
+		CanUpdateRecord:        ctrl.ac.CanUpdateRecord(ctx, r),
+		CanReadRecord:          ctrl.ac.CanReadRecord(ctx, r),
+		CanDeleteRecord:        ctrl.ac.CanDeleteRecord(ctx, r),
+		CanSearchRevisions:     ctrl.ac.CanSearchRevisionsOnRecord(ctx, r),
 	}, nil
 }
 
@@ -601,7 +649,7 @@ func (ctrl Record) makeFilterPayload(ctx context.Context, m *types.Module, rr ty
 	modp := &recordSetPayload{Filter: f, Set: make([]*recordPayload, len(rr))}
 
 	for i := range rr {
-		modp.Set[i], _ = ctrl.makePayload(ctx, m, rr[i], nil)
+		modp.Set[i], _ = ctrl.makePayload(ctx, m, rr[i], nil, nil)
 	}
 
 	return modp, nil

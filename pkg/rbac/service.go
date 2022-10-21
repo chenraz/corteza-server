@@ -29,7 +29,9 @@ type (
 	}
 
 	// RuleFilter is a dummy struct to satisfy store codegen
-	RuleFilter struct{}
+	RuleFilter struct {
+		Limit uint
+	}
 
 	RoleSettings struct {
 		Bypass        []uint64
@@ -45,6 +47,8 @@ var (
 
 const (
 	watchInterval = time.Hour
+
+	RuleResourceType = "corteza::generic:rbac-rule"
 )
 
 // Global returns global RBAC service
@@ -90,16 +94,19 @@ func (svc *service) Can(ses Session, op string, res Resource) bool {
 // Check verifies if role has access to perform an operation on a resource
 //
 // See RuleSet's Check() func for details
-func (svc *service) Check(ses Session, op string, res Resource) (v Access) {
-	svc.l.RLock()
-	defer svc.l.RUnlock()
-
+func (svc *service) Check(ses Session, op string, res Resource) (a Access) {
 	var (
 		fRoles = getContextRoles(ses, res, svc.roles)
-		access = check(svc.indexed, fRoles, op, res.RbacResource())
 	)
 
-	svc.logger.Debug(access.String()+" "+op+" for "+res.RbacResource(),
+	if hasWildcards(res.RbacResource()) {
+		// prevent use of wildcard resources for checking permissions
+		return Inherit
+	}
+
+	a = check(svc.indexed, fRoles, op, res.RbacResource(), nil)
+
+	svc.logger.Debug(a.String()+" "+op+" for "+res.RbacResource(),
 		append(
 			fRoles.LogFields(),
 			zap.Uint64("identity", ses.Identity()),
@@ -108,7 +115,58 @@ func (svc *service) Check(ses Session, op string, res Resource) (v Access) {
 		)...,
 	)
 
-	return access
+	return
+}
+
+// Trace checks RBAC rules and returns all decision trace log
+func (svc *service) Trace(ses Session, op string, res Resource) *Trace {
+	var (
+		t = new(Trace)
+	)
+
+	if hasWildcards(res.RbacResource()) {
+		// a special case for when user has contextual roles
+		// AND trace is done on a resource with wildcards
+		ctxRolesDebug := partRoles{ContextRole: make(map[uint64]bool)}
+		for _, memberOf := range ses.Roles() {
+			for _, role := range svc.roles {
+				if role.kind != ContextRole {
+					continue
+				}
+
+				if role.id != memberOf {
+					continue
+				}
+
+				// member of contextual role
+				//
+				// this is a tricky situation:
+				// when doing regular check this is an unlikely scenario since
+				// check can not be done on a resource with wildcards
+				//
+				// all contextual roles we're members off will be collected
+				ctxRolesDebug[ContextRole][memberOf] = true
+
+			}
+		}
+
+		if len(ctxRolesDebug[ContextRole]) > 0 {
+			// session has at least one contextual role
+			// and since we're checking this on a wildcard resource
+			// there is no need to procede with RBAC check
+			baseTraceInfo(t, res.RbacResource(), op, ctxRolesDebug)
+			resolve(t, Inherit, unknownContext)
+			return t
+		}
+	}
+
+	var (
+		fRoles = getContextRoles(ses, res, svc.roles)
+	)
+
+	_ = check(svc.indexed, fRoles, op, res.RbacResource(), t)
+
+	return t
 }
 
 // Grant appends and/or overwrites internal rules slice
@@ -260,7 +318,7 @@ func (svc *service) SignificantRoles(res Resource, op string) (aRR, dRR []uint64
 	return svc.rules.sigRoles(res.RbacResource(), op)
 }
 
-func (svc service) String() (out string) {
+func (svc *service) String() (out string) {
 	tpl := "%-5v %-20s to %-20s %-30s\n"
 	out += strings.Repeat("-", 120) + "\n"
 

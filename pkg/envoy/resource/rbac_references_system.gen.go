@@ -10,19 +10,6 @@ import (
 	"github.com/cortezaproject/corteza-server/system/types"
 )
 
-// SystemApigwRouteRbacReferences generates RBAC references
-//
-// Resources with "envoy: false" are skipped
-//
-// This function is auto-generated
-func SystemApigwRouteRbacReferences(apigwRoute string) (res *Ref, pp []*Ref, err error) {
-	if apigwRoute != "*" {
-		res = &Ref{ResourceType: types.ApigwRouteResourceType, Identifiers: MakeIdentifiers(apigwRoute)}
-	}
-
-	return
-}
-
 // SystemApplicationRbacReferences generates RBAC references
 //
 // Resources with "envoy: false" are skipped
@@ -36,6 +23,19 @@ func SystemApplicationRbacReferences(application string) (res *Ref, pp []*Ref, e
 	return
 }
 
+// SystemApigwRouteRbacReferences generates RBAC references
+//
+// Resources with "envoy: false" are skipped
+//
+// This function is auto-generated
+func SystemApigwRouteRbacReferences(apigwRoute string) (res *Ref, pp []*Ref, err error) {
+	if apigwRoute != "*" {
+		res = &Ref{ResourceType: types.ApigwRouteResourceType, Identifiers: MakeIdentifiers(apigwRoute)}
+	}
+
+	return
+}
+
 // SystemAuthClientRbacReferences generates RBAC references
 //
 // Resources with "envoy: false" are skipped
@@ -44,6 +44,19 @@ func SystemApplicationRbacReferences(application string) (res *Ref, pp []*Ref, e
 func SystemAuthClientRbacReferences(authClient string) (res *Ref, pp []*Ref, err error) {
 	if authClient != "*" {
 		res = &Ref{ResourceType: types.AuthClientResourceType, Identifiers: MakeIdentifiers(authClient)}
+	}
+
+	return
+}
+
+// SystemDataPrivacyRequestRbacReferences generates RBAC references
+//
+// Resources with "envoy: false" are skipped
+//
+// This function is auto-generated
+func SystemDataPrivacyRequestRbacReferences(dataPrivacyRequest string) (res *Ref, pp []*Ref, err error) {
+	if dataPrivacyRequest != "*" {
+		res = &Ref{ResourceType: types.DataPrivacyRequestResourceType, Identifiers: MakeIdentifiers(dataPrivacyRequest)}
 	}
 
 	return
@@ -109,6 +122,19 @@ func SystemTemplateRbacReferences(template string) (res *Ref, pp []*Ref, err err
 func SystemUserRbacReferences(user string) (res *Ref, pp []*Ref, err error) {
 	if user != "*" {
 		res = &Ref{ResourceType: types.UserResourceType, Identifiers: MakeIdentifiers(user)}
+	}
+
+	return
+}
+
+// SystemDalConnectionRbacReferences generates RBAC references
+//
+// Resources with "envoy: false" are skipped
+//
+// This function is auto-generated
+func SystemDalConnectionRbacReferences(dalConnection string) (res *Ref, pp []*Ref, err error) {
+	if dalConnection != "*" {
+		res = &Ref{ResourceType: types.DalConnectionResourceType, Identifiers: MakeIdentifiers(dalConnection)}
 	}
 
 	return

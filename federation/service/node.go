@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/cortezaproject/corteza-server/pkg/errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -58,7 +58,7 @@ type (
 	}
 )
 
-func Node(s store.Storer, u service.UserService, al actionlog.Recorder, th tokenIssuer, options options.FederationOpt, ac nodeAccessController) *node {
+func Node(s store.Storer, u service.UserService, al actionlog.Recorder, th tokenIssuer, options options.FederationOpt, sopt options.HttpServerOpt, ac nodeAccessController) *node {
 	return &node{
 		store:       s,
 		sysUser:     u,
@@ -68,8 +68,7 @@ func Node(s store.Storer, u service.UserService, al actionlog.Recorder, th token
 		name:        options.Label,
 		host:        options.Host,
 
-		// @todo use HTTP_API_BASE_URL (HttpServerOpt.ApiBaseUrl) to prefix URI path
-		baseURL: "/federation",
+		baseURL: fmt.Sprintf("%s/federation", strings.TrimRight(sopt.ApiBaseUrl, "/")),
 
 		handshaker: HttpHandshake(http.DefaultClient),
 	}
@@ -139,7 +138,7 @@ func (svc node) Create(ctx context.Context, new *types.Node) (*types.Node, error
 // Read is used mainly in UI, when retrieving details about the node
 func (svc node) Read(ctx context.Context, ID uint64) (*types.Node, error) {
 	var (
-		n, err = store.LookupFederationNodeByID(ctx, svc.store, ID)
+		n, err = loadNode(ctx, svc.store, ID)
 		aProps = &nodeActionProps{node: n}
 	)
 
@@ -418,10 +417,10 @@ func (svc node) updater(ctx context.Context, nodeID uint64, action func(...*node
 	)
 
 	err = func() error {
-		n, err = store.LookupFederationNodeByID(ctx, svc.store, nodeID)
+		n, err = loadNode(ctx, svc.store, nodeID)
 
-		if errors.Is(err, store.ErrNotFound) {
-			return NodeErrNotFound()
+		if err != nil {
+			return err
 		}
 
 		aProps.setNode(n)
@@ -453,7 +452,7 @@ func (svc node) updater(ctx context.Context, nodeID uint64, action func(...*node
 }
 
 func (svc node) FindBySharedNodeID(ctx context.Context, sharedNodeID uint64) (*types.Node, error) {
-	n, err := svc.store.LookupFederationNodeBySharedNodeID(ctx, sharedNodeID)
+	n, err := store.LookupFederationNodeBySharedNodeID(ctx, svc.store, sharedNodeID)
 
 	if n != nil && !svc.ac.CanManageNode(ctx, n) {
 		return nil, NodeErrNotAllowedToManage()
@@ -462,14 +461,16 @@ func (svc node) FindBySharedNodeID(ctx context.Context, sharedNodeID uint64) (*t
 	return n, err
 }
 
-func (svc node) FindByID(ctx context.Context, nodeID uint64) (*types.Node, error) {
-	n, err := svc.store.LookupFederationNodeByID(ctx, nodeID)
+func (svc node) FindByID(ctx context.Context, nodeID uint64) (n *types.Node, err error) {
+	if n, err = loadNode(ctx, svc.store, nodeID); err != nil {
+		return
+	}
 
-	if n != nil && !svc.ac.CanManageNode(ctx, n) {
+	if !svc.ac.CanManageNode(ctx, n) {
 		return nil, NodeErrNotAllowedToManage()
 	}
 
-	return n, err
+	return
 }
 
 // Looks for existing user or crates a new one
@@ -578,4 +579,16 @@ func (svc node) makePairingURI(n *types.Node) string {
 	}
 
 	return uri.String()
+}
+
+func loadNode(ctx context.Context, s store.FederationNodes, ID uint64) (res *types.Node, err error) {
+	if ID == 0 {
+		return nil, NodeErrInvalidID()
+	}
+
+	if res, err = store.LookupFederationNodeByID(ctx, s, ID); errors.IsNotFound(err) {
+		err = NodeErrNotFound()
+	}
+
+	return
 }

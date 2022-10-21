@@ -72,6 +72,7 @@ func (ctrl *Template) List(ctx context.Context, r *request.TemplateList) (interf
 	var (
 		err error
 		f   = types.TemplateFilter{
+			Query:   r.Query,
 			Handle:  r.Handle,
 			Type:    r.Type,
 			OwnerID: r.OwnerID,
@@ -83,6 +84,8 @@ func (ctrl *Template) List(ctx context.Context, r *request.TemplateList) (interf
 	if f.Paging, err = filter.NewPaging(r.Limit, r.PageCursor); err != nil {
 		return nil, err
 	}
+
+	f.IncTotal = r.IncTotal
 
 	if f.Sorting, err = filter.NewSorting(r.Sort); err != nil {
 		return nil, err

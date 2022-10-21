@@ -44,11 +44,33 @@ type (
 		Resource string
 	}
 
+	PermissionsTrace struct {
+		// Resource GET parameter
+		//
+		// Show only rules for a specific resource
+		Resource []string
+
+		// UserID GET parameter
+		//
+		//
+		UserID uint64 `json:",string"`
+
+		// RoleID GET parameter
+		//
+		//
+		RoleID []uint64
+	}
+
 	PermissionsRead struct {
 		// RoleID PATH parameter
 		//
 		// Role ID
 		RoleID uint64 `json:",string"`
+
+		// Resource GET parameter
+		//
+		// Show only rules for a specific resource
+		Resource []string
 	}
 
 	PermissionsDelete struct {
@@ -68,18 +90,6 @@ type (
 		//
 		// List of permission rules to set
 		Rules rbac.RuleSet
-	}
-
-	PermissionsClone struct {
-		// RoleID PATH parameter
-		//
-		// Role ID
-		RoleID uint64 `json:",string"`
-
-		// CloneToRoleID GET parameter
-		//
-		// Clone set of rules to roleID
-		CloneToRoleID []string
 	}
 )
 
@@ -134,6 +144,75 @@ func (r *PermissionsEffective) Fill(req *http.Request) (err error) {
 	return err
 }
 
+// NewPermissionsTrace request
+func NewPermissionsTrace() *PermissionsTrace {
+	return &PermissionsTrace{}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r PermissionsTrace) Auditable() map[string]interface{} {
+	return map[string]interface{}{
+		"resource": r.Resource,
+		"userID":   r.UserID,
+		"roleID":   r.RoleID,
+	}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r PermissionsTrace) GetResource() []string {
+	return r.Resource
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r PermissionsTrace) GetUserID() uint64 {
+	return r.UserID
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r PermissionsTrace) GetRoleID() []uint64 {
+	return r.RoleID
+}
+
+// Fill processes request and fills internal variables
+func (r *PermissionsTrace) Fill(req *http.Request) (err error) {
+
+	{
+		// GET params
+		tmp := req.URL.Query()
+
+		if val, ok := tmp["resource[]"]; ok {
+			r.Resource, err = val, nil
+			if err != nil {
+				return err
+			}
+		} else if val, ok := tmp["resource"]; ok {
+			r.Resource, err = val, nil
+			if err != nil {
+				return err
+			}
+		}
+		if val, ok := tmp["userID"]; ok && len(val) > 0 {
+			r.UserID, err = payload.ParseUint64(val[0]), nil
+			if err != nil {
+				return err
+			}
+		}
+		if val, ok := tmp["roleID[]"]; ok {
+			r.RoleID, err = payload.ParseUint64s(val), nil
+			if err != nil {
+				return err
+			}
+		} else if val, ok := tmp["roleID"]; ok {
+			r.RoleID, err = payload.ParseUint64s(val), nil
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return err
+}
+
 // NewPermissionsRead request
 func NewPermissionsRead() *PermissionsRead {
 	return &PermissionsRead{}
@@ -142,7 +221,8 @@ func NewPermissionsRead() *PermissionsRead {
 // Auditable returns all auditable/loggable parameters
 func (r PermissionsRead) Auditable() map[string]interface{} {
 	return map[string]interface{}{
-		"roleID": r.RoleID,
+		"roleID":   r.RoleID,
+		"resource": r.Resource,
 	}
 }
 
@@ -151,8 +231,30 @@ func (r PermissionsRead) GetRoleID() uint64 {
 	return r.RoleID
 }
 
+// Auditable returns all auditable/loggable parameters
+func (r PermissionsRead) GetResource() []string {
+	return r.Resource
+}
+
 // Fill processes request and fills internal variables
 func (r *PermissionsRead) Fill(req *http.Request) (err error) {
+
+	{
+		// GET params
+		tmp := req.URL.Query()
+
+		if val, ok := tmp["resource[]"]; ok {
+			r.Resource, err = val, nil
+			if err != nil {
+				return err
+			}
+		} else if val, ok := tmp["resource"]; ok {
+			r.Resource, err = val, nil
+			if err != nil {
+				return err
+			}
+		}
+	}
 
 	{
 		var val string
@@ -264,64 +366,6 @@ func (r *PermissionsUpdate) Fill(req *http.Request) (err error) {
 		//        return err
 		//    }
 		//}
-	}
-
-	{
-		var val string
-		// path params
-
-		val = chi.URLParam(req, "roleID")
-		r.RoleID, err = payload.ParseUint64(val), nil
-		if err != nil {
-			return err
-		}
-
-	}
-
-	return err
-}
-
-// NewPermissionsClone request
-func NewPermissionsClone() *PermissionsClone {
-	return &PermissionsClone{}
-}
-
-// Auditable returns all auditable/loggable parameters
-func (r PermissionsClone) Auditable() map[string]interface{} {
-	return map[string]interface{}{
-		"roleID":        r.RoleID,
-		"cloneToRoleID": r.CloneToRoleID,
-	}
-}
-
-// Auditable returns all auditable/loggable parameters
-func (r PermissionsClone) GetRoleID() uint64 {
-	return r.RoleID
-}
-
-// Auditable returns all auditable/loggable parameters
-func (r PermissionsClone) GetCloneToRoleID() []string {
-	return r.CloneToRoleID
-}
-
-// Fill processes request and fills internal variables
-func (r *PermissionsClone) Fill(req *http.Request) (err error) {
-
-	{
-		// GET params
-		tmp := req.URL.Query()
-
-		if val, ok := tmp["cloneToRoleID[]"]; ok {
-			r.CloneToRoleID, err = val, nil
-			if err != nil {
-				return err
-			}
-		} else if val, ok := tmp["cloneToRoleID"]; ok {
-			r.CloneToRoleID, err = val, nil
-			if err != nil {
-				return err
-			}
-		}
 	}
 
 	{

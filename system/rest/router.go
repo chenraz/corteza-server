@@ -31,6 +31,9 @@ func MountRoutes() func(r chi.Router) {
 			handlers.NewAuthClient(AuthClient{}.New()).MountRoutes(r)
 			handlers.NewAutomation(Automation{}.New()).MountRoutes(r)
 			handlers.NewUser(User{}.New()).MountRoutes(r)
+			handlers.NewDalConnection(DalConnection{}.New()).MountRoutes(r)
+			handlers.NewDalSensitivityLevel(SensitivityLevel{}.New()).MountRoutes(r)
+			handlers.NewDalDriver(DalDriver{}.New()).MountRoutes(r)
 			handlers.NewRole(Role{}.New()).MountRoutes(r)
 			handlers.NewPermissions(Permissions{}.New()).MountRoutes(r)
 			handlers.NewApplication(Application{}.New()).MountRoutes(r)
@@ -44,6 +47,10 @@ func MountRoutes() func(r chi.Router) {
 			handlers.NewApigwRoute(ApigwRoute{}.New()).MountRoutes(r)
 			handlers.NewApigwFilter(ApigwFilter{}.New()).MountRoutes(r)
 			handlers.NewApigwProfiler(ApigwProfiler{}.New()).MountRoutes(r)
+			handlers.NewDataPrivacy(DataPrivacy{}.New()).MountRoutes(r)
+			// @todo move these two to dataPrivacy routes
+			handlers.NewDataPrivacyRequest(DataPrivacyRequest{}.New()).MountRoutes(r)
+			handlers.NewDataPrivacyRequestComment(DataPrivacyRequestComment{}.New()).MountRoutes(r)
 		})
 	}
 }

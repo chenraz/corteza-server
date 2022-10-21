@@ -118,11 +118,7 @@ func (svc user) FindByID(ctx context.Context, userID uint64) (u *types.User, err
 	)
 
 	err = func() error {
-		if userID == 0 {
-			return UserErrInvalidID()
-		}
-
-		u, err = store.LookupUserByID(ctx, svc.store, userID)
+		u, err = loadUser(ctx, svc.store, userID)
 		if u, err = svc.proc(ctx, u, err); err != nil {
 			return err
 		}
@@ -399,10 +395,6 @@ func (svc user) Update(ctx context.Context, upd *types.User) (u *types.User, err
 	)
 
 	err = func() (err error) {
-		if upd.ID == 0 {
-			return UserErrInvalidID()
-		}
-
 		if !handle.IsValid(upd.Handle) {
 			return UserErrInvalidHandle()
 		}
@@ -411,7 +403,7 @@ func (svc user) Update(ctx context.Context, upd *types.User) (u *types.User, err
 			return UserErrInvalidEmail()
 		}
 
-		if u, err = store.LookupUserByID(ctx, svc.store, upd.ID); err != nil {
+		if u, err = loadUser(ctx, svc.store, upd.ID); err != nil {
 			return
 		}
 
@@ -474,10 +466,7 @@ func (svc user) ToggleEmailConfirmation(ctx context.Context, userID uint64, conf
 	)
 
 	err = func() (err error) {
-		if userID == 0 {
-			return UserErrInvalidID()
-		}
-		if u, err = store.LookupUserByID(ctx, svc.store, userID); err != nil {
+		if u, err = loadUser(ctx, svc.store, userID); err != nil {
 			return
 		}
 
@@ -512,11 +501,7 @@ func (svc user) Delete(ctx context.Context, userID uint64) (err error) {
 	)
 
 	err = func() (err error) {
-		if userID == 0 {
-			return UserErrInvalidID()
-		}
-
-		if u, err = store.LookupUserByID(ctx, svc.store, userID); err != nil {
+		if u, err = loadUser(ctx, svc.store, userID); err != nil {
 			return
 		}
 
@@ -555,11 +540,7 @@ func (svc user) Undelete(ctx context.Context, userID uint64) (err error) {
 	)
 
 	err = func() (err error) {
-		if userID == 0 {
-			return UserErrInvalidID()
-		}
-
-		if u, err = store.LookupUserByID(ctx, svc.store, userID); err != nil {
+		if u, err = loadUser(ctx, svc.store, userID); err != nil {
 			return
 		}
 
@@ -600,11 +581,7 @@ func (svc user) Suspend(ctx context.Context, userID uint64) (err error) {
 	)
 
 	err = func() (err error) {
-		if userID == 0 {
-			return UserErrInvalidID()
-		}
-
-		if u, err = store.LookupUserByID(ctx, svc.store, userID); err != nil {
+		if u, err = loadUser(ctx, svc.store, userID); err != nil {
 			return
 		}
 
@@ -649,11 +626,7 @@ func (svc user) Unsuspend(ctx context.Context, userID uint64) (err error) {
 	)
 
 	err = func() (err error) {
-		if userID == 0 {
-			return UserErrInvalidID()
-		}
-
-		if u, err = store.LookupUserByID(ctx, svc.store, userID); err != nil {
+		if u, err = loadUser(ctx, svc.store, userID); err != nil {
 			return
 		}
 
@@ -686,34 +659,53 @@ func (svc user) Unsuspend(ctx context.Context, userID uint64) (err error) {
 // Expecting setter to have permissions to update users
 func (svc user) SetPassword(ctx context.Context, userID uint64, newPassword string) (err error) {
 	var (
-		u       *types.User
+		u *types.User
+
 		uaProps = &userActionProps{user: &types.User{ID: userID}}
 		a       = UserActionSetPassword
+
+		self = internalAuth.GetIdentityFromContext(ctx).Identity() == userID
 	)
 
 	err = func() (err error) {
-		if u, err = store.LookupUserByID(ctx, svc.store, userID); err != nil {
+		if u, err = loadUser(ctx, svc.store, userID); err != nil {
 			return err
 		}
 
 		uaProps.setUser(u)
 
-		if u.Kind == types.SystemUser {
-			return UserErrNotAllowedToUpdateSystem()
-		}
-
 		if !svc.ac.CanUpdateUser(ctx, u) {
 			return UserErrNotAllowedToUpdate()
 		}
 
-		if err = svc.auth.RemoveAccessTokens(ctx, u); err != nil {
-			return
+		if u.Kind == types.SystemUser {
+			return UserErrNotAllowedToUpdateSystem()
+		}
+
+		if !self {
+			// when user is changing password for herself
+			// we should not remove the tokens!
+			//
+			// without this, user needs to log-in again
+			// and we do not want that if he is using general
+			// user management API/UI
+			if err = svc.auth.RemoveAccessTokens(ctx, u); err != nil {
+				return
+			}
 		}
 
 		if newPassword == "" {
 			a = UserActionRemovePassword
 			return svc.auth.RemovePasswordCredentials(ctx, userID)
 		}
+
+		// note on password reuse:
+		//
+		// we do not really care if user is setting same password
+		// to someone else (or to self for that matter)
+		//
+		// he has rights to update the user and is doing so
+		// through general user management API
 
 		if !svc.auth.CheckPasswordStrength(newPassword) {
 			return UserErrPasswordNotSecure()
@@ -776,7 +768,7 @@ func (svc user) DeleteAuthTokensByUserID(ctx context.Context, userID uint64) (er
 			return UserErrInvalidID()
 		}
 
-		if err = svc.store.DeleteAuthOA2TokenByUserID(ctx, userID); err != nil {
+		if err = store.DeleteAuthOA2TokenByUserID(ctx, svc.store, userID); err != nil {
 			return
 		}
 
@@ -797,7 +789,7 @@ func (svc user) DeleteAuthSessionsByUserID(ctx context.Context, userID uint64) (
 			return UserErrInvalidID()
 		}
 
-		if err = svc.store.DeleteAuthSessionsByUserID(ctx, userID); err != nil {
+		if err = store.DeleteAuthSessionsByUserID(ctx, svc.store, userID); err != nil {
 			return
 		}
 
@@ -819,6 +811,18 @@ func (svc user) checkLimits(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func loadUser(ctx context.Context, s store.Users, ID uint64) (res *types.User, err error) {
+	if ID == 0 {
+		return nil, UserErrInvalidID()
+	}
+
+	if res, err = store.LookupUserByID(ctx, s, ID); errors.IsNotFound(err) {
+		return nil, UserErrNotFound()
+	}
+
+	return
 }
 
 func countValidUsers(ctx context.Context, s store.Users) (c uint, err error) {

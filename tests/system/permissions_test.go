@@ -6,10 +6,12 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/cortezaproject/corteza-server/pkg/id"
+	jsonpath "github.com/steinfletcher/apitest-jsonpath"
+
 	"github.com/cortezaproject/corteza-server/pkg/rbac"
 	"github.com/cortezaproject/corteza-server/system/types"
 	"github.com/cortezaproject/corteza-server/tests/helpers"
-	"github.com/steinfletcher/apitest-jsonpath"
 )
 
 func TestPermissionsEffective(t *testing.T) {
@@ -30,7 +32,7 @@ func TestPermissionsList(t *testing.T) {
 
 	helpers.AllowMe(h, types.ComponentRbacResource(), "grant")
 
-	h.apiInit().
+	json := h.apiInit().
 		Get("/permissions/").
 		Header("Accept", "application/json").
 		Expect(t).
@@ -38,6 +40,8 @@ func TestPermissionsList(t *testing.T) {
 		Assert(helpers.AssertNoErrors).
 		Assert(jsonpath.Present(fmt.Sprintf(`$.response[? @.type=="%s"]`, types.ComponentResourceType))).
 		End()
+
+	fmt.Println("json: ", json.Response.Body)
 }
 
 func TestPermissionsRead(t *testing.T) {
@@ -51,6 +55,50 @@ func TestPermissionsRead(t *testing.T) {
 		Expect(t).
 		Status(http.StatusOK).
 		Assert(helpers.AssertNoErrors).
+		End()
+}
+
+func TestPermissionsReadWithFilter(t *testing.T) {
+	h := newHelper(t)
+
+	helpers.AllowMe(h, types.ComponentRbacResource(), "grant")
+	helpers.DenyMe(h, types.ComponentRbacResource(), "user.create")
+
+	// Specific resource related rules
+	testID := id.Next()
+	helpers.AllowMe(h, types.UserRbacResource(testID), "read")
+	helpers.AllowMe(h, types.UserRbacResource(id.Next()), "update")
+
+	t.Log("all component-level and wildcard rules")
+	h.apiInit().
+		Getf("/permissions/%d/rules", h.roleID).
+		Header("Accept", "application/json").
+		Expect(t).
+		Status(http.StatusOK).
+		Assert(helpers.AssertNoErrors).
+		Assert(jsonpath.Len(`$.response`, 2)).
+		End()
+
+	t.Log("no rules for all-users")
+	h.apiInit().
+		Getf("/permissions/%d/rules", h.roleID).
+		Query("resource", "corteza::system:user/*").
+		Header("Accept", "application/json").
+		Expect(t).
+		Status(http.StatusOK).
+		Assert(helpers.AssertNoErrors).
+		Assert(jsonpath.Len(`$.response`, 0)).
+		End()
+
+	t.Log("1 rule for specific user")
+	h.apiInit().
+		Getf("/permissions/%d/rules", h.roleID).
+		Query("resource", fmt.Sprintf("corteza::system:user/%d", testID)).
+		Header("Accept", "application/json").
+		Expect(t).
+		Status(http.StatusOK).
+		Assert(helpers.AssertNoErrors).
+		Assert(jsonpath.Len(`$.response`, 1)).
 		End()
 }
 
@@ -99,6 +147,22 @@ func TestPermissionsDelete(t *testing.T) {
 	}
 }
 
+func TestPermissionsTrace(t *testing.T) {
+	h := newHelper(t)
+
+	helpers.AllowMe(h, types.ComponentRbacResource(), "grant")
+
+	h.apiInit().
+		Get("/permissions/trace").
+		Query("roleID[]", "1").
+		Header("Accept", "application/json").
+		Expect(t).
+		Status(http.StatusOK).
+		Assert(helpers.AssertNoErrors).
+		Assert(jsonpath.Present(`$.response`)).
+		End()
+}
+
 func TestPermissionsCloneToSingleRole(t *testing.T) {
 	h := newHelper(t)
 	p := rbac.Global()
@@ -123,7 +187,7 @@ func TestPermissionsCloneToSingleRole(t *testing.T) {
 	h.a.Len(p.FindRulesByRoleID(roleT), 2)
 
 	h.apiInit().
-		Post(fmt.Sprintf("/permissions/%d/rules/clone", roleS)).
+		Post(fmt.Sprintf("/roles/%d/rules/clone", roleS)).
 		Query("cloneToRoleID", strconv.FormatUint(roleT, 10)).
 		Header("Accept", "application/json").
 		Expect(t).
@@ -168,7 +232,7 @@ func TestPermissionsCloneToMultipleRole(t *testing.T) {
 	h.a.Len(p.FindRulesByRoleID(roleY), 3)
 
 	h.apiInit().
-		Post(fmt.Sprintf("/permissions/%d/rules/clone", roleS)).
+		Post(fmt.Sprintf("/roles/%d/rules/clone", roleS)).
 		Query("cloneToRoleID", strconv.FormatUint(roleT, 10)).
 		Query("cloneToRoleID", strconv.FormatUint(roleY, 10)).
 		Header("Accept", "application/json").
@@ -206,11 +270,11 @@ func TestPermissionsCloneNotAllowed(t *testing.T) {
 	h.a.Len(p.FindRulesByRoleID(roleT), 2)
 
 	h.apiInit().
-		Post(fmt.Sprintf("/permissions/%d/rules/clone", roleS)).
+		Post(fmt.Sprintf("/roles/%d/rules/clone", roleS)).
 		Header("Accept", "application/json").
 		FormData("cloneToRoleID", strconv.FormatUint(roleT, 10)).
 		Expect(t).
 		Status(http.StatusOK).
-		Assert(helpers.AssertError("accessControl.errors.notAllowedToSetPermissions")).
+		Assert(helpers.AssertError("role.errors.notAllowedToCloneRules")).
 		End()
 }

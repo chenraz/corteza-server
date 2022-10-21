@@ -13,11 +13,15 @@ import (
 type (
 	Queue struct {
 		svc queueService
-		ac  templateAccessController
+		ac  queueAccessController
 	}
 
 	queuePayload struct {
 		*types.Queue
+
+		CanGrant       bool `json:"canGrant"`
+		CanUpdateQueue bool `json:"canUpdateQueue"`
+		CanDeleteQueue bool `json:"canDeleteQueue"`
 	}
 
 	queueSetPayload struct {
@@ -33,6 +37,14 @@ type (
 		UndeleteByID(ctx context.Context, ID uint64) (err error)
 		Search(ctx context.Context, filter types.QueueFilter) (q types.QueueSet, f types.QueueFilter, err error)
 	}
+
+	queueAccessController interface {
+		CanGrant(context.Context) bool
+
+		CanCreateQueue(context.Context) bool
+		CanUpdateQueue(context.Context, *types.Queue) bool
+		CanDeleteQueue(context.Context, *types.Queue) bool
+	}
 )
 
 func (Queue) New() *Queue {
@@ -46,6 +58,7 @@ func (ctrl *Queue) List(ctx context.Context, r *request.QueuesList) (interface{}
 	var (
 		err error
 		f   = types.QueueFilter{
+			Query:   r.Query,
 			Deleted: filter.State(r.Deleted),
 		}
 	)
@@ -54,12 +67,13 @@ func (ctrl *Queue) List(ctx context.Context, r *request.QueuesList) (interface{}
 		return nil, err
 	}
 
+	f.IncTotal = r.IncTotal
+
 	if f.Sorting, err = filter.NewSorting(r.Sort); err != nil {
 		return nil, err
 	}
 
 	set, filter, err := ctrl.svc.Search(ctx, f)
-
 	return ctrl.makeFilterPayload(ctx, set, filter, err)
 }
 
@@ -79,7 +93,8 @@ func (ctrl *Queue) Create(ctx context.Context, r *request.QueuesCreate) (interfa
 }
 
 func (ctrl *Queue) Read(ctx context.Context, r *request.QueuesRead) (interface{}, error) {
-	return ctrl.svc.FindByID(ctx, r.QueueID)
+	res, err := ctrl.svc.FindByID(ctx, r.QueueID)
+	return ctrl.makePayload(ctx, res, err)
 }
 
 func (ctrl *Queue) Update(ctx context.Context, r *request.QueuesUpdate) (interface{}, error) {
@@ -113,6 +128,11 @@ func (ctrl *Queue) makePayload(ctx context.Context, q *types.Queue, err error) (
 
 	qq := &queuePayload{
 		Queue: q,
+
+		CanGrant: ctrl.ac.CanGrant(ctx),
+
+		CanUpdateQueue: ctrl.ac.CanUpdateQueue(ctx, q),
+		CanDeleteQueue: ctrl.ac.CanDeleteQueue(ctx, q),
 	}
 
 	return qq, nil

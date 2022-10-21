@@ -16,7 +16,7 @@ props:
   - name: email
   - name: provider
   - name: credentials
-    type: "*types.Credentials"
+    type: "*types.Credential"
     fields: [ kind, label, ID ]
   - name: role
     type: "*types.Role"
@@ -130,8 +130,11 @@ errors:
   - error: passwordChangeFailedForUnknownUser
     message: "failed to change password for the unknown user"
 
-  - error: passwodResetFailedOldPasswordCheckFailed
+  - error: passwordResetFailedOldPasswordCheckFailed
     message: "failed to change password, old password does not match"
+
+  - error: passwordSetFailedReusedPasswordCheckFailed
+    message: "failed to set password, already used"
 
   - error: passwordCreateFailedForUnknownUser
     message: "failed to create password for the unknown user"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"time"
+	"net/url"
 
 	"github.com/cortezaproject/corteza-server/auth/request"
 	"github.com/cortezaproject/corteza-server/auth/settings"
@@ -68,6 +68,7 @@ type (
 		template    string
 		alerts      []request.Alert
 		userService userService
+		postForm    url.Values
 		fn          func(*settings.Settings)
 	}
 
@@ -360,7 +361,7 @@ func prepareClientAuthReq(h *AuthHandlers, req *http.Request, user *types.User) 
 	}
 
 	if user != nil {
-		authReq.AuthUser = request.NewAuthUser(s, user, true, time.Duration(time.Hour))
+		authReq.AuthUser = request.NewAuthUser(s, user, true)
 	}
 
 	return authReq

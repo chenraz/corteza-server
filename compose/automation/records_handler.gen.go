@@ -213,8 +213,8 @@ type (
 		hasQuery bool
 		Query    string
 
-		hasLabels bool
-		Labels    map[string]string
+		hasMeta bool
+		Meta    map[string]any
 
 		hasDeleted bool
 		Deleted    uint64
@@ -285,8 +285,8 @@ func (h recordsHandler) Search() *atypes.Function {
 				Types: []string{"String"},
 			},
 			{
-				Name:  "labels",
-				Types: []string{"KV"},
+				Name:  "meta",
+				Types: []string{"Meta"},
 			},
 			{
 				Name:  "deleted",
@@ -353,7 +353,7 @@ func (h recordsHandler) Search() *atypes.Function {
 					hasModule:            in.Has("module"),
 					hasNamespace:         in.Has("namespace"),
 					hasQuery:             in.Has("query"),
-					hasLabels:            in.Has("labels"),
+					hasMeta:              in.Has("meta"),
 					hasDeleted:           in.Has("deleted"),
 					hasSort:              in.Has("sort"),
 					hasLimit:             in.Has("limit"),
@@ -752,8 +752,8 @@ type (
 		hasQuery bool
 		Query    string
 
-		hasLabels bool
-		Labels    map[string]string
+		hasMeta bool
+		Meta    map[string]any
 
 		hasDeleted bool
 		Deleted    uint64
@@ -822,8 +822,8 @@ func (h recordsHandler) Each() *atypes.Function {
 				Types: []string{"String"},
 			},
 			{
-				Name:  "labels",
-				Types: []string{"KV"},
+				Name:  "meta",
+				Types: []string{"Meta"},
 			},
 			{
 				Name:  "deleted",
@@ -883,7 +883,7 @@ func (h recordsHandler) Each() *atypes.Function {
 					hasModule:            in.Has("module"),
 					hasNamespace:         in.Has("namespace"),
 					hasQuery:             in.Has("query"),
-					hasLabels:            in.Has("labels"),
+					hasMeta:              in.Has("meta"),
 					hasDeleted:           in.Has("deleted"),
 					hasSort:              in.Has("sort"),
 					hasLimit:             in.Has("limit"),
@@ -1343,7 +1343,7 @@ func (h recordsHandler) Delete() *atypes.Function {
 		Parameters: []*atypes.Param{
 			{
 				Name:  "module",
-				Types: []string{"ID", "Handle", "ComposeModule"}, Required: true,
+				Types: []string{"ID", "Handle", "ComposeModule"},
 				Meta: &atypes.ParamMeta{
 					Label:       "Module to set record type",
 					Description: "Even with unique record ID across all modules, module needs to be known\nbefore doing any record operations. Mainly because records of different\nmodules can be located in different stores.",
@@ -1351,7 +1351,7 @@ func (h recordsHandler) Delete() *atypes.Function {
 			},
 			{
 				Name:  "namespace",
-				Types: []string{"ID", "Handle", "ComposeNamespace"}, Required: true,
+				Types: []string{"ID", "Handle", "ComposeNamespace"},
 			},
 			{
 				Name:  "record",

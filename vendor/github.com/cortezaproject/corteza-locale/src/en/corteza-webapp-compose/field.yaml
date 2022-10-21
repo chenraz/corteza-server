@@ -1,5 +1,8 @@
+available-items: Available fields
+selected-items: Selected fields
 defaultFieldValue: Default field value
 defaultValue: Default value
+required-field: This field is required
 kind:
   bool:
     checkedValueLabel: Value when checked
@@ -29,7 +32,7 @@ kind:
       grid: Grid
       list: List
       maxSizeLabel: Maximum file size
-      mimetypesFootnote: 'MIME types, sepparated with ",". Example: "text/plain,text/csv"'
+      mimetypesFootnote: 'MIME types, separated with ",". Example: "text/plain,text/csv"'
       mimetypesLabel: File type allow list
       modeFootnote: How files are represented in record page blocks
       modeLabel: View mode
@@ -50,18 +53,44 @@ kind:
     prefixPlaceholder: Prefix
     suffixLabel: Suffix
     suffixPlaceholder: Suffix
+    displayType:
+      label: Display type
+      number: Number
+      progress: Progress bar
+    maximumValue: Maximum value
+    progress:
+      animated: Animated
+      show:
+        value: Show value
+        relative: Show relative
+        progress: Show progress
+      showRelative: Show relative
+      variants:
+        default: Default variant
+        danger: Danger
+        dark: Dark
+        info: Info
+        light: Light
+        primary: Primary
+        secondary: Secondary
+        success: Success
+        warning: Warning
+      thresholds:
+        label: Thresholds
+        description: Set which variant to show if value is equal or larger than the threshold
   record:
     currentUnnamedModule: (Current unnamed module)
     label: Record
     moduleLabel: Module name
     modulePlaceholder: Pick module
+    queryFieldsLabel: Query fields on search
+    moduleField: Module field
+    fieldFromModuleField: Label field from related module field
+    pickField: Pick field
+    suggestionPlaceholder: Start typing to search for records
     prefilterFootnote: Simplified SQL condition (WHERE ...) syntax is supported. Variables like {{0}}, {{1}} and {{2}} are evaluated (when available)
     prefilterLabel: Prefilter records
     prefilterPlaceholder: field1 = 1 AND field2 = 232
-    queryFieldsLabel: Query fields on search
-    recordFieldLabel: Record label from field
-    recordFieldPlaceholder: Pick field
-    suggestionPlaceholder: Start typing to search for records
   select:
     label: Select
     optionAdd: Add
@@ -81,6 +110,7 @@ kind:
     multiLine: Multi line
     richText: Use Rich Text Editor
   url:
+    example: 'Example URL: https://example.com'
     label: URL
     preventToLink: Don't turn Url into a link
     sshOnly: Only allow SSL (https) Url
@@ -95,7 +125,14 @@ kind:
     roles:
       label: User roles
       placeholder: Filter by user roles
+  geometry:
+    label: Geometry
+    latitude: Latitude
+    longitude: Longitude
+    clickToPlaceMarker: Click to place a marker or click on a marker to remove it
+    initialZoomAndPosition: Set initial map zoom and position
 noPermission: No permission to read field value
+no-items-found: No items found
 options:
   description:
     label:
@@ -138,7 +175,19 @@ selector:
   selected: Selected fields
   systemField: (system field)
   unselectAll: Unselect all
+privacy:
+  sensitivity-level:
+    label: Sensitivity level
+    placeholder: Select a sensitivity level
+  usage-disclosure:
+    label: Sensitive field usage disclosure (visible on data-privacy console)
 system:
+  id: Record ID
+  moduleID: Module ID
+  namespaceID: Namespace ID
+  revision: Record revision
+  meta: Meta data
+  recordID: Record ID
   createdAt: Created at
   createdBy: Created by
   deletedAt: Deleted at

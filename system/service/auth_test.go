@@ -9,12 +9,11 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/eventbus"
 	"github.com/cortezaproject/corteza-server/pkg/id"
 	"github.com/cortezaproject/corteza-server/store"
-	"github.com/cortezaproject/corteza-server/store/sqlite3"
+	"github.com/cortezaproject/corteza-server/store/adapters/rdbms/drivers/sqlite"
 	"github.com/cortezaproject/corteza-server/system/types"
 	"github.com/markbates/goth"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // Mock auth service with nil for current time, dummy provider validator and mock db
@@ -22,7 +21,7 @@ func makeMockAuthService() *auth {
 	var (
 		ctx = context.Background()
 
-		mem, err = sqlite3.ConnectInMemory(ctx)
+		mem, err = sqlite.ConnectInMemory(ctx)
 
 		svc = &auth{
 			providerValidator: func(s string) error {
@@ -61,7 +60,7 @@ func TestAuth_External(t *testing.T) {
 			return fmt.Sprintf("fresh-profile-id-%d", nextID())
 		}
 
-		fooCredentials = &types.Credentials{
+		fooCredentials = &types.Credential{
 			ID:          nextID(),
 			OwnerID:     validUser.ID,
 			Label:       "credentials for foo provider",
@@ -70,7 +69,7 @@ func TestAuth_External(t *testing.T) {
 			CreatedAt:   time.Time{},
 		}
 
-		barCredentials = &types.Credentials{
+		barCredentials = &types.Credential{
 			ID:          nextID(),
 			OwnerID:     validUser.ID,
 			Label:       "credentials for bar provider",
@@ -105,10 +104,10 @@ func TestAuth_External(t *testing.T) {
 
 	svc := makeMockAuthService()
 	svc.settings.Auth.External.Enabled = true
-	req.NoError(svc.store.TruncateUsers(ctx))
-	req.NoError(svc.store.TruncateCredentials(ctx))
+	req.NoError(store.TruncateUsers(ctx, svc.store))
+	req.NoError(store.TruncateCredentials(ctx, svc.store))
 	req.NoError(store.CreateUser(ctx, svc.store, validUser, suspendedUser))
-	req.NoError(store.CreateCredentials(ctx, svc.store, fooCredentials, barCredentials))
+	req.NoError(store.CreateCredential(ctx, svc.store, fooCredentials, barCredentials))
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -148,7 +147,7 @@ func TestAuth_InternalSignUp(t *testing.T) {
 	svc.settings.Auth.Internal.Enabled = true
 	svc.settings.Auth.Internal.Signup.Enabled = true
 
-	req.NoError(svc.store.CreateUser(ctx, &types.User{Email: "existing@internal-signup-test.tld", ID: existingUserID, CreatedAt: *now()}))
+	req.NoError(store.CreateUser(ctx, svc.store, &types.User{Email: "existing@internal-signup-test.tld", ID: existingUserID, CreatedAt: *now()}))
 	req.NoError(svc.SetPassword(ctx, existingUserID, "secure password"))
 
 	t.Run("invalid email", func(t *testing.T) {
@@ -263,8 +262,8 @@ func TestAuth_InternalLogin(t *testing.T) {
 
 	svc := makeMockAuthService()
 	svc.settings.Auth.Internal.Enabled = true
-	req.NoError(svc.store.TruncateUsers(ctx))
-	req.NoError(svc.store.TruncateCredentials(ctx))
+	req.NoError(store.TruncateUsers(ctx, svc.store))
+	req.NoError(store.TruncateCredentials(ctx, svc.store))
 	req.NoError(store.CreateUser(ctx, svc.store, validUser, suspendedUser))
 	req.NoError(svc.SetPasswordCredentials(ctx, validUser.ID, validPass))
 
@@ -322,8 +321,8 @@ func TestAuth_createUserToken(t *testing.T) {
 	)
 
 	svc := makeMockAuthService()
-	req.NoError(svc.store.TruncateUsers(ctx))
-	req.NoError(svc.store.TruncateCredentials(ctx))
+	req.NoError(store.TruncateUsers(ctx, svc.store))
+	req.NoError(store.TruncateCredentials(ctx, svc.store))
 	req.NoError(store.CreateUser(ctx, svc.store, validUser))
 
 	for _, tt := range tests {
@@ -359,17 +358,17 @@ func TestAuth_multiCreateUserTokenForPasswordReset(t *testing.T) {
 		validUser = &types.User{Email: "valid@test.cortezaproject.org", ID: nextID(), CreatedAt: *now(), EmailConfirmed: true}
 
 		// load credentials from token
-		t2c = func(token string) *types.Credentials {
+		t2c = func(token string) *types.Credential {
 			id, _ := validateToken(token)
 			req.NotZero(id)
-			c, err := store.LookupCredentialsByID(ctx, svc.store, id)
+			c, err := store.LookupCredentialByID(ctx, svc.store, id)
 			req.NoError(err)
 			return c
 		}
 	)
 
-	req.NoError(svc.store.TruncateUsers(ctx))
-	req.NoError(svc.store.TruncateCredentials(ctx))
+	req.NoError(store.TruncateUsers(ctx, svc.store))
+	req.NoError(store.TruncateCredentials(ctx, svc.store))
 	req.NoError(store.CreateUser(ctx, svc.store, validUser))
 
 	for try := 0; try <= tokenReqMaxCount+1; try++ {
@@ -391,109 +390,4 @@ func TestAuth_multiCreateUserTokenForPasswordReset(t *testing.T) {
 		}
 	}
 
-}
-
-func Test_auth_checkPassword(t *testing.T) {
-	plainPassword := " ... plain password ... "
-	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(plainPassword), bcrypt.DefaultCost)
-	type args struct {
-		password string
-		cc       types.CredentialsSet
-	}
-	tests := []struct {
-		name string
-		args args
-		rval bool
-	}{
-		{
-			name: "empty set",
-			rval: false,
-			args: args{}},
-		{
-			name: "bad pwd",
-			rval: false,
-			args: args{
-				password: " foo ",
-				cc:       types.CredentialsSet{&types.Credentials{ID: 1, Credentials: string(hashedPassword)}}}},
-		{
-			name: "invalid credentials",
-			rval: false,
-			args: args{
-				password: " foo ",
-				cc:       types.CredentialsSet{&types.Credentials{ID: 0, Credentials: string(hashedPassword)}}}},
-		{
-			name: "ok",
-			rval: true,
-			args: args{
-				password: plainPassword,
-				cc:       types.CredentialsSet{&types.Credentials{ID: 1, Credentials: string(hashedPassword)}}}},
-		{
-			name: "multipass",
-			rval: true,
-			args: args{
-				password: plainPassword,
-				cc: types.CredentialsSet{
-					&types.Credentials{ID: 0, Credentials: string(hashedPassword)},
-					&types.Credentials{ID: 1, Credentials: "$2a$10$8sOZxfZinxnu3bAtpkqEx.wBBwOfci6aG1szgUyxm5.BL2WiLu.ni"},
-					&types.Credentials{ID: 2, Credentials: string(hashedPassword)},
-					&types.Credentials{ID: 3, Credentials: ""},
-				}}},
-	}
-
-	svc := auth{
-		settings: &types.AppSettings{},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.rval != svc.checkPassword(tt.args.password, tt.args.cc) {
-				t.Errorf("auth.checkPassword() expecting rval to be %v", tt.rval)
-			}
-		})
-	}
-}
-
-func TestValidateToken(t *testing.T) {
-	type args struct {
-		token string
-	}
-	tests := []struct {
-		name            string
-		args            args
-		wantID          uint64
-		wantCredentials string
-	}{
-		{
-			name:            "empty",
-			wantID:          0,
-			wantCredentials: "",
-			args:            args{token: ""}},
-		{
-			name:            "foo",
-			wantID:          0,
-			wantCredentials: "",
-			args:            args{token: "foo1"}},
-		{
-			name:            "semivalid",
-			wantID:          0,
-			wantCredentials: "",
-			args:            args{token: "foofoofoofoofoofoofoofoofoofoofo0"}},
-		{
-			name:            "valid",
-			wantID:          1,
-			wantCredentials: "foofoofoofoofoofoofoofoofoofoofo",
-			args:            args{token: "foofoofoofoofoofoofoofoofoofoofo1"}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			gotID, gotCredentials := validateToken(tt.args.token)
-
-			if gotID != tt.wantID {
-				t.Errorf("auth.validateToken() gotID = %v, want %v", gotID, tt.wantID)
-			}
-			if gotCredentials != tt.wantCredentials {
-				t.Errorf("auth.validateToken() gotCredentials = %v, want %v", gotCredentials, tt.wantCredentials)
-			}
-		})
-	}
 }

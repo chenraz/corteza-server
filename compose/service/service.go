@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/cortezaproject/corteza-server/pkg/discovery"
 	"strconv"
 	"time"
+
+	"github.com/cortezaproject/corteza-server/pkg/dal"
+	"github.com/cortezaproject/corteza-server/pkg/discovery"
 
 	automationService "github.com/cortezaproject/corteza-server/automation/service"
 	"github.com/cortezaproject/corteza-server/compose/automation"
@@ -34,7 +36,7 @@ type (
 
 	Config struct {
 		ActionLog  options.ActionLogOpt
-		Discovery options.DiscoveryOpt
+		Discovery  options.DiscoveryOpt
 		Storage    options.ObjectStoreOpt
 		UserFinder userFinder
 	}
@@ -62,17 +64,24 @@ var (
 
 	DefaultNamespace           NamespaceService
 	DefaultImportSession       ImportSessionService
-	DefaultRecord              RecordService
+	DefaultRecord              *record
 	DefaultModule              ModuleService
 	DefaultChart               *chart
 	DefaultPage                *page
 	DefaultAttachment          AttachmentService
 	DefaultNotification        *notification
 	DefaultResourceTranslation ResourceTranslationsManagerService
+	DefaultDataPrivacy         DataPrivacyService
 
 	// wrapper around time.Now() that will aid service testing
 	now = func() *time.Time {
 		c := time.Now().Round(time.Second)
+		return &c
+	}
+
+	// wrapper around time.Now() that will aid service testing
+	nowUTC = func() *time.Time {
+		c := time.Now().Round(time.Second).UTC()
 		return &c
 	}
 
@@ -117,14 +126,14 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, c Config) 
 		err = DefaultResourceActivityLog.InitResourceActivityLog(ctx, []string{
 			(types.Namespace{}).LabelResourceKind(),
 			(types.Module{}).LabelResourceKind(),
-			(types.Record{}).LabelResourceKind(),
+			"compose:record",
 		})
 		if err != nil {
 			return err
 		}
 	}
 
-	DefaultAccessControl = AccessControl()
+	DefaultAccessControl = AccessControl(s)
 	DefaultResourceTranslation = ResourceTranslationsManager(locale.Global())
 
 	if DefaultObjectStore == nil {
@@ -174,7 +183,8 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, c Config) 
 	DefaultPage = Page()
 	DefaultChart = Chart()
 	DefaultNotification = Notification(c.UserFinder)
-	DefaultAttachment = Attachment(DefaultObjectStore)
+	DefaultAttachment = Attachment(DefaultObjectStore, dal.Service())
+	DefaultDataPrivacy = DataPrivacy()
 
 	RegisterIteratorProviders()
 
@@ -213,6 +223,11 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, c Config) 
 }
 
 func Activate(ctx context.Context) (err error) {
+	err = DefaultModule.ReloadDALModels(ctx)
+	if err != nil {
+		return err
+	}
+
 	return
 }
 
