@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/cortezaproject/corteza-server/compose/model"
 	"github.com/cortezaproject/corteza-server/compose/types"
 	"github.com/cortezaproject/corteza-server/pkg/dal"
@@ -16,7 +18,6 @@ import (
 	"github.com/doug-martin/goqu/v9/exp"
 	"github.com/spf13/cast"
 	"go.uber.org/zap"
-	"time"
 )
 
 // RDBMS database fixes
@@ -104,7 +105,7 @@ func fix_2022_09_00_migrateOldComposeRecordValues(ctx context.Context, s *Store)
 		recValuesPerModule = `
 	SELECT v.record_id, v.name, v.value, v.ref, v.place
 	  FROM compose_record_value AS v
-	 WHERE v.record_id IN (SELECT id FROM compose_record WHERE rel_namespace = %d AND rel_module = %d AND id > %d AND deleted_at IS NULL ORDER BY id LIMIT %d) 
+	 WHERE v.record_id IN (SELECT id FROM compose_record WHERE rel_namespace = %d AND rel_module = %d AND id > %d AND deleted_at IS NULL ORDER BY id) 
 	 ORDER BY v.record_id, v.name, v.place`
 	)
 
@@ -170,7 +171,7 @@ func fix_2022_09_00_migrateOldComposeRecordValues(ctx context.Context, s *Store)
 				values = make(map[uint64]map[string][]any, recordSliceSize)
 
 				err = func() (err error) {
-					query := fmt.Sprintf(recValuesPerModule, mod.NamespaceID, mod.ID, sliceLastRecordID, recordSliceSize)
+					query := fmt.Sprintf(recValuesPerModule, mod.NamespaceID, mod.ID, sliceLastRecordID)
 					//println(query)
 					rows, err = s.DB.QueryContext(ctx, query)
 					if err != nil {
