@@ -10,7 +10,7 @@ import (
 
 type (
 	jsenvHandler struct {
-		reg queueHandlerRegistry
+		reg jsenvHandlerRegistry
 	}
 )
 
@@ -20,10 +20,23 @@ func JsenvHandler(reg queueHandlerRegistry) *jsenvHandler {
 	}
 
 	h.register()
+
 	return h
 }
 
+func initVm() jsenv.Vm {
+	tr := jsenv.NewTransformer(jsenv.LoaderJS, jsenv.TargetNoop)
+	vm := jsenv.New(tr)
+
+	// register a request body reader
+	vm.Register("readRequestBody", ReadRequestBody)
+
+	return vm
+}
+
 func (h jsenvHandler) execute(ctx context.Context, args *jsenvExecuteArgs) (res *jsenvExecuteResults, err error) {
+	vm := initVm()
+
 	res = &jsenvExecuteResults{}
 
 	if !args.hasSource {
@@ -36,21 +49,6 @@ func (h jsenvHandler) execute(ctx context.Context, args *jsenvExecuteArgs) (res 
 		return
 	}
 
-	var vv interface{}
-
-	switch a := args.Scope.(type) {
-	case *expr.KVV:
-		vv = a.Get()
-	case *expr.String:
-		vv = a.Get()
-	default:
-		vv = a
-	}
-
-	// call jsenv, feed it function and expect a result
-	tr := jsenv.NewTransformer(jsenv.LoaderJS, jsenv.TargetNoop)
-	vm := jsenv.New(tr)
-
 	fn, err := vm.RegisterFunction(args.Source)
 
 	if err != nil {
@@ -58,7 +56,7 @@ func (h jsenvHandler) execute(ctx context.Context, args *jsenvExecuteArgs) (res 
 		return
 	}
 
-	out, err := fn.Exec(vm.New(vv))
+	out, err := fn.Exec(vm.New(expr.UntypedValue(args.Scope)))
 
 	if err != nil {
 		err = fmt.Errorf("could not exec jsenv function: %s", err)
@@ -66,19 +64,12 @@ func (h jsenvHandler) execute(ctx context.Context, args *jsenvExecuteArgs) (res 
 	}
 
 	switch vv := out.(type) {
-
-	// this one should go out once the ResultAny
-	// is mainly used
-	case uint64:
-		res.ResultInt = int64(vv)
 	case int64:
 		res.ResultInt = int64(vv)
-
-	// this one should go out once the ResultAny
-	// is mainly used
 	case string:
 		res.ResultString = string(vv)
-
+	case bool:
+		res.ResultBool = vv
 	default:
 		res.ResultAny = vv
 	}

@@ -2,7 +2,6 @@ package rbac
 
 import (
 	"fmt"
-	"sort"
 )
 
 type (
@@ -40,13 +39,6 @@ func indexRules(rules []*Rule) OptRuleSet {
 		i[r.Operation][r.RoleID] = append(i[r.Operation][r.RoleID], r)
 	}
 
-	// sort rules
-	for op := range i {
-		for roleID := range i[op] {
-			sort.Sort(i[op][roleID])
-		}
-	}
-
 	return i
 }
 
@@ -66,6 +58,17 @@ func (set RuleSet) FilterAccess(a Access) (out RuleSet) {
 	}
 
 	return out
+}
+
+func (set RuleSet) FilterResource(res string) (out RuleSet) {
+	for _, r := range set {
+		if !matchResource(r.Resource, res) {
+			continue
+		}
+		out = append(out, r)
+	}
+
+	return
 }
 
 // AllowRule helper func to create allow rule

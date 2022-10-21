@@ -16,17 +16,19 @@ type (
 		Corredor    CorredorOpt
 		Monitor     MonitorOpt
 		WaitFor     WaitForOpt
-		HTTPServer  HTTPServerOpt
+		HTTPServer  HttpServerOpt
 		Websocket   WebsocketOpt
 		Eventbus    EventbusOpt
 		Messagebus  MessagebusOpt
 		Federation  FederationOpt
 		SCIM        SCIMOpt
 		Workflow    WorkflowOpt
-		RBAC        RBACOpt
+		RBAC        RbacOpt
 		Locale      LocaleOpt
 		Limit       LimitOpt
 		Plugins     PluginsOpt
+		Discovery   DiscoveryOpt
+		Apigw       ApigwOpt
 	}
 )
 
@@ -46,16 +48,18 @@ func Init() *Options {
 		Corredor:    *Corredor(),
 		Monitor:     *Monitor(),
 		WaitFor:     *WaitFor(),
-		HTTPServer:  *HTTPServer(),
+		HTTPServer:  *HttpServer(),
 		Websocket:   *Websocket(),
 		Eventbus:    *Eventbus(),
 		Messagebus:  *Messagebus(),
 		Federation:  *Federation(),
 		SCIM:        *SCIM(),
 		Workflow:    *Workflow(),
-		RBAC:        *RBAC(),
+		RBAC:        *Rbac(),
 		Locale:      *Locale(),
 		Limit:       *Limit(),
 		Plugins:     *Plugins(),
+		Discovery:   *Discovery(),
+		Apigw:       *Apigw(),
 	}
 }

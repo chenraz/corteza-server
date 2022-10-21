@@ -24,7 +24,17 @@ edit:
       allFields: All Fields
       description: 'Match federated fields with existing ones:'
       title: Map
-    errorFetchingData: Error fetching server data
+    error:
+      fetch:
+        data: Error fetching server data
+        exposed: Error fetching exposed module info
+        shared: Error fetching shared module info
+        mmap: Error fetching module mapping info
+        node: Error fetching nodes info
+      persist:
+        exposed: Error persisting exposed module info
+        shared: Error persisting shared module info
+        mmap: Error persisting module mapping info
     general:
       receive: Receive new records from another organization (downstream)
       send: Send new records to the federated network (upstream)
@@ -37,9 +47,15 @@ edit:
     specificTitle: Federation Settings ({{handle}})
     title: Federation Settings
     upstream:
+      copyFrom: Copy settings from
       allFields: All Fields
       description: Select the fields you want to share with the selected network
       title: Expose
+  discoverySettings:
+    title: Discovery settings
+    public: Public
+    private: Private
+    protected: Protected
   fieldPermissions: Field permissions
   manageRecordFields: Manage record fields
   moduleFieldSettings: Module field settings
@@ -76,7 +92,7 @@ general:
   placeholder:
     handle: handle (a - z, 0 - 9, underscore, dash)
     sample: Sample
-  invalid-handle-characters: Should be al least 2 characters long and start with a letter. Can contains only letters, numbers, dash, underscore and dot
+    invalid-handle-characters: Should be at least 2 characters long and start with a letter. Can contain only letters, numbers, dashes, underscores and dots
 import: Module import
 navigation:
   module: Modules
@@ -84,15 +100,11 @@ newLabel: Module Name *
 newPlaceholder: Name used on the list of modules
 noModule: No modules
 noModuleFilter: No module matches your search
-notification:
-  deleteFailed: Could not delete this module
-  deleted: Module deleted
-  saveFailed: Could not save this module
-  saved: Module saved
-  page:
-    createFailed: Could not create a page
 recordPage:
   create: Create record page
-  edit: Page builder
+  edit: Edit record page
+recordListPage:
+  create: Create record list page
+  edit: Edit record list page
 searchPlaceholder: Type here to search all modules in this namespace
 title: List of Modules

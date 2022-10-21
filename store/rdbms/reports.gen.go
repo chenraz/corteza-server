@@ -73,7 +73,7 @@ func (s Store) SearchReports(ctx context.Context, f types.ReportFilter) (types.R
 		}
 
 		// Apply sorting expr from filter to query
-		if q, err = setOrderBy(q, sort, s.sortableReportColumns()); err != nil {
+		if q, err = setOrderBy(q, sort, s.sortableReportColumns(), s.Config().SqlSortHandler); err != nil {
 			return err
 		}
 
@@ -443,25 +443,21 @@ func (s Store) execDeleteReports(ctx context.Context, cnd squirrel.Sqlizer) erro
 func (s Store) internalReportRowScanner(row rowScanner) (res *types.Report, err error) {
 	res = &types.Report{}
 
-	if _, has := s.config.RowScanners["report"]; has {
-		scanner := s.config.RowScanners["report"].(func(_ rowScanner, _ *types.Report) error)
-		err = scanner(row, res)
-	} else {
-		err = row.Scan(
-			&res.ID,
-			&res.Handle,
-			&res.Meta,
-			&res.Sources,
-			&res.Blocks,
-			&res.OwnedBy,
-			&res.CreatedBy,
-			&res.UpdatedBy,
-			&res.DeletedBy,
-			&res.CreatedAt,
-			&res.UpdatedAt,
-			&res.DeletedAt,
-		)
-	}
+	err = row.Scan(
+		&res.ID,
+		&res.Handle,
+		&res.Meta,
+		&res.Scenarios,
+		&res.Sources,
+		&res.Blocks,
+		&res.OwnedBy,
+		&res.CreatedBy,
+		&res.UpdatedBy,
+		&res.DeletedBy,
+		&res.CreatedAt,
+		&res.UpdatedAt,
+		&res.DeletedAt,
+	)
 
 	if err == sql.ErrNoRows {
 		return nil, store.ErrNotFound.Stack(1)
@@ -502,6 +498,7 @@ func (Store) reportColumns(aa ...string) []string {
 		alias + "id",
 		alias + "handle",
 		alias + "meta",
+		alias + "scenarios",
 		alias + "sources",
 		alias + "blocks",
 		alias + "owned_by",
@@ -539,6 +536,7 @@ func (s Store) internalReportEncoder(res *types.Report) store.Payload {
 		"id":         res.ID,
 		"handle":     res.Handle,
 		"meta":       res.Meta,
+		"scenarios":  res.Scenarios,
 		"sources":    res.Sources,
 		"blocks":     res.Blocks,
 		"owned_by":   res.OwnedBy,

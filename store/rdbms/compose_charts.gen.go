@@ -73,7 +73,7 @@ func (s Store) SearchComposeCharts(ctx context.Context, f types.ChartFilter) (ty
 		}
 
 		// Apply sorting expr from filter to query
-		if q, err = setOrderBy(q, sort, s.sortableComposeChartColumns()); err != nil {
+		if q, err = setOrderBy(q, sort, s.sortableComposeChartColumns(), s.Config().SqlSortHandler); err != nil {
 			return err
 		}
 
@@ -442,21 +442,16 @@ func (s Store) execDeleteComposeCharts(ctx context.Context, cnd squirrel.Sqlizer
 func (s Store) internalComposeChartRowScanner(row rowScanner) (res *types.Chart, err error) {
 	res = &types.Chart{}
 
-	if _, has := s.config.RowScanners["composeChart"]; has {
-		scanner := s.config.RowScanners["composeChart"].(func(_ rowScanner, _ *types.Chart) error)
-		err = scanner(row, res)
-	} else {
-		err = row.Scan(
-			&res.ID,
-			&res.Handle,
-			&res.Name,
-			&res.Config,
-			&res.NamespaceID,
-			&res.CreatedAt,
-			&res.UpdatedAt,
-			&res.DeletedAt,
-		)
-	}
+	err = row.Scan(
+		&res.ID,
+		&res.Handle,
+		&res.Name,
+		&res.Config,
+		&res.NamespaceID,
+		&res.CreatedAt,
+		&res.UpdatedAt,
+		&res.DeletedAt,
+	)
 
 	if err == sql.ErrNoRows {
 		return nil, store.ErrNotFound.Stack(1)

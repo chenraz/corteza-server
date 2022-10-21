@@ -14,7 +14,7 @@ import (
 	"github.com/cortezaproject/corteza-server/automation/types"
 	"github.com/cortezaproject/corteza-server/pkg/expr"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -457,7 +457,7 @@ func (r SessionResumeState) GetInput() *expr.Vars {
 // Fill processes request and fills internal variables
 func (r *SessionResumeState) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -465,6 +465,27 @@ func (r *SessionResumeState) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["input[]"]; ok {
+				r.Input, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["input"]; ok {
+				r.Input, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 

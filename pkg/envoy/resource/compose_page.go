@@ -129,6 +129,23 @@ func NewComposePage(pg *types.Page, nsRef, modRef, parentRef string) *ComposePag
 	return r
 }
 
+func UnpackComposePage(p *types.Page) (*types.Page, string, string) {
+	modRef := ""
+	parentRef := ""
+	if p.ModuleID != 0 {
+		modRef = strconv.FormatUint(p.ModuleID, 10)
+	}
+	if p.SelfID != 0 {
+		parentRef = strconv.FormatUint(p.SelfID, 10)
+	}
+
+	return p, modRef, parentRef
+}
+
+func (r *ComposePage) Resource() interface{} {
+	return r.Res
+}
+
 func (r *ComposePage) ReRef(old RefSet, new RefSet) {
 	r.base.ReRef(old, new)
 
@@ -154,16 +171,31 @@ outer:
 		switch b.Kind {
 		// Implement the rest when support is needed
 		case "Automation":
-			bb, _ := b.Options["buttons"].([]interface{})
-			for _, b := range bb {
-				button, _ := b.(map[string]interface{})
-				auxRef = r.pbAutomation(button)
-
-				if auxRef.equals(ref) {
-					r.ReplaceRef(ref, nil)
-					r.WfRefs = r.WfRefs.replaceRef(ref, nil)
+			if b.Options["buttons"] == nil {
+				// In case the block isn't connected to a workflow (placeholder, script)
+				if auxRef == nil {
 					r.removeBlock(i)
 					continue outer
+				}
+			} else {
+				bb, _ := b.Options["buttons"].([]interface{})
+				for _, b := range bb {
+					button, _ := b.(map[string]interface{})
+					auxRef = r.pbAutomation(button)
+
+					// In case the block isn't connected to a workflow (placeholder, script)
+					if auxRef == nil {
+						r.removeBlock(i)
+						continue outer
+					}
+
+					// In case we are removing it
+					if auxRef.equals(ref) {
+						r.ReplaceRef(ref, nil)
+						r.WfRefs = r.WfRefs.replaceRef(ref, nil)
+						r.removeBlock(i)
+						continue outer
+					}
 				}
 			}
 		}
@@ -245,7 +277,7 @@ func (r *ComposePage) optString(opt map[string]interface{}, kk ...string) string
 
 func (r *ComposePage) pbRecordList(opt map[string]interface{}) (out *Ref) {
 	id := r.optString(opt, "module", "moduleID")
-	if id == "" {
+	if id == "" || id == "0" {
 		return
 	}
 
@@ -254,7 +286,7 @@ func (r *ComposePage) pbRecordList(opt map[string]interface{}) (out *Ref) {
 
 func (r *ComposePage) pbComment(opt map[string]interface{}) (out *Ref) {
 	id := r.optString(opt, "module", "moduleID")
-	if id == "" {
+	if id == "" || id == "0" {
 		return
 	}
 
@@ -263,7 +295,7 @@ func (r *ComposePage) pbComment(opt map[string]interface{}) (out *Ref) {
 
 func (r *ComposePage) pbAutomation(opt map[string]interface{}) (out *Ref) {
 	id := r.optString(opt, "workflow", "workflowID")
-	if id == "" {
+	if id == "" || id == "0" {
 		return
 	}
 
@@ -272,7 +304,7 @@ func (r *ComposePage) pbAutomation(opt map[string]interface{}) (out *Ref) {
 
 func (r *ComposePage) pbRecordOrganizer(opt map[string]interface{}) (out *Ref) {
 	id := r.optString(opt, "module", "moduleID")
-	if id == "" {
+	if id == "" || id == "0" {
 		return
 	}
 
@@ -281,7 +313,7 @@ func (r *ComposePage) pbRecordOrganizer(opt map[string]interface{}) (out *Ref) {
 
 func (r *ComposePage) pbChart(opt map[string]interface{}) (out *Ref) {
 	id := r.optString(opt, "chart", "chartID")
-	if id == "" {
+	if id == "" || id == "0" {
 		return
 	}
 
@@ -290,7 +322,7 @@ func (r *ComposePage) pbChart(opt map[string]interface{}) (out *Ref) {
 
 func (r *ComposePage) pbCalendar(opt map[string]interface{}) (out *Ref) {
 	id := r.optString(opt, "module", "moduleID")
-	if id == "" {
+	if id == "" || id == "0" {
 		return
 	}
 
@@ -299,7 +331,7 @@ func (r *ComposePage) pbCalendar(opt map[string]interface{}) (out *Ref) {
 
 func (r *ComposePage) pbMetric(opt map[string]interface{}) (out *Ref) {
 	id := r.optString(opt, "module", "moduleID")
-	if id == "" {
+	if id == "" || id == "0" {
 		return
 	}
 

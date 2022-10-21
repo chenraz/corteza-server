@@ -41,7 +41,7 @@ type (
 		Auth struct {
 			Internal struct {
 				// Is internal authentication (username + password) enabled
-				Enabled bool
+				Enabled bool `json:"-"`
 
 				Signup struct {
 					// Can users register
@@ -49,10 +49,10 @@ type (
 
 					// Users must confirm their emails when signing-up
 					EmailConfirmationRequired bool `kv:"email-confirmation-required"`
-				}
+				} `json:"-"`
 
 				// Can users reset their passwords
-				PasswordReset struct{ Enabled bool } `kv:"password-reset"`
+				PasswordReset struct{ Enabled bool } `json:"-" kv:"password-reset"`
 
 				// PasswordCreate setting for create password for user via generated link with token
 				// If user has no password then link redirects to create password page
@@ -61,14 +61,28 @@ type (
 				PasswordCreate struct {
 					Enabled bool
 					Expires uint
-				} `kv:"password-create"`
+				} `json:"-" kv:"password-create"`
 
 				// Splits credentials check into 2 parts
 				// If user has password credentials it offers him to enter the password
 				// Otherwise we offer the user to choose among the enabled external providers
 				// If only one ext. provider is enabled, user is automatically redirected there
-				SplitCredentialsCheck bool `kv:"split-credentials-check"`
-			}
+				SplitCredentialsCheck bool `json:"-" kv:"split-credentials-check"`
+
+				PasswordConstraints struct {
+					// Should the environment not enforce the constraints
+					PasswordSecurity bool `kv:"-" json:"passwordSecurity"`
+
+					// The min password length
+					MinLength uint `kv:"min-length"`
+
+					// The min number of numeric characters
+					MinNumCount uint `kv:"min-num-count"`
+
+					// The min number of special characters
+					MinSpecialCount uint `kv:"min-special-count"`
+				} `kv:"password-constraints" json:"passwordConstraints"`
+			} `json:"internal"`
 
 			External struct {
 				// Is external authentication
@@ -87,6 +101,15 @@ type (
 					// SAML certificate private key
 					Key string `kv:"key"`
 
+					// Sign AuthNRequest and assertion
+					SignRequests bool `kv:"sign-requests"`
+
+					// Signature method for signing
+					SignMethod string `kv:"sign-method"`
+
+					// Post or redirect binding
+					Binding string `kv:"binding"`
+
 					// Identity provider settings
 					IDP struct {
 						URL string `kv:"url"`
@@ -96,11 +119,13 @@ type (
 						IdentHandle     string `kv:"ident-handle"`
 						IdentIdentifier string `kv:"ident-identifier"`
 					} `kv:"idp"`
+
+					Security ExternalAuthProviderSecurity `json:"-" kv:"security,final"`
 				}
 
 				// all external providers we know
 				Providers ExternalAuthProviderSet
-			}
+			} `json:"-"`
 
 			MultiFactor struct {
 				EmailOTP struct {
@@ -129,18 +154,26 @@ type (
 					// TOTP issuer, defaults to "Corteza"
 					Issuer string
 				} `kv:"totp"`
-			} `kv:"multi-factor"`
+			} `json:"-" kv:"multi-factor"`
 
 			Mail struct {
 				FromAddress string `kv:"from-address"`
 				FromName    string `kv:"from-name"`
 			} `json:"-"`
-		} `json:"-"`
+		} `json:"auth"`
 
 		Compose struct {
-			// UI related settings
-			// (placeholder)
-			UI struct{} `kv:"ui"`
+			// Compose UI settings
+			UI struct {
+				// Sidebar specific settings
+				Sidebar struct {
+					// Hide namespace list
+					HideNamespaceList bool `json:"hideNamespaceList"`
+
+					// Hide namespace link at the end of the list
+					HideNamespaceListLink bool `json:"hideNamespaceListLink"`
+				} `kv:"sidebar,final" json:"sidebar"`
+			} `kv:"ui" json:"ui"`
 
 			// Record related settings
 			Record struct {
@@ -174,10 +207,44 @@ type (
 			Enabled bool `kv:"-" json:"enabled"`
 		} `kv:"federation" json:"federation"`
 
+		// Integration gateway settings
+		Apigw struct {
+			ProfilerEnabled bool `kv:"-" json:"profilerEnabled"`
+			ProfilerGlobal  bool `kv:"-" json:"profilerGlobal"`
+		} `kv:"apigw" json:"apigw"`
+
 		// UserInterface settings
 		UI struct {
 			MainLogo string `kv:"main-logo" json:"mainLogo"`
 			IconLogo string `kv:"icon-logo" json:"iconLogo"`
+
+			Sidebar struct {
+				// General sidebar settings
+				Disabled bool `json:"disabled"`
+			} `kv:"sidebar,final" json:"sidebar"`
+
+			Topbar struct {
+				HideAppSelector        bool `json:"hideAppSelector"`
+				HideHelp               bool `json:"hideHelp"`
+				HideForumLink          bool `json:"hideForumLink"`
+				HideDocumentationLink  bool `json:"hideDocumentationLink"`
+				HideFeedbackLink       bool `json:"hideFeedbackLink"`
+				HideProfile            bool `json:"hideProfile"`
+				HideChangePasswordLink bool `json:"hideChangePasswordLink"`
+				HideProfileLink        bool `json:"hideProfileLink"`
+
+				HelpLinks []struct {
+					Handle string `json:"handle"`
+					URL    string `json:"url"`
+					NewTab bool   `json:"newTab"`
+				} `json:"helpLinks"`
+
+				ProfileLinks []struct {
+					Handle string `json:"handle"`
+					URL    string `json:"url"`
+					NewTab bool   `json:"newTab"`
+				} `json:"profileLinks"`
+			} `kv:"topbar,final" json:"topbar"`
 		} `kv:"ui" json:"ui"`
 
 		ResourceTranslations struct {
@@ -196,6 +263,61 @@ type (
 			// Empty slice defaults to LOCALE_LANGUAGES
 			Languages []string `kv:"languages" json:"languages"`
 		} `kv:"resource-translations" json:"resourceTranslations"`
+
+		Discovery struct {
+			// Enable indexing
+			Enabled bool `kv:"enabled" json:"enabled"`
+
+			SystemUsers struct {
+				// Enable indexing of users
+				Enabled bool `kv:"enabled" json:"enabled"`
+			} `kv:"system-users" json:"system-users"`
+
+			SystemApplications struct {
+				// Enable indexing of applications
+				Enabled bool `kv:"enabled" json:"enabled"`
+			} `kv:"system-applications" json:"system-applications"`
+
+			SystemRoles struct {
+				// Enable indexing of roles
+				Enabled bool `kv:"enabled" json:"enabled"`
+			} `kv:"system-roles" json:"system-roles"`
+
+			SystemTemplates struct {
+				// Enable indexing of templates
+				Enabled bool `kv:"enabled" json:"enabled"`
+			} `kv:"system-templates" json:"system-templates"`
+
+			AutomationWorkflows struct {
+				// Enable indexing of workflows
+				Enabled bool `kv:"enabled" json:"enabled"`
+			} `kv:"automation-workflows" json:"automation-workflows"`
+
+			ComposeNamespaces struct {
+				// Enable indexing of compose namespaces
+				Enabled bool `kv:"enabled" json:"enabled"`
+			} `kv:"compose-namespaces" json:"compose-namespaces"`
+
+			ComposeCharts struct {
+				// Enable indexing of compose charts
+				Enabled bool `kv:"enabled" json:"enabled"`
+			} `kv:"compose-charts" json:"compose-charts"`
+
+			ComposePages struct {
+				// Enable indexing of compose pages
+				Enabled bool `kv:"enabled" json:"enabled"`
+			} `kv:"compose-pages" json:"compose-pages"`
+
+			ComposeModules struct {
+				// Enable indexing of compose modules
+				Enabled bool `kv:"enabled" json:"enabled"`
+			} `kv:"compose-modules" json:"compose-modules"`
+
+			ComposeRecords struct {
+				// Enable indexing of compose records
+				Enabled bool `kv:"enabled" json:"enabled"`
+			} `kv:"compose-records" json:"compose-records"`
+		} `kv:"discovery" json:"discovery"`
 	}
 
 	ExternalAuthProviderSet []*ExternalAuthProvider
@@ -206,9 +328,42 @@ type (
 		Label       string `json:"label"`
 		Key         string `json:"-"`
 		Secret      string `json:"-"`
+		Scope       string `json:"scope"`
 		RedirectUrl string `json:"-" kv:"redirect"`
 		IssuerUrl   string `json:"-" kv:"issuer"`
 		Weight      int    `json:"-"`
+
+		Security ExternalAuthProviderSecurity `json:"-" kv:"security,final"`
+	}
+
+	ExternalAuthProviderSecurity struct {
+		// Subset of roles, permitted to be used with this client
+		// when authorizing via this auth provider.
+		//
+		// IDs are intentionally stored as strings to support JS (int64 only)
+		//
+		PermittedRoles []string `json:"permittedRoles,omitempty"`
+
+		// Subset of roles, prohibited to be used with this client
+		// when authorizing via this auth provider.
+		//
+		// IDs are intentionally stored as strings to support JS (int64 only)
+		//
+		ProhibitedRoles []string `json:"prohibitedRoles,omitempty"`
+
+		// Set of additional roles that are forced on this user
+		// when authorizing via this auth provider.
+		//
+		// IDs are intentionally stored as strings to support JS (int64 only)
+		ForcedRoles []string `json:"forcedRoles,omitempty"`
+
+		// Map external roles or groups to internal
+		//
+		// If IdP provides a list of roles (groups) along side authenticated user
+		// these roles can be mapped to the valid local roles
+		//
+		// @todo implement mapped roles
+		// MappedRoles map[string]string `json:"mappedRoles,omitempty"`
 	}
 
 	SmtpServers struct {
@@ -221,6 +376,19 @@ type (
 		TlsServerName string `json:"tlsServerName"`
 	}
 )
+
+// WithDefaults sets defaults on copy (!!) of settings
+// to avoid any unintended corruption or leaks
+func (cs AppSettings) WithDefaults() *AppSettings {
+	if len(strings.TrimSpace(cs.UI.IconLogo)) == 0 {
+		cs.UI.IconLogo = "/assets/favicon32x32.png"
+	}
+	if len(strings.TrimSpace(cs.UI.MainLogo)) == 0 {
+		cs.UI.MainLogo = "/assets/logo.png"
+	}
+
+	return &cs
+}
 
 func (set *ExternalAuthProvider) ValidConfiguration() bool {
 	if !set.Enabled || set.Handle == "" || set.Key == "" || set.Secret == "" {
@@ -242,7 +410,12 @@ func (set *ExternalAuthProviderSet) DecodeKV(kv SettingsKV, prefix string) (err 
 	}
 
 	// create standard provider set
-	providers := map[string]bool{"github": true, "facebook": true, "google": true, "linkedin": true}
+	permanent := map[string]bool{"github": true, "facebook": true, "google": true, "linkedin": true}
+	// and make a working copy
+	providers := make(map[string]bool)
+	for k, v := range permanent {
+		providers[k] = v
+	}
 
 	// remove prefix
 	kv = kv.CutPrefix(prefix + ".")
@@ -265,12 +438,20 @@ func (set *ExternalAuthProviderSet) DecodeKV(kv SettingsKV, prefix string) (err 
 		p := (*set).FindByHandle(handle)
 		if p == nil {
 			p = &ExternalAuthProvider{Handle: handle}
-			(*set) = append((*set), p)
+			*set = append(*set, p)
 		}
 
 		err = DecodeKV(kv.CutPrefix(handle+"."), p)
 		if err != nil {
 			return
+		}
+	}
+
+	// Cleanup
+	var clean = ExternalAuthProviderSet{}
+	for _, p := range *set {
+		if p.empty() && !permanent[p.Handle] {
+			continue
 		}
 
 		if p.Label == "" {
@@ -280,8 +461,10 @@ func (set *ExternalAuthProviderSet) DecodeKV(kv SettingsKV, prefix string) (err 
 			case "linkedin":
 				p.Label = "LinkedIn"
 			case "corteza-iam", "corteza", "corteza-one":
+				// Some legacy provider naming
 				p.Label = "Corteza IAM"
 			case "crust-iam", "crust", "crust-unify":
+				// Some legacy provider naming
 				p.Label = "Crust IAM"
 			default:
 				if strings.HasPrefix(p.Handle, oidcProviderPrefix) {
@@ -291,7 +474,11 @@ func (set *ExternalAuthProviderSet) DecodeKV(kv SettingsKV, prefix string) (err 
 				}
 			}
 		}
+
+		clean = append(clean, p)
 	}
+
+	*set = clean
 
 	return
 }
@@ -325,7 +512,7 @@ func (set ExternalAuthProviderSet) Less(i, j int) bool {
 // Returns enabled providers, sorted with their redirect-URLs set...
 func (set ExternalAuthProviderSet) Valid() (out ExternalAuthProviderSet) {
 	for _, eap := range set {
-		if !eap.Enabled {
+		if eap.empty() || !eap.Enabled {
 			continue
 		}
 
@@ -337,20 +524,21 @@ func (set ExternalAuthProviderSet) Valid() (out ExternalAuthProviderSet) {
 
 var _ KVDecoder = &ExternalAuthProviderSet{}
 
-func (p ExternalAuthProvider) EncodeKV() (vv SettingValueSet, err error) {
-	if p.Handle == "" {
+func (eap ExternalAuthProvider) EncodeKV() (vv SettingValueSet, err error) {
+	if eap.Handle == "" {
 		return nil, errors.New("cannot encode external auth provider without handle")
 	}
 	var (
-		prefix = "auth.external.providers." + p.Handle + "."
+		prefix = "auth.external.providers." + eap.Handle + "."
 		pairs  = map[string]interface{}{
-			"enabled":  p.Enabled,
-			"label":    p.Label,
-			"key":      p.Key,
-			"secret":   p.Secret,
-			"issuer":   p.IssuerUrl,
-			"redirect": p.RedirectUrl,
-			"weight":   p.Weight,
+			"enabled":  eap.Enabled,
+			"label":    eap.Label,
+			"key":      eap.Key,
+			"secret":   eap.Secret,
+			"scope":    eap.Scope,
+			"issuer":   eap.IssuerUrl,
+			"redirect": eap.RedirectUrl,
+			"weight":   eap.Weight,
 		}
 	)
 
@@ -365,4 +553,13 @@ func (p ExternalAuthProvider) EncodeKV() (vv SettingValueSet, err error) {
 	}
 
 	return
+}
+
+// returns true if all relevant props are empty
+func (eap ExternalAuthProvider) empty() bool {
+	return len(
+		eap.RedirectUrl+
+			eap.Secret+
+			eap.Key,
+	) == 0
 }

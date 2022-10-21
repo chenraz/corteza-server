@@ -39,6 +39,15 @@ func (svc record) Datasource(ctx context.Context, ld *report.LoadStepDefinition)
 		return nil, fmt.Errorf("compose namespace not defined")
 	}
 
+	// check if namespace exists
+	ns, err := store.LookupComposeNamespaceByID(ctx, svc.store, namespaceID)
+	if err != nil {
+		return nil, err
+	}
+	if ns.DeletedAt != nil {
+		return nil, NamespaceErrNotFound()
+	}
+
 	if mr, ok := def["moduleID"]; ok {
 		moduleID, err = cast.ToUint64E(mr)
 		if err != nil {
@@ -85,6 +94,7 @@ func (svc record) Datasource(ctx context.Context, ld *report.LoadStepDefinition)
 			c = report.MakeColumnOfKind(k)
 			c.Name = f.Name
 			c.Label = f.Label
+			c.Options = f.Options
 			if c.Label == "" {
 				c.Label = c.Name
 			}

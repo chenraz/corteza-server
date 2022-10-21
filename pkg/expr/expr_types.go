@@ -16,6 +16,7 @@ import (
 	"github.com/PaesslerAG/gval"
 	"github.com/cortezaproject/corteza-server/pkg/errors"
 	"github.com/cortezaproject/corteza-server/pkg/handle"
+	h "github.com/cortezaproject/corteza-server/pkg/http"
 	"github.com/spf13/cast"
 )
 
@@ -63,13 +64,31 @@ func ResolveTypes(rt resolvableType, resolver func(typ string) Type) error {
 	return rt.ResolveTypes(resolver)
 }
 
-func set(m merger, key string, val TypedValue) (out TypedValue, err error) {
+func set(i interface{}, key string, val interface{}) (out TypedValue, err error) {
+	m, ok := i.(merger)
+	if !ok {
+		i, err = Typify(i)
+		if err != nil {
+			return
+		}
+
+		m, ok = i.(merger)
+		if !ok {
+			return out, fmt.Errorf("cannot set on unexpected type: %T", i)
+		}
+	}
+
 	out, err = m.Merge()
 	if err != nil {
 		return
 	}
 
-	err = Assign(out, key, val)
+	v, err := Typify(val)
+	if err != nil {
+		return
+	}
+
+	err = Assign(out, key, v)
 	if err != nil {
 		return
 	}
@@ -184,7 +203,7 @@ func (t *Unresolved) Assign(interface{}) (err error) {
 }
 
 func CastToAny(val interface{}) (interface{}, error) {
-	return val, nil
+	return UntypedValue(val), nil
 }
 
 func CastToArray(val interface{}) (out []TypedValue, err error) {
@@ -646,6 +665,40 @@ func CastToReader(val interface{}) (out io.Reader, err error) {
 		return casted, nil
 	default:
 		return nil, fmt.Errorf("unable to cast %T to io.Reader", val)
+	}
+}
+
+func CastToHttpRequest(val interface{}) (out *h.Request, err error) {
+	switch val := val.(type) {
+	case Iterator:
+		out = &h.Request{}
+		return out, val.Each(func(k string, v TypedValue) error {
+			return assignToHttpRequest(out, k, v)
+		})
+	}
+
+	switch val := UntypedValue(val).(type) {
+	case *h.Request:
+		return val, nil
+	case nil:
+		return &h.Request{}, nil
+	default:
+		return &h.Request{}, fmt.Errorf("unable to cast type %T to %T", val, out)
+	}
+}
+
+func CastToUrl(val interface{}) (out *url.URL, err error) {
+	switch val := UntypedValue(val).(type) {
+	case []byte:
+		return url.Parse(string(val))
+	case string:
+		return url.Parse(val)
+	case *url.URL:
+		return val, nil
+	case nil:
+		return &url.URL{}, nil
+	default:
+		return &url.URL{}, fmt.Errorf("unable to cast type %T to %T", val, out)
 	}
 }
 

@@ -392,6 +392,10 @@ endpoints:
         type: string
         title: Script to execute
         required: true
+      - name: args
+        type: map[string]interface{}
+        parser: parseMapStringInterface
+        title: Arguments to pass to the script
 - title: Users
   path: "/users"
   entrypoint: user
@@ -652,6 +656,10 @@ endpoints:
         type: string
         title: Script to execute
         required: true
+      - name: args
+        type: map[string]interface{}
+        parser: parseMapStringInterface
+        title: Arguments to pass to the script
   - name: sessionsRemove
     method: DELETE
     title: Remove all auth sessions of user
@@ -662,6 +670,37 @@ endpoints:
           name: userID
           required: true
           title: ID
+
+  - name: export
+    method: GET
+    title: Export users
+    path: "/export/{filename}.zip"
+    parameters:
+      path:
+      - name: filename
+        type: string
+        required: true
+        title: Output filename
+      get:
+      - name: inclRoleMembership
+        type: bool
+        required: false
+        title: Include role membership
+      - name: inclRoles
+        type: bool
+        required: false
+        title: Include roles
+  - name: import
+    method: POST
+    title: Import users
+    path: "/import"
+    parameters:
+      post:
+      - name: upload
+        type: "*multipart.FileHeader"
+        required: true
+        title: File import
+
 - title: Applications
   path: "/application"
   entrypoint: application
@@ -873,6 +912,10 @@ endpoints:
         type: string
         title: Script to execute
         required: true
+      - name: args
+        type: map[string]interface{}
+        parser: parseMapStringInterface
+        title: Arguments to pass to the script
   - name: reorder
     method: POST
     title: Reorder applications
@@ -944,6 +987,21 @@ endpoints:
         type: rbac.RuleSet
         required: true
         title: List of permission rules to set
+  - name: clone
+    path: "/{roleID}/rules/clone"
+    method: POST
+    title: Clone permission settings to a role
+    parameters:
+      path:
+        - name: roleID
+          type: uint64
+          required: true
+          title: Role ID
+      get:
+        - name: cloneToRoleID
+          type: "[]string"
+          required: true
+          title: Clone set of rules to roleID
 - title: Reminders
   entrypoint: reminder
   path: "/reminder"
@@ -1391,6 +1449,7 @@ endpoints:
       post:
       - { name: handle,       type: string,                       title: Client handle }
       - { name: meta,         type: '*types.ReportMeta',          title: Additional info,         parser: types.ParseReportMeta }
+      - { name: scenarios,    type: "types.ReportScenarioSet",    title: Report scenarios }
       - { name: sources,      type: "types.ReportDataSourceSet",  title: Report source definitions }
       - { name: blocks,       type: "types.ReportBlockSet",       title: Report blocks definition }
       - { name: labels,       type: 'map[string]string',          title: Labels,                  parser: label.ParseStrings }
@@ -1407,6 +1466,7 @@ endpoints:
       post:
       - { name: handle,       type: string,                       title: Client handle }
       - { name: meta,         type: '*types.ReportMeta',          title: Additional info,         parser: types.ParseReportMeta }
+      - { name: scenarios,    type: "types.ReportScenarioSet",    title: Report scenarios }
       - { name: sources,      type: "types.ReportDataSourceSet",  title: Report sources definition }
       - { name: blocks,       type: "types.ReportBlockSet",       title: Report blocks definition }
       - { name: labels,       type: 'map[string]string',          title: Labels,                  parser: label.ParseStrings }
@@ -1527,6 +1587,10 @@ endpoints:
         type: string
         title: Script to execute
         required: true
+      - name: args
+        type: map[string]interface{}
+        parser: parseMapStringInterface
+        title: Arguments to pass to the script
 - title: Action log
   entrypoint: actionlog
   path: "/actionlog"
@@ -1626,7 +1690,7 @@ endpoints:
       path:
       - { type: uint64, name: queueID, required: true, title: Queue ID }
 
-- title: API Gateway routes
+- title: Integration gateway routes
   path: "/apigw/route"
   entrypoint: apigwRoute
   authentication: []
@@ -1687,7 +1751,7 @@ endpoints:
     path: "/{routeID}/undelete"
     parameters: { path: [ { name: routeID, type: uint64, required: true, title: "Route ID" } ] }
 
-- title: API Gateway filters
+- title: Integration gateway filters
   path: "/apigw/filter"
   entrypoint: apigwFilter
   authentication: []
@@ -1757,6 +1821,39 @@ endpoints:
     method: GET
     title: Proxy auth definitions
     path: "/proxy_auth/def"
+
+- title: Integration gateway profiler
+  path: "/apigw/profiler"
+  entrypoint: apigwProfiler
+  authentication: []
+  apis:
+  - name: aggregation
+    method: GET
+    title: List aggregated list of routes
+    path: "/"
+    parameters:
+      get:
+      - { name: path,   type: "string", title: "Filter by request path"         }
+      - { name: before, type: "string", title: "Entries before specified route" }
+      - { name: sort,   type: "string", title: "Sort items"                     }
+      - { name: limit,  type: "uint",   title: "Limit"                          }
+  - name: route
+    method: GET
+    title: List hits per route
+    path: "/route/{routeID}"
+    parameters:
+      path:
+      - { name: routeID, type: "string",     title: "Route ID", required: true }
+      get:
+      - { name: path,   type: "string", title: "Filter by request path"          }
+      - { name: before, type: "string", title: "Entries before specified hit ID" }
+      - { name: sort,   type: "string", title: "Sort items"                      }
+      - { name: limit,  type: "uint",   title: "Limit"                           }
+  - name: hit
+    method: GET
+    title: Hit details
+    path: "/hit/{hitID}"
+    parameters: { path: [ { name: hitID, type: string, required: true, title: "Hit ID" } ] }
 
 - title: Locale
   entrypoint: locale

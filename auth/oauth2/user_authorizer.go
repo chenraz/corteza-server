@@ -2,14 +2,16 @@ package oauth2
 
 import (
 	"fmt"
-	"github.com/cortezaproject/corteza-server/auth/request"
-	"github.com/go-oauth2/oauth2/v4/server"
 	"net/http"
+
+	"github.com/cortezaproject/corteza-server/auth/request"
+	internalAuth "github.com/cortezaproject/corteza-server/pkg/auth"
+	"github.com/cortezaproject/corteza-server/pkg/payload"
+	"github.com/go-oauth2/oauth2/v4/server"
 )
 
 func NewUserAuthorizer(sm *request.SessionManager, loginURL, clientAuthURL string) server.UserAuthorizationHandler {
 	return func(w http.ResponseWriter, r *http.Request) (identity string, err error) {
-
 		var (
 			ses    = sm.Get(r)
 			au     = request.GetAuthUser(ses)
@@ -37,10 +39,15 @@ func NewUserAuthorizer(sm *request.SessionManager, loginURL, clientAuthURL strin
 			}
 		}
 
-		var roles = request.GetRoleMemberships(ses)
+		roles := au.User.Roles()
 		if client.Security != nil {
 			// filter user's roles with client security settings
-			roles = client.Security.ProcessRoles(roles...)
+			roles = internalAuth.ApplyRoleSecurity(
+				payload.ParseUint64s(client.Security.PermittedRoles),
+				payload.ParseUint64s(client.Security.ProhibitedRoles),
+				payload.ParseUint64s(client.Security.ForcedRoles),
+				roles...,
+			)
 		}
 
 		// User authenticated, client authorized!

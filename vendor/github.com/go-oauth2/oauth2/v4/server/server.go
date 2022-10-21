@@ -32,7 +32,7 @@ func NewServer(cfg *Config, manager oauth2.Manager) *Server {
 		return "", errors.ErrAccessDenied
 	}
 
-	srv.PasswordAuthorizationHandler = func(username, password string) (string, error) {
+	srv.PasswordAuthorizationHandler = func(ctx context.Context, username, password string) (string, error) {
 		return "", errors.ErrAccessDenied
 	}
 	return srv
@@ -48,18 +48,29 @@ type Server struct {
 	UserAuthorizationHandler     UserAuthorizationHandler
 	PasswordAuthorizationHandler PasswordAuthorizationHandler
 	RefreshingValidationHandler  RefreshingValidationHandler
+	PreRedirectErrorHandler      PreRedirectErrorHandler
 	RefreshingScopeHandler       RefreshingScopeHandler
 	ResponseErrorHandler         ResponseErrorHandler
 	InternalErrorHandler         InternalErrorHandler
 	ExtensionFieldsHandler       ExtensionFieldsHandler
 	AccessTokenExpHandler        AccessTokenExpHandler
 	AuthorizeScopeHandler        AuthorizeScopeHandler
+	ResponseTokenHandler         ResponseTokenHandler
+}
+
+func (s *Server) handleError(w http.ResponseWriter, req *AuthorizeRequest, err error) error {
+	if fn := s.PreRedirectErrorHandler; fn != nil {
+		return fn(w, req, err)
+	}
+
+	return s.redirectError(w, req, err)
 }
 
 func (s *Server) redirectError(w http.ResponseWriter, req *AuthorizeRequest, err error) error {
 	if req == nil {
 		return err
 	}
+
 	data, _, _ := s.GetErrorData(err)
 	return s.redirect(w, req, data)
 }
@@ -81,6 +92,9 @@ func (s *Server) tokenError(w http.ResponseWriter, err error) error {
 }
 
 func (s *Server) token(w http.ResponseWriter, data map[string]interface{}, header http.Header, statusCode ...int) error {
+	if fn := s.ResponseTokenHandler; fn != nil {
+		return fn(w, data, header, statusCode...)
+	}
 	w.Header().Set("Content-Type", "application/json;charset=UTF-8")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
@@ -178,7 +192,7 @@ func (s *Server) ValidationAuthorizeRequest(r *http.Request) (*AuthorizeRequest,
 	if ccm == "" {
 		ccm = oauth2.CodeChallengePlain
 	}
-	if ccm.String() != "" && !s.CheckCodeChallengeMethod(ccm) {
+	if ccm != "" && !s.CheckCodeChallengeMethod(ccm) {
 		return nil, errors.ErrUnsupportedCodeChallengeMethod
 	}
 
@@ -212,16 +226,17 @@ func (s *Server) GetAuthorizeToken(ctx context.Context, req *AuthorizeRequest) (
 		}
 	}
 
+	tgr := &oauth2.TokenGenerateRequest{
+		ClientID:       req.ClientID,
+		UserID:         req.UserID,
+		RedirectURI:    req.RedirectURI,
+		Scope:          req.Scope,
+		AccessTokenExp: req.AccessTokenExp,
+		Request:        req.Request,
+	}
+
 	// check the client allows the authorized scope
 	if fn := s.ClientScopeHandler; fn != nil {
-		tgr := &oauth2.TokenGenerateRequest{
-			ClientID:       req.ClientID,
-			UserID:         req.UserID,
-			RedirectURI:    req.RedirectURI,
-			Scope:          req.Scope,
-			AccessTokenExp: req.AccessTokenExp,
-			Request:        req.Request,
-		}
 		allowed, err := fn(tgr)
 		if err != nil {
 			return nil, err
@@ -230,16 +245,9 @@ func (s *Server) GetAuthorizeToken(ctx context.Context, req *AuthorizeRequest) (
 		}
 	}
 
-	tgr := &oauth2.TokenGenerateRequest{
-		ClientID:            req.ClientID,
-		UserID:              req.UserID,
-		RedirectURI:         req.RedirectURI,
-		Scope:               req.Scope,
-		AccessTokenExp:      req.AccessTokenExp,
-		Request:             req.Request,
-		CodeChallenge:       req.CodeChallenge,
-		CodeChallengeMethod: req.CodeChallengeMethod,
-	}
+	tgr.CodeChallenge = req.CodeChallenge
+	tgr.CodeChallengeMethod = req.CodeChallengeMethod
+
 	return s.Manager.GenerateAuthToken(ctx, req.ResponseType, tgr)
 }
 
@@ -259,13 +267,13 @@ func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) 
 
 	req, err := s.ValidationAuthorizeRequest(r)
 	if err != nil {
-		return s.redirectError(w, req, err)
+		return s.handleError(w, req, err)
 	}
 
 	// user authorization
 	userID, err := s.UserAuthorizationHandler(w, r)
 	if err != nil {
-		return s.redirectError(w, req, err)
+		return s.handleError(w, req, err)
 	} else if userID == "" {
 		return nil
 	}
@@ -292,7 +300,7 @@ func (s *Server) HandleAuthorizeRequest(w http.ResponseWriter, r *http.Request) 
 
 	ti, err := s.GetAuthorizeToken(ctx, req)
 	if err != nil {
-		return s.redirectError(w, req, err)
+		return s.handleError(w, req, err)
 	}
 
 	// If the redirect URI is empty, the default domain provided by the client is used.
@@ -349,7 +357,7 @@ func (s *Server) ValidationTokenRequest(r *http.Request) (oauth2.GrantType, *oau
 			return "", nil, errors.ErrInvalidRequest
 		}
 
-		userID, err := s.PasswordAuthorizationHandler(username, password)
+		userID, err := s.PasswordAuthorizationHandler(r.Context(), username, password)
 		if err != nil {
 			return "", nil, err
 		} else if userID == "" {
@@ -379,7 +387,8 @@ func (s *Server) CheckGrantType(gt oauth2.GrantType) bool {
 }
 
 // GetAccessToken access token
-func (s *Server) GetAccessToken(ctx context.Context, gt oauth2.GrantType, tgr *oauth2.TokenGenerateRequest) (oauth2.TokenInfo, error) {
+func (s *Server) GetAccessToken(ctx context.Context, gt oauth2.GrantType, tgr *oauth2.TokenGenerateRequest) (oauth2.TokenInfo,
+	error) {
 	if allowed := s.CheckGrantType(gt); !allowed {
 		return nil, errors.ErrUnauthorizedClient
 	}
@@ -398,8 +407,7 @@ func (s *Server) GetAccessToken(ctx context.Context, gt oauth2.GrantType, tgr *o
 		ti, err := s.Manager.GenerateAccessToken(ctx, gt, tgr)
 		if err != nil {
 			switch err {
-			case errors.ErrInvalidAuthorizeCode, errors.ErrInvalidCodeChallenge,
-				errors.ErrMissingCodeChallenge, errors.ErrMissingCodeChallenge:
+			case errors.ErrInvalidAuthorizeCode, errors.ErrInvalidCodeChallenge, errors.ErrMissingCodeChallenge:
 				return nil, errors.ErrInvalidGrant
 			case errors.ErrInvalidClient:
 				return nil, errors.ErrInvalidClient
@@ -420,7 +428,7 @@ func (s *Server) GetAccessToken(ctx context.Context, gt oauth2.GrantType, tgr *o
 		return s.Manager.GenerateAccessToken(ctx, gt, tgr)
 	case oauth2.Refreshing:
 		// check scope
-		if scope, scopeFn := tgr.Scope, s.RefreshingScopeHandler; scope != "" && scopeFn != nil {
+		if scopeFn := s.RefreshingScopeHandler; tgr.Scope != "" && scopeFn != nil {
 			rti, err := s.Manager.LoadRefreshToken(ctx, tgr.Refresh)
 			if err != nil {
 				if err == errors.ErrInvalidRefreshToken || err == errors.ErrExpiredRefreshToken {

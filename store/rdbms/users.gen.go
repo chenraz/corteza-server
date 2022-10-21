@@ -73,7 +73,7 @@ func (s Store) SearchUsers(ctx context.Context, f types.UserFilter) (types.UserS
 		}
 
 		// Apply sorting expr from filter to query
-		if q, err = setOrderBy(q, sort, s.sortableUserColumns()); err != nil {
+		if q, err = setOrderBy(q, sort, s.sortableUserColumns(), s.Config().SqlSortHandler); err != nil {
 			return err
 		}
 
@@ -465,25 +465,20 @@ func (s Store) execDeleteUsers(ctx context.Context, cnd squirrel.Sqlizer) error 
 func (s Store) internalUserRowScanner(row rowScanner) (res *types.User, err error) {
 	res = &types.User{}
 
-	if _, has := s.config.RowScanners["user"]; has {
-		scanner := s.config.RowScanners["user"].(func(_ rowScanner, _ *types.User) error)
-		err = scanner(row, res)
-	} else {
-		err = row.Scan(
-			&res.ID,
-			&res.Email,
-			&res.EmailConfirmed,
-			&res.Username,
-			&res.Name,
-			&res.Handle,
-			&res.Meta,
-			&res.Kind,
-			&res.CreatedAt,
-			&res.UpdatedAt,
-			&res.SuspendedAt,
-			&res.DeletedAt,
-		)
-	}
+	err = row.Scan(
+		&res.ID,
+		&res.Email,
+		&res.EmailConfirmed,
+		&res.Username,
+		&res.Name,
+		&res.Handle,
+		&res.Meta,
+		&res.Kind,
+		&res.CreatedAt,
+		&res.UpdatedAt,
+		&res.SuspendedAt,
+		&res.DeletedAt,
+	)
 
 	if err == sql.ErrNoRows {
 		return nil, store.ErrNotFound.Stack(1)

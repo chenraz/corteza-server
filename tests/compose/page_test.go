@@ -1,10 +1,12 @@
 package compose
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/cortezaproject/corteza-server/compose/types"
 	"github.com/cortezaproject/corteza-server/pkg/id"
 	"github.com/cortezaproject/corteza-server/store"
+	systemService "github.com/cortezaproject/corteza-server/system/service"
 	"github.com/cortezaproject/corteza-server/tests/helpers"
 	"github.com/steinfletcher/apitest-jsonpath"
 	"github.com/stretchr/testify/require"
@@ -28,6 +31,17 @@ func (h helper) repoMakePage(ns *types.Namespace, name string) *types.Page {
 		CreatedAt:   time.Now(),
 		Title:       name,
 		NamespaceID: ns.ID,
+	}
+
+	res.Blocks = types.PageBlocks{
+		{BlockID: 1},
+		{BlockID: 2},
+	}
+
+	res.Config.NavItem.Icon = &types.PageConfigIcon{
+		Type:  "type",
+		Src:   "src",
+		Style: map[string]string{"sty": "le"},
 	}
 
 	h.noError(store.CreateComposePage(context.Background(), service.DefaultStore, res))
@@ -69,6 +83,8 @@ func TestPageRead(t *testing.T) {
 		Assert(helpers.AssertNoErrors).
 		Assert(jsonpath.Equal(`$.response.title`, m.Title)).
 		Assert(jsonpath.Equal(`$.response.pageID`, fmt.Sprintf("%d", m.ID))).
+		Assert(jsonpath.Equal(`$.response.config.navItem.icon.src`, `src`)).
+		Assert(jsonpath.Len(`$.response.blocks`, 2)).
 		End()
 }
 
@@ -153,13 +169,30 @@ func TestPageCreate(t *testing.T) {
 
 	ns := h.makeNamespace("some-namespace")
 
+	rsp := struct {
+		Response *types.Page `json:"response"`
+	}{}
+
 	h.apiInit().
 		Post(fmt.Sprintf("/namespace/%d/page/", ns.ID)).
-		FormData("title", "some-page").
+		Header("Accept", "application/json").
+		JSON(fmt.Sprintf(`{
+			"title": "some-page",
+			"config":{"navItem":{"icon":{"src":"my-icon"}}},
+			"blocks":[{"blockID": "1"}]
+		}`)).
 		Expect(t).
 		Status(http.StatusOK).
 		Assert(helpers.AssertNoErrors).
-		End()
+		End().
+		JSON(&rsp)
+
+	res := h.lookupPageByID(rsp.Response.ID)
+	h.a.NotNil(res)
+	h.a.Equal("some-page", res.Title)
+	h.a.Len(res.Blocks, 1)
+	h.a.NotNil(res.Config.NavItem.Icon)
+	h.a.Equal("my-icon", res.Config.NavItem.Icon.Src)
 }
 
 func TestPageUpdateForbidden(t *testing.T) {
@@ -200,6 +233,36 @@ func TestPageUpdate(t *testing.T) {
 	res = h.lookupPageByID(res.ID)
 	h.a.NotNil(res)
 	h.a.Equal("changed-name", res.Title)
+}
+
+func TestPageUpdateWithBlocksAndConfig(t *testing.T) {
+	h := newHelper(t)
+	h.clearPages()
+
+	helpers.AllowMe(h, types.NamespaceRbacResource(0), "read", "pages.search")
+	ns := h.makeNamespace("some-namespace")
+	res := h.repoMakePage(ns, "some-page")
+	helpers.AllowMe(h, types.PageRbacResource(0, 0), "update")
+
+	h.apiInit().
+		Post(fmt.Sprintf("/namespace/%d/page/%d", ns.ID, res.ID)).
+		Header("Accept", "application/json").
+		JSON(fmt.Sprintf(`{
+			"title": "changed-name",
+			"config":{"navItem":{"icon":{"src":"my-icon"}}},
+			"blocks":[{"blockID": "1"}]
+		}`)).
+		Expect(t).
+		Status(http.StatusOK).
+		Assert(helpers.AssertNoErrors).
+		End()
+
+	res = h.lookupPageByID(res.ID)
+	h.a.NotNil(res)
+	h.a.Equal("changed-name", res.Title)
+	h.a.NotNil(res.Config.NavItem.Icon)
+	h.a.Equal("my-icon", res.Config.NavItem.Icon.Src)
+	h.a.Len(res.Blocks, 1)
 }
 
 func TestPageReorder(t *testing.T) {
@@ -281,6 +344,100 @@ func TestPageTreeRead(t *testing.T) {
 		Assert(jsonpath.Equal(`$.response[2].title`, "p3")).
 		Assert(jsonpath.Equal(`$.response[3].title`, "p4")).
 		End()
+}
+
+func TestPageAttachment(t *testing.T) {
+	h := newHelper(t)
+	h.clearPages()
+
+	ns := h.makeNamespace("page attachment testing namespace")
+	page := h.repoMakePage(ns, "some-page")
+
+	helpers.AllowMe(h, types.NamespaceRbacResource(0), "read")
+	helpers.AllowMe(h, types.PageRbacResource(0, 0), "read", "update")
+
+	xxlBlob := bytes.Repeat([]byte("0"), 1_000_001)
+
+	testImgFh, err := os.ReadFile("./testdata/test.png")
+	h.noError(err)
+
+	defer func() {
+		// reset settings after we're done
+		systemService.CurrentSettings.Compose.Page.Attachments.MaxSize = 0
+		systemService.CurrentSettings.Compose.Page.Attachments.Mimetypes = nil
+	}()
+
+	// one megabyte limit
+	systemService.CurrentSettings.Compose.Page.Attachments.MaxSize = 1
+	systemService.CurrentSettings.Compose.Page.Attachments.Mimetypes = []string{}
+
+	cc := []struct {
+		name  string
+		file  []byte
+		fname string
+		mtype string
+		form  map[string]string
+		test  func(*http.Response, *http.Request) error
+	}{
+		{
+			"empty file",
+			[]byte(""),
+			"empty",
+			"plain/text",
+			map[string]string{},
+			helpers.AssertError("attachment.errors.notAllowedToCreateEmptyAttachment"),
+		},
+		{
+			"no file",
+			nil,
+			"empty",
+			"plain/text",
+			map[string]string{},
+			helpers.AssertError("attachment.errors.notAllowedToCreateEmptyAttachment"),
+		},
+		{
+			"valid upload, no constraints",
+			[]byte("."),
+			"dot",
+			"plain/text",
+			map[string]string{},
+			helpers.AssertNoErrors,
+		},
+		{
+			"global max size - over sized",
+			xxlBlob,
+			"numbers",
+			"plain/text",
+			map[string]string{},
+			helpers.AssertError("attachment.errors.tooLarge"),
+		},
+		{
+			"global mimetype - invalid",
+			testImgFh,
+			"numbers.gif",
+			"image/gif",
+			map[string]string{},
+			helpers.AssertError("attachment.errors.failedToProcessImage"),
+		},
+	}
+
+	for _, c := range cc {
+		t.Run(c.name, func(t *testing.T) {
+			h.t = t
+
+			helpers.InitFileUpload(t, h.apiInit(),
+				fmt.Sprintf("/namespace/%d/page/%d/attachment", page.NamespaceID, page.ID),
+				c.form,
+				c.file,
+				c.fname,
+				c.mtype,
+			).
+				Status(http.StatusOK).
+				Assert(c.test).
+				End()
+
+		})
+	}
 }
 
 func TestPageLabels(t *testing.T) {

@@ -3,12 +3,17 @@ package service
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
+	"github.com/cortezaproject/corteza-server/pkg/expr"
+	"github.com/cortezaproject/corteza-server/pkg/filter"
 	"github.com/cortezaproject/corteza-server/pkg/label"
+	"github.com/cortezaproject/corteza-server/pkg/minions"
 	rep "github.com/cortezaproject/corteza-server/pkg/report"
 	"github.com/cortezaproject/corteza-server/store"
 	"github.com/cortezaproject/corteza-server/system/types"
+	"github.com/spf13/cast"
 )
 
 type (
@@ -17,6 +22,8 @@ type (
 		eventbus  eventDispatcher
 		actionlog actionlog.Recorder
 		store     store.Storer
+
+		users UserService
 	}
 
 	reportAccessController interface {
@@ -35,7 +42,14 @@ var (
 
 // Report is a default report service initializer
 func Report(s store.Storer, ac reportAccessController, al actionlog.Recorder, eb eventDispatcher) *report {
-	return &report{store: s, ac: ac, actionlog: al, eventbus: eb}
+	return &report{
+		store:     s,
+		ac:        ac,
+		actionlog: al,
+		eventbus:  eb,
+
+		users: DefaultUser,
+	}
 }
 
 func (svc *report) RegisterReporter(key string, r rep.DatasourceProvider) {
@@ -140,6 +154,8 @@ func (svc *report) Create(ctx context.Context, new *types.Report) (report *types
 			new.Meta = &types.ReportMeta{}
 		}
 
+		new = svc.setIDs(new)
+
 		if err = store.CreateReport(ctx, svc.store, new); err != nil {
 			return
 		}
@@ -184,6 +200,7 @@ func (svc *report) Update(ctx context.Context, upd *types.Report) (report *types
 		// Assign changed values after afterUpdate events are emitted
 		report.Handle = upd.Handle
 		report.Meta = upd.Meta
+		report.Scenarios = upd.Scenarios
 		report.Sources = upd.Sources
 		report.Blocks = upd.Blocks
 		report.UpdatedAt = now()
@@ -191,6 +208,8 @@ func (svc *report) Update(ctx context.Context, upd *types.Report) (report *types
 		if upd.Meta != nil {
 			report.Meta = upd.Meta
 		}
+
+		report = svc.setIDs(report)
 
 		if err = store.UpdateReport(ctx, svc.store, report); err != nil {
 			return err
@@ -414,6 +433,9 @@ func (svc *report) Run(ctx context.Context, reportID uint64, dd rep.FrameDefinit
 			if err != nil {
 				return err
 			}
+
+			ff, err = svc.enhance(ctx, ff)
+
 			out = append(out, ff...)
 		}
 
@@ -423,6 +445,113 @@ func (svc *report) Run(ctx context.Context, reportID uint64, dd rep.FrameDefinit
 	}()
 
 	return out, svc.recordAction(ctx, aaProps, ReportActionRun, err)
+}
+
+// enhance is a temporary function that enriches the output to satisfy some current requirements.
+// @todo extend core implementation to support such operatons
+//
+// - userID is replaced by the user name || username || email || handle || userID
+func (svc *report) enhance(ctx context.Context, ff []*rep.Frame) (_ []*rep.Frame, err error) {
+	// Preload sys users
+	uIndex := make(map[uint64]*types.User)
+	uu, uf, err := svc.users.Find(ctx, types.UserFilter{Paging: filter.Paging{Limit: 1024}})
+	if err != nil {
+		return
+	}
+	hasMore := uf.NextPage != nil
+	for i := range uu {
+		uIndex[uu[i].ID] = uu[i]
+	}
+
+	for _, f := range ff {
+		userCols := make([]int, 0, len(f.Columns))
+		for i, c := range f.Columns {
+			if c.Kind != "User" {
+				continue
+			}
+			userCols = append(userCols, i)
+		}
+
+		for _, r := range f.Rows {
+			for _, ci := range userCols {
+				col := r[ci]
+				if minions.IsNil(col) {
+					continue
+				}
+				switch col.Type() {
+				case "ID":
+					uID := col.Get().(uint64)
+					user, ok := uIndex[uID]
+					if !ok && hasMore {
+						user, err = svc.users.FindByID(ctx, uID)
+						if err != nil && err != store.ErrNotFound {
+							return
+						}
+					}
+
+					if user == nil {
+						continue
+					} else if _, ok := uIndex[uID]; !ok {
+						uIndex[uID] = user
+					}
+
+					if usr, ok := uIndex[uID]; ok {
+						label := strconv.FormatUint(uID, 10)
+						if usr.Name != "" {
+							label = usr.Name
+						} else if usr.Username != "" {
+							label = usr.Username
+						} else if usr.Email != "" {
+							label = usr.Email
+						} else if usr.Handle != "" {
+							label = usr.Handle
+						}
+
+						r[ci], _ = expr.NewString(label)
+					}
+				}
+			}
+		}
+	}
+
+	return ff, err
+}
+
+func (svc *report) setIDs(r *types.Report) *types.Report {
+	// scenarios
+	for _, s := range r.Scenarios {
+		if s.ScenarioID == 0 {
+			s.ScenarioID = nextID()
+		}
+	}
+
+	// blocks
+	for _, b := range r.Blocks {
+		if b.BlockID == 0 {
+			b.BlockID = nextID()
+		}
+
+		// elements
+		for _, elRaw := range b.Elements {
+			el, ok := elRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			elID, ok := el["elementID"]
+			sElID := cast.ToString(elID)
+			if sElID != "" && sElID != "0" {
+				continue
+			}
+			if cast.ToUint64(elID) != 0 {
+				continue
+			}
+
+			el["elementID"] = strconv.FormatUint(nextID(), 10)
+		}
+	}
+
+	return r
 }
 
 // toLabeledReports converts to []label.LabeledResource

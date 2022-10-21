@@ -2,9 +2,9 @@ package expr
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // extract typed-value
@@ -180,8 +180,6 @@ func TestVars_Assign(t *testing.T) {
 	req.NoError(Assign(vars, "foo", &String{value: "foo"}))
 	req.NoError(Assign(vars, "vars", &Vars{}))
 	req.NoError(Assign(vars, "vars.foo", &String{value: "foo"}))
-
-	fmt.Println("Vars: ", vars)
 }
 
 func TestVars_Set(t *testing.T) {
@@ -195,7 +193,6 @@ func TestVars_Set(t *testing.T) {
 	)
 
 	out, err := set(vars, "k1", &String{value: "v11"})
-	fmt.Println("Out: ", out)
 	req.NoError(err)
 	req.Equal(&String{value: "v11"}, out.(*Vars).GetValue()["k1"])
 
@@ -223,9 +220,7 @@ func TestVars_MergeVars(t *testing.T) {
 		}}
 	)
 
-	fmt.Println("vars: ", vars)
 	out := vars.MustMerge(&foo, &bar)
-	fmt.Println("vars: ", out)
 	req.Equal(expected, out)
 }
 
@@ -286,6 +281,19 @@ func TestVars_Omit(t *testing.T) {
 	out, err := omit(&vars, "k1", "k3")
 	req.NoError(err)
 	req.Equal(expected, out)
+}
+
+func TestVarsTypeResolving(t *testing.T) {
+	var (
+		req = require.New(t)
+		v   = &Vars{}
+	)
+
+	req.NoError(v.Set("unr", &Unresolved{value: "wrapped any", typ: "Any"}))
+	req.NoError(v.Set("any", &Any{value: "raw any"}))
+	req.NoError(v.ResolveTypes(func(typ string) Type { return Any{} }))
+	req.Equal("wrapped any", v.value["unr"].Get())
+	req.Equal("raw any", v.value["any"].Get())
 }
 
 func TestVars_UnmarshalJSON(t *testing.T) {

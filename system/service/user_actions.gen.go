@@ -1261,7 +1261,7 @@ func UserErrPasswordNotSecure(mm ...*userActionProps) *errors.Error {
 	var e = errors.New(
 		errors.KindInternal,
 
-		p.Format("provided password is not secure; use longer password with more non-alphanumeric character", nil),
+		p.Format("provided password is not secure; use longer password with more special characters", nil),
 
 		errors.Meta("type", "passwordNotSecure"),
 		errors.Meta("resource", "system:user"),

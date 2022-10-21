@@ -7,11 +7,18 @@ import (
 	"net/http"
 	"net/url"
 
+	atypes "github.com/cortezaproject/corteza-server/automation/types"
+	agctx "github.com/cortezaproject/corteza-server/pkg/apigw/ctx"
 	"github.com/cortezaproject/corteza-server/pkg/apigw/types"
-	pe "github.com/cortezaproject/corteza-server/pkg/errors"
+	errors "github.com/cortezaproject/corteza-server/pkg/errors"
+	"github.com/cortezaproject/corteza-server/pkg/expr"
+	"github.com/cortezaproject/corteza-server/pkg/options"
 )
 
 type (
+	typesRegistry interface {
+		Type(ref string) expr.Type
+	}
 	redirection struct {
 		types.FilterMeta
 
@@ -33,12 +40,23 @@ type (
 		}
 	}
 
+	jsonResponse struct {
+		types.FilterMeta
+
+		reg typesRegistry
+
+		params struct {
+			Exp       *atypes.Expr
+			Evaluable expr.Evaluable
+		}
+	}
+
 	defaultJsonResponse struct {
 		types.FilterMeta
 	}
 )
 
-func NewRedirection() (e *redirection) {
+func NewRedirection(opts options.ApigwOpt) (e *redirection) {
 	e = &redirection{}
 
 	e.Name = "redirection"
@@ -61,8 +79,12 @@ func NewRedirection() (e *redirection) {
 	return
 }
 
-func (h redirection) New() types.Handler {
-	return NewRedirection()
+func (h redirection) New(opts options.ApigwOpt) types.Handler {
+	return NewRedirection(opts)
+}
+
+func (h redirection) Enabled() bool {
+	return true
 }
 
 func (h redirection) String() string {
@@ -79,6 +101,10 @@ func (h redirection) Weight() int {
 
 func (h *redirection) Merge(params []byte) (types.Handler, error) {
 	err := json.NewDecoder(bytes.NewBuffer(params)).Decode(&h.params)
+
+	if err != nil {
+		return h, err
+	}
 
 	loc, err := url.ParseRequestURI(h.params.Location)
 
@@ -103,7 +129,7 @@ func (h redirection) Handler() types.HandlerFunc {
 	}
 }
 
-func NewDefaultJsonResponse() (e *defaultJsonResponse) {
+func NewDefaultJsonResponse(opts options.ApigwOpt) (e *defaultJsonResponse) {
 	e = &defaultJsonResponse{}
 
 	e.Name = "defaultJsonResponse"
@@ -113,8 +139,12 @@ func NewDefaultJsonResponse() (e *defaultJsonResponse) {
 	return
 }
 
-func (j defaultJsonResponse) New() types.Handler {
-	return NewDefaultJsonResponse()
+func (j defaultJsonResponse) New(opts options.ApigwOpt) types.Handler {
+	return NewDefaultJsonResponse(opts)
+}
+
+func (j defaultJsonResponse) Enabled() bool {
+	return true
 }
 
 func (j defaultJsonResponse) String() string {
@@ -135,7 +165,7 @@ func (j defaultJsonResponse) Handler() types.HandlerFunc {
 		rw.WriteHeader(http.StatusAccepted)
 
 		if _, err := rw.Write([]byte(`{}`)); err != nil {
-			return pe.Internal("could not write to body: %v", err)
+			return errors.Internal("could not write to body: %v", err)
 		}
 
 		return nil
@@ -148,5 +178,112 @@ func checkStatus(typ string, status int) bool {
 		return status >= 300 && status <= 399
 	default:
 		return true
+	}
+}
+
+func NewJsonResponse(opts options.ApigwOpt, reg typesRegistry) (e *jsonResponse) {
+	e = &jsonResponse{}
+
+	e.Name = "jsonResponse"
+	e.Label = "JSON response"
+	e.Kind = types.PostFilter
+
+	e.Args = []*types.FilterMetaArg{
+		{
+			Type:    "input",
+			Label:   "input",
+			Options: map[string]interface{}{},
+		},
+	}
+
+	e.reg = reg
+
+	return
+}
+
+func (j jsonResponse) New(opts options.ApigwOpt) types.Handler {
+	return NewJsonResponse(opts, j.reg)
+}
+
+func (j jsonResponse) Enabled() bool {
+	return true
+}
+
+func (j jsonResponse) String() string {
+	return fmt.Sprintf("apigw filter %s (%s)", j.Name, j.Label)
+}
+
+func (j jsonResponse) Meta() types.FilterMeta {
+	return j.FilterMeta
+}
+
+func (j *jsonResponse) Merge(params []byte) (h types.Handler, err error) {
+	var (
+		parser = expr.NewParser()
+	)
+
+	err = json.NewDecoder(bytes.NewBuffer(params)).Decode(&j.params.Exp)
+
+	if err != nil {
+		return j, err
+	}
+
+	j.params.Evaluable, err = parser.Parse(j.params.Exp.Expr)
+
+	if err != nil {
+		return j, fmt.Errorf("could not evaluate expression: %s", err)
+	}
+
+	j.params.Exp.SetEval(j.params.Evaluable)
+
+	return j, err
+}
+
+func (j jsonResponse) Handler() types.HandlerFunc {
+	return func(rw http.ResponseWriter, r *http.Request) (err error) {
+		var (
+			ctx   = r.Context()
+			scope = agctx.ScopeFromContext(ctx)
+
+			evald interface{}
+		)
+
+		in, err := expr.NewVars(scope.Dict())
+
+		if err != nil {
+			return errors.Internal("could not validate request data: %v", err)
+		}
+
+		// set type to the registered expression from
+		// any of the already registered types
+		j.params.Exp.SetType(func(name string) (e expr.Type, err error) {
+			if name == "" {
+				name = "Any"
+			}
+
+			if typ := j.reg.Type(name); typ != nil {
+				return typ, nil
+			} else {
+				return nil, errors.Internal("unknown or unregistered type %s", name)
+			}
+		})
+
+		evald, err = j.params.Exp.Eval(ctx, in)
+
+		if err != nil {
+			return
+		}
+
+		rw.Header().Add("Content-Type", "application/json")
+
+		switch v := evald.(type) {
+		case string:
+			rw.Write([]byte(v))
+		default:
+			e := json.NewEncoder(rw)
+			err = e.Encode(v)
+		}
+
+		return
 	}
 }

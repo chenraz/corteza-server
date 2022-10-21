@@ -15,7 +15,7 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/payload"
 	"github.com/cortezaproject/corteza-server/pkg/report"
 	"github.com/cortezaproject/corteza-server/system/types"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -79,6 +79,11 @@ type (
 		// Additional info
 		Meta *types.ReportMeta
 
+		// Scenarios POST parameter
+		//
+		// Report scenarios
+		Scenarios types.ReportScenarioSet
+
 		// Sources POST parameter
 		//
 		// Report source definitions
@@ -110,6 +115,11 @@ type (
 		//
 		// Additional info
 		Meta *types.ReportMeta
+
+		// Scenarios POST parameter
+		//
+		// Report scenarios
+		Scenarios types.ReportScenarioSet
 
 		// Sources POST parameter
 		//
@@ -286,11 +296,12 @@ func NewReportCreate() *ReportCreate {
 // Auditable returns all auditable/loggable parameters
 func (r ReportCreate) Auditable() map[string]interface{} {
 	return map[string]interface{}{
-		"handle":  r.Handle,
-		"meta":    r.Meta,
-		"sources": r.Sources,
-		"blocks":  r.Blocks,
-		"labels":  r.Labels,
+		"handle":    r.Handle,
+		"meta":      r.Meta,
+		"scenarios": r.Scenarios,
+		"sources":   r.Sources,
+		"blocks":    r.Blocks,
+		"labels":    r.Labels,
 	}
 }
 
@@ -302,6 +313,11 @@ func (r ReportCreate) GetHandle() string {
 // Auditable returns all auditable/loggable parameters
 func (r ReportCreate) GetMeta() *types.ReportMeta {
 	return r.Meta
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r ReportCreate) GetScenarios() types.ReportScenarioSet {
+	return r.Scenarios
 }
 
 // Auditable returns all auditable/loggable parameters
@@ -322,7 +338,7 @@ func (r ReportCreate) GetLabels() map[string]string {
 // Fill processes request and fills internal variables
 func (r *ReportCreate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -330,6 +346,46 @@ func (r *ReportCreate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["handle"]; ok && len(val) > 0 {
+				r.Handle, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["meta[]"]; ok {
+				r.Meta, err = types.ParseReportMeta(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["meta"]; ok {
+				r.Meta, err = types.ParseReportMeta(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -358,6 +414,13 @@ func (r *ReportCreate) Fill(req *http.Request) (err error) {
 				return err
 			}
 		}
+
+		//if val, ok := req.Form["scenarios[]"]; ok && len(val) > 0  {
+		//    r.Scenarios, err = types.ReportScenarioSet(val), nil
+		//    if err != nil {
+		//        return err
+		//    }
+		//}
 
 		//if val, ok := req.Form["sources[]"]; ok && len(val) > 0  {
 		//    r.Sources, err = types.ReportDataSourceSet(val), nil
@@ -397,12 +460,13 @@ func NewReportUpdate() *ReportUpdate {
 // Auditable returns all auditable/loggable parameters
 func (r ReportUpdate) Auditable() map[string]interface{} {
 	return map[string]interface{}{
-		"reportID": r.ReportID,
-		"handle":   r.Handle,
-		"meta":     r.Meta,
-		"sources":  r.Sources,
-		"blocks":   r.Blocks,
-		"labels":   r.Labels,
+		"reportID":  r.ReportID,
+		"handle":    r.Handle,
+		"meta":      r.Meta,
+		"scenarios": r.Scenarios,
+		"sources":   r.Sources,
+		"blocks":    r.Blocks,
+		"labels":    r.Labels,
 	}
 }
 
@@ -419,6 +483,11 @@ func (r ReportUpdate) GetHandle() string {
 // Auditable returns all auditable/loggable parameters
 func (r ReportUpdate) GetMeta() *types.ReportMeta {
 	return r.Meta
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r ReportUpdate) GetScenarios() types.ReportScenarioSet {
+	return r.Scenarios
 }
 
 // Auditable returns all auditable/loggable parameters
@@ -439,7 +508,7 @@ func (r ReportUpdate) GetLabels() map[string]string {
 // Fill processes request and fills internal variables
 func (r *ReportUpdate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -447,6 +516,46 @@ func (r *ReportUpdate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["handle"]; ok && len(val) > 0 {
+				r.Handle, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["meta[]"]; ok {
+				r.Meta, err = types.ParseReportMeta(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["meta"]; ok {
+				r.Meta, err = types.ParseReportMeta(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -475,6 +584,13 @@ func (r *ReportUpdate) Fill(req *http.Request) (err error) {
 				return err
 			}
 		}
+
+		//if val, ok := req.Form["scenarios[]"]; ok && len(val) > 0  {
+		//    r.Scenarios, err = types.ReportScenarioSet(val), nil
+		//    if err != nil {
+		//        return err
+		//    }
+		//}
 
 		//if val, ok := req.Form["sources[]"]; ok && len(val) > 0  {
 		//    r.Sources, err = types.ReportDataSourceSet(val), nil
@@ -655,7 +771,7 @@ func (r ReportDescribe) GetDescribe() []string {
 // Fill processes request and fills internal variables
 func (r *ReportDescribe) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -663,6 +779,16 @@ func (r *ReportDescribe) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
 		}
 	}
 
@@ -724,7 +850,7 @@ func (r ReportRun) GetFrames() report.FrameDefinitionSet {
 // Fill processes request and fills internal variables
 func (r *ReportRun) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -732,6 +858,16 @@ func (r *ReportRun) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
 		}
 	}
 

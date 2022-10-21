@@ -127,6 +127,22 @@ var knownGlobals = [][]string{
 	{"Math", "tanh"},
 	{"Math", "trunc"},
 
+	// Reflect: Static methods
+	// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Reflect#static_methods
+	{"Reflect", "apply"},
+	{"Reflect", "construct"},
+	{"Reflect", "defineProperty"},
+	{"Reflect", "deleteProperty"},
+	{"Reflect", "get"},
+	{"Reflect", "getOwnPropertyDescriptor"},
+	{"Reflect", "getPrototypeOf"},
+	{"Reflect", "has"},
+	{"Reflect", "isExtensible"},
+	{"Reflect", "ownKeys"},
+	{"Reflect", "preventExtensions"},
+	{"Reflect", "set"},
+	{"Reflect", "setPrototypeOf"},
+
 	// Other globals present in both the browser and node (except "eval" because
 	// it has special behavior)
 	{"AbortController"},
@@ -810,9 +826,9 @@ var knownGlobals = [][]string{
 }
 
 type DefineArgs struct {
-	Loc             logger.Loc
 	FindSymbol      func(logger.Loc, string) js_ast.Ref
 	SymbolForDefine func(int) js_ast.Ref
+	Loc             logger.Loc
 }
 
 type DefineFunc func(DefineArgs) js_ast.E
@@ -829,6 +845,12 @@ type DefineData struct {
 	// example, a bare call to "Object()" can be removed because it does not
 	// have any observable side effects.
 	CallCanBeUnwrappedIfUnused bool
+
+	// If true, the user has indicated that every direct calls to a property on
+	// this object and all of that call's arguments are to be removed from the
+	// output, even when the arguments have side effects. This is used to
+	// implement the "--drop:console" flag.
+	MethodCallsMustBeReplacedWithUndefined bool
 }
 
 func mergeDefineData(old DefineData, new DefineData) DefineData {
@@ -842,8 +864,8 @@ func mergeDefineData(old DefineData, new DefineData) DefineData {
 }
 
 type DotDefine struct {
-	Parts []string
 	Data  DefineData
+	Parts []string
 }
 
 type ProcessedDefines struct {

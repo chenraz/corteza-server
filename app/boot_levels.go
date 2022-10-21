@@ -4,16 +4,18 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"os"
 	"strings"
 
 	authService "github.com/cortezaproject/corteza-server/auth"
 	authHandlers "github.com/cortezaproject/corteza-server/auth/handlers"
+	"github.com/cortezaproject/corteza-server/auth/oauth2"
 	"github.com/cortezaproject/corteza-server/auth/saml"
 	authSettings "github.com/cortezaproject/corteza-server/auth/settings"
 	autService "github.com/cortezaproject/corteza-server/automation/service"
 	cmpService "github.com/cortezaproject/corteza-server/compose/service"
 	cmpEvent "github.com/cortezaproject/corteza-server/compose/service/event"
-	fdrService "github.com/cortezaproject/corteza-server/federation/service"
+	discoveryService "github.com/cortezaproject/corteza-server/discovery/service"
 	fedService "github.com/cortezaproject/corteza-server/federation/service"
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
 	"github.com/cortezaproject/corteza-server/pkg/apigw"
@@ -22,6 +24,7 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/eventbus"
 	"github.com/cortezaproject/corteza-server/pkg/healthcheck"
 	"github.com/cortezaproject/corteza-server/pkg/http"
+	"github.com/cortezaproject/corteza-server/pkg/id"
 	"github.com/cortezaproject/corteza-server/pkg/locale"
 	"github.com/cortezaproject/corteza-server/pkg/logger"
 	"github.com/cortezaproject/corteza-server/pkg/mail"
@@ -39,6 +42,7 @@ import (
 	sysService "github.com/cortezaproject/corteza-server/system/service"
 	sysEvent "github.com/cortezaproject/corteza-server/system/service/event"
 	"github.com/cortezaproject/corteza-server/system/types"
+	"github.com/lestrrat-go/jwx/jwt"
 	"go.uber.org/zap"
 	gomail "gopkg.in/mail.v2"
 )
@@ -74,7 +78,19 @@ func (app *CortezaApp) Setup() (err error) {
 		if app.Opt.DB.IsSQLite() {
 			log.Warn("You're using SQLite as a storage backend")
 			log.Warn("Should be used only for testing")
-			log.Warn("You may experience unstability and data loss")
+			log.Warn("You may experience instability and data loss")
+		}
+
+		if _, is := os.LookupEnv("MINIO_BUCKET_SEP"); is {
+			log.Warn("Found MINIO_BUCKET_SEP in environment variables, it has been removed")
+
+			return fmt.Errorf(
+				"invalid minio configurtion: " +
+					"found MINIO_BUCKET_SEP in environment variables, " +
+					"which is removed due to latest versions of min.io " +
+					"bucket names can only consist of lowercase letters, numbers, dots (.), and hyphens (-). " +
+					"so instead use environment variable MINIO_BUCKET, " +
+					"we have extended it to have more flexibility over minio bucket name")
 		}
 	}
 
@@ -107,14 +123,9 @@ func (app *CortezaApp) Setup() (err error) {
 		}
 	}
 
-	// set base path for links&routes in auth server
-	authHandlers.BasePath = app.Opt.HTTPServer.BaseUrl
-
-	auth.SetupDefault(app.Opt.Auth.Secret, app.Opt.Auth.Expiry)
-
 	http.SetupDefaults(
-		app.Opt.HTTPClient.HttpClientTimeout,
-		app.Opt.HTTPClient.ClientTSLInsecure,
+		app.Opt.HTTPClient.Timeout,
+		app.Opt.HTTPClient.TlsInsecure,
 	)
 
 	monitor.Setup(app.Log, app.Opt.Monitor)
@@ -168,7 +179,7 @@ func (app *CortezaApp) InitStore(ctx context.Context) (err error) {
 	if app.Store == nil {
 		defer sentry.Recover()
 
-		app.Store, err = store.Connect(ctx, app.Opt.DB.DSN)
+		app.Store, err = store.Connect(ctx, app.Log, app.Opt.DB.DSN, app.Opt.Environment.IsDevelopment())
 		if err != nil {
 			return err
 		}
@@ -308,7 +319,93 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 		return
 	}
 
-	app.WsServer = websocket.Server(app.Log, app.Opt.Websocket)
+	if app.Opt.Auth.DefaultClient != "" {
+		// default client will help streamline authorization with default clients
+		app.DefaultAuthClient, err = store.LookupAuthClientByHandle(ctx, app.Store, app.Opt.Auth.DefaultClient)
+		if err != nil {
+			return fmt.Errorf("cannot load default client: %w", err)
+		}
+	}
+
+	{
+		app.oa2m = oauth2.NewManager(
+			app.Opt.Auth,
+			app.Log,
+			oauth2.NewClientStore(app.Store, app.DefaultAuthClient),
+			oauth2.NewTokenStore(app.Store),
+		)
+
+		// set base path for links&routes in auth server
+		authHandlers.BasePath = app.Opt.HTTPServer.BaseUrl
+
+		auth.DefaultSigner = auth.HmacSigner(app.Opt.Auth.Secret)
+
+		if auth.HttpTokenVerifier, err = auth.TokenVerifierMiddlewareWithSecretSigner(app.Opt.Auth.Secret); err != nil {
+			return fmt.Errorf("could not set token verifier")
+		}
+
+		auth.TokenIssuer, err = auth.NewTokenIssuer(
+			auth.WithSecretSigner(app.Opt.Auth.Secret),
+			// @todo implement configurable issuer claim
+			//auth.WithDefaultIssuer(app.Opt.Auth.TokenClaimIssuer),
+			auth.WithDefaultExpiration(app.Opt.Auth.Expiry),
+			auth.WithDefaultClientID(app.DefaultAuthClient.ID),
+			auth.WithLookup(func(ctx context.Context, accessToken string) (err error) {
+				_, err = store.LookupAuthOa2tokenByAccess(ctx, app.Store, accessToken)
+				return err
+			}),
+			auth.WithStore(func(ctx context.Context, req auth.TokenRequest) error {
+				var (
+					eti       = auth.GetExtraReqInfoFromContext(ctx)
+					createdAt = req.IssuedAt
+
+					oa2t = &types.AuthOa2token{
+						ID:         id.Next(),
+						Access:     req.AccessToken,
+						Refresh:    req.RefreshToken,
+						CreatedAt:  createdAt,
+						RemoteAddr: eti.RemoteAddr,
+						UserAgent:  eti.UserAgent,
+						ClientID:   req.ClientID,
+						UserID:     req.UserID,
+						ExpiresAt:  createdAt.Add(req.Expiration),
+					}
+				)
+
+				return store.CreateAuthOa2token(ctx, app.Store, oa2t)
+			}),
+		)
+
+		if err != nil {
+			return
+		}
+	}
+
+	app.WsServer = websocket.Server(
+		app.Log,
+		app.Opt.Websocket,
+		func(ctx context.Context, s string) (_ auth.Identifiable, err error) {
+			var token jwt.Token
+
+			if token, err = jwt.Parse([]byte(s)); err != nil {
+				return
+			}
+
+			if err = auth.TokenIssuer.Validate(ctx, token); err != nil {
+				return
+			}
+
+			return auth.IdentityFromToken(token), nil
+		},
+	)
+
+	corredor.Service().SetAuthTokenMaker(func(i auth.Identifiable) (signed []byte, err error) {
+		return auth.TokenIssuer.Issue(ctx,
+			auth.WithIdentity(i),
+			auth.WithScope("api", "profile"),
+			auth.WithAudience("corredor"),
+		)
+	})
 
 	ctx = actionlog.RequestOriginToContext(ctx, actionlog.RequestOrigin_APP_Init)
 	defer sentry.Recover()
@@ -344,6 +441,7 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 	// will most likely be merged in the future
 	err = sysService.Initialize(ctx, app.Log, app.Store, app.WsServer, sysService.Config{
 		ActionLog: app.Opt.ActionLog,
+		Discovery: app.Opt.Discovery,
 		Storage:   app.Opt.ObjStore,
 		Template:  app.Opt.Template,
 		Auth:      app.Opt.Auth,
@@ -379,21 +477,21 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 	// Note: this is a legacy approach, all services from all 3 apps
 	// will most likely be merged in the future
 	err = cmpService.Initialize(ctx, app.Log, app.Store, cmpService.Config{
-		ActionLog: app.Opt.ActionLog,
-		Storage:   app.Opt.ObjStore,
+		ActionLog:  app.Opt.ActionLog,
+		Discovery:  app.Opt.Discovery,
+		Storage:    app.Opt.ObjStore,
+		UserFinder: sysService.DefaultUser,
 	})
 
 	if err != nil {
 		return
 	}
 
-	auth.SetJWTStore(app.Store)
-
 	corredor.Service().SetUserFinder(sysService.DefaultUser)
 	corredor.Service().SetRoleFinder(sysService.DefaultRole)
 
 	// Initialize API GW bits
-	apigw.Setup(options.Apigw(), app.Log, app.Store)
+	apigw.Setup(*options.Apigw(), app.Log, app.Store)
 	if err = apigw.Service().Reload(ctx); err != nil {
 		return err
 	}
@@ -403,7 +501,7 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 		//
 		// Note: this is a legacy approach, all services from all 3 apps
 		// will most likely be merged in the future
-		err = fdrService.Initialize(ctx, app.Log, app.Store, fdrService.Config{
+		err = fedService.Initialize(ctx, app.Log, app.Store, fedService.Config{
 			ActionLog:  app.Opt.ActionLog,
 			Federation: app.Opt.Federation,
 		})
@@ -412,6 +510,18 @@ func (app *CortezaApp) InitServices(ctx context.Context) (err error) {
 			return
 		}
 	}
+
+	// Initializing discovery
+	if app.Opt.Discovery.Enabled {
+		err = discoveryService.Initialize(ctx, app.Opt.Discovery, app.Store)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Register reporters
+	// @todo additional datasource providers; generate?
+	sysService.DefaultReport.RegisterReporter("composeRecords", cmpService.DefaultRecord)
 
 	// Initializing seeder
 	_ = seeder.Seeder(ctx, app.Store, seeder.Faker())
@@ -483,7 +593,7 @@ func (app *CortezaApp) Activate(ctx context.Context) (err error) {
 
 	updateSmtpSettings(app.Log, sysService.CurrentSettings)
 
-	if app.AuthService, err = authService.New(ctx, app.Log, app.Store, app.Opt.Auth); err != nil {
+	if app.AuthService, err = authService.New(ctx, app.Log, app.oa2m, app.Store, app.Opt.Auth, app.DefaultAuthClient); err != nil {
 		return fmt.Errorf("failed to init auth service: %w", err)
 	}
 
@@ -491,6 +601,8 @@ func (app *CortezaApp) Activate(ctx context.Context) (err error) {
 
 	updateFederationSettings(app.Opt.Federation, sysService.CurrentSettings)
 	updateAuthSettings(app.AuthService, sysService.CurrentSettings)
+	updatePasswdSettings(app.Opt.Auth, sysService.CurrentSettings)
+	updateApigwSettings(app.Opt.Apigw, sysService.CurrentSettings)
 	sysService.DefaultSettings.Register("auth.", func(ctx context.Context, current interface{}, set types.SettingValueSet) {
 		appSettings, is := current.(*types.AppSettings)
 		if !is {
@@ -498,8 +610,10 @@ func (app *CortezaApp) Activate(ctx context.Context) (err error) {
 		}
 
 		updateAuthSettings(app.AuthService, appSettings)
+		updatePasswdSettings(app.Opt.Auth, sysService.CurrentSettings)
 	})
 
+	updateDiscoverySettings(app.Opt.Discovery, service.CurrentSettings)
 	updateLocaleSettings(app.Opt.Locale)
 
 	app.AuthService.Watch(ctx)
@@ -586,6 +700,7 @@ func updateAuthSettings(svc authServicer, current *types.AppSettings) {
 				Key:         p.Key,
 				RedirectUrl: p.RedirectUrl,
 				Secret:      p.Secret,
+				Scope:       p.Scope,
 			})
 		}
 	}
@@ -599,6 +714,21 @@ func updateAuthSettings(svc authServicer, current *types.AppSettings) {
 // Checks if federation is enabled in the options
 func updateFederationSettings(opt options.FederationOpt, current *types.AppSettings) {
 	current.Federation.Enabled = opt.Enabled
+}
+
+// Checks if password security is enabled in the options
+func updatePasswdSettings(opt options.AuthOpt, current *types.AppSettings) {
+	current.Auth.Internal.PasswordConstraints.PasswordSecurity = opt.PasswordSecurity
+}
+
+func updateApigwSettings(opt options.ApigwOpt, current *types.AppSettings) {
+	current.Apigw.ProfilerEnabled = opt.ProfilerEnabled
+	current.Apigw.ProfilerGlobal = opt.ProfilerGlobal
+}
+
+// Checks if discovery is enabled in the options
+func updateDiscoverySettings(opt options.DiscoveryOpt, current *types.AppSettings) {
+	current.Discovery.Enabled = opt.Enabled
 }
 
 // Sanitizes application (current) settings with languages from options

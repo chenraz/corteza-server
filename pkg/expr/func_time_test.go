@@ -37,6 +37,13 @@ func Example_strftimeWithModTime() {
 	// 1993-02-02T06:30:00
 }
 
+func Example_strftimeWithStringValue() {
+	eval(`strftime("1993-02-02T06:30:00", "%Y-%m-%dT%H:%M:%S")`, exampleTimeParams)
+
+	// output:
+	// 1993-02-02T06:30:00
+}
+
 func Example_parseISODate() {
 	eval(`date("1993-02-02T06:00:00-05:00")`, nil)
 
@@ -133,4 +140,11 @@ func Example_subErrorCheck() {
 
 	// output:
 	// error: can not evaluate sub(ghd, hgp): expecting 2nd input to be less than 1st input
+}
+
+func Example_unix() {
+	eval(`strftime(ghd, "%L")`, exampleTimeParams)
+
+	// output:
+	// 728650800
 }

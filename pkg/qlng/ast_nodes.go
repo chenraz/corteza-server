@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/cortezaproject/corteza-server/pkg/expr"
@@ -98,11 +99,18 @@ func (t *typedValue) MarshalJSON() ([]byte, error) {
 	)
 
 	if t.V == nil {
-		return nil, nil
+		return json.Marshal(aux)
 	}
 
 	aux.Type = t.V.Type()
 	aux.Value = t.V.Get()
+
+	switch aux.Type {
+	case "ID", "Record", "User":
+		v := aux.Value.(uint64)
+		aux.Value = strconv.FormatUint(v, 10)
+	}
+
 	return json.Marshal(aux)
 }
 
@@ -334,7 +342,7 @@ func qlTypeRegistry(ref string) expr.Type {
 		return &expr.UnsignedInteger{}
 	case "Float", "Number":
 		return &expr.Float{}
-	case "String":
+	case "String", "Select":
 		return &expr.String{}
 	case "DateTime":
 		return &expr.DateTime{}

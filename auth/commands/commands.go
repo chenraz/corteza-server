@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"time"
 
 	"github.com/cortezaproject/corteza-server/auth/external"
 	"github.com/cortezaproject/corteza-server/pkg/auth"
@@ -31,6 +32,10 @@ func Command(ctx context.Context, app serviceInitializer, storeInit func(ctx con
 	var (
 		enableDiscoveredProvider               bool
 		skipValidationOnAutoDiscoveredProvider bool
+
+		clientID      uint64
+		scope         []string
+		tokenDuration time.Duration
 	)
 
 	cmd := &cobra.Command{
@@ -91,8 +96,9 @@ func Command(ctx context.Context, app serviceInitializer, storeInit func(ctx con
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx = auth.SetIdentityToContext(ctx, auth.ServiceUser())
 			var (
-				user *types.User
-				err  error
+				signedToken []byte
+				user        *types.User
+				err         error
 
 				userStr = args[0]
 			)
@@ -103,13 +109,47 @@ func Command(ctx context.Context, app serviceInitializer, storeInit func(ctx con
 			err = service.DefaultAuth.LoadRoleMemberships(ctx, user)
 			cli.HandleError(err)
 
-			cmd.Println(auth.DefaultJwtHandler.Encode(user))
+			opts := []auth.IssueOptFn{
+				auth.WithIdentity(user),
+				auth.WithScope(scope...),
+			}
+
+			if clientID > 0 {
+				opts = append(opts, auth.WithClientID(clientID))
+			}
+
+			if tokenDuration > 0 {
+				opts = append(opts, auth.WithExpiration(tokenDuration))
+			}
+
+			signedToken, err = auth.TokenIssuer.Issue(ctx, opts...)
+
+			cli.HandleError(err)
+			cmd.Println(string(signedToken))
 		},
 	}
 
+	jwtCmd.Flags().Uint64Var(
+		&clientID,
+		"auth-client",
+		0,
+		"ID if the auth client")
+
+	jwtCmd.Flags().StringArrayVar(
+		&scope,
+		"scope",
+		[]string{"profile", "api"},
+		"Scope")
+
+	jwtCmd.Flags().DurationVar(
+		&tokenDuration,
+		"duration",
+		app.Options().Auth.Expiry,
+		"Token expiry duration")
+
 	testEmails := &cobra.Command{
 		Use:     "test-notifications [recipient]",
-		Short:   "Sends samples of all authentication notification to receipient",
+		Short:   "Sends samples of all authentication notification to recipient",
 		Args:    cobra.ExactArgs(1),
 		PreRunE: commandPreRunInitService(app),
 		Run: func(cmd *cobra.Command, args []string) {
@@ -130,7 +170,7 @@ func Command(ctx context.Context, app serviceInitializer, storeInit func(ctx con
 		autoDiscoverCmd,
 		testEmails,
 		jwtCmd,
-		assets(app.Options()),
+		assets(app),
 	)
 
 	return cmd

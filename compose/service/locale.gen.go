@@ -6,17 +6,13 @@ package service
 // the code is regenerated.
 //
 
-// Definitions file that controls how this file is generated:
-// - compose.module.yaml
-// - compose.namespace.yaml
-// - compose.page.yaml
-
 import (
 	"context"
 	"github.com/cortezaproject/corteza-server/compose/types"
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
 	intAuth "github.com/cortezaproject/corteza-server/pkg/auth"
 	"github.com/cortezaproject/corteza-server/pkg/errors"
+	"github.com/cortezaproject/corteza-server/pkg/filter"
 	"github.com/cortezaproject/corteza-server/pkg/locale"
 	"github.com/cortezaproject/corteza-server/pkg/options"
 	"github.com/cortezaproject/corteza-server/store"
@@ -41,9 +37,9 @@ type (
 	}
 
 	ResourceTranslationsManagerService interface {
-		Module(ctx context.Context, namespaceID uint64, ID uint64) (locale.ResourceTranslationSet, error)
-		Namespace(ctx context.Context, ID uint64) (locale.ResourceTranslationSet, error)
-		Page(ctx context.Context, namespaceID uint64, ID uint64) (locale.ResourceTranslationSet, error)
+		Module(ctx context.Context, namespaceID uint64, id uint64) (locale.ResourceTranslationSet, error)
+		Namespace(ctx context.Context, id uint64) (locale.ResourceTranslationSet, error)
+		Page(ctx context.Context, namespaceID uint64, id uint64) (locale.ResourceTranslationSet, error)
 
 		Upsert(context.Context, locale.ResourceTranslationSet) error
 		Locale() locale.Resource
@@ -66,73 +62,93 @@ func (svc resourceTranslationsManager) Upsert(ctx context.Context, rr locale.Res
 	//  - managed resource translation strings are all for default language
 	//  or
 	//  - user is allowed to manage resource translations
-	if rr.ContainsForeign(svc.Locale().Default().Tag) {
-		if !svc.ac.CanManageResourceTranslations(ctx) {
-			return ErrNotAllowedToManageResourceTranslations
+	err = store.Tx(ctx, svc.store, func(ctx context.Context, s store.Storer) (err error) {
+		if rr.ContainsForeign(svc.Locale().Default().Tag) {
+			if !svc.ac.CanManageResourceTranslations(ctx) {
+				return ErrNotAllowedToManageResourceTranslations
+			}
 		}
-	}
 
-	for _, r := range rr {
-		r.Msg = locale.SanitizeMessage(r.Msg)
-	}
+		for _, r := range rr {
+			r.Msg = locale.SanitizeMessage(r.Msg)
+		}
 
-	// @todo validation
+		// @todo validation
 
-	me := intAuth.GetIdentityFromContext(ctx)
+		me := intAuth.GetIdentityFromContext(ctx)
 
-	// - group by resource
-	localeByRes := make(map[string]locale.ResourceTranslationSet)
-	for _, r := range rr {
-		localeByRes[r.Resource] = append(localeByRes[r.Resource], r)
-	}
+		// - group by resource
+		localeByRes := make(map[string]locale.ResourceTranslationSet)
+		for _, r := range rr {
+			localeByRes[r.Resource] = append(localeByRes[r.Resource], r)
+		}
 
-	// - for each resource, fetch the current state
-	sysLocale := make(systemTypes.ResourceTranslationSet, 0, len(rr))
-	for res, rr := range localeByRes {
-		current, _, err := store.SearchResourceTranslations(ctx, svc.store, systemTypes.ResourceTranslationFilter{
-			Resource: res,
-		})
+		// - for each resource, fetch the current state
+		sysLocale := make(systemTypes.ResourceTranslationSet, 0, len(rr))
+		for res, rr := range localeByRes {
+			current, _, err := store.SearchResourceTranslations(ctx, s, systemTypes.ResourceTranslationFilter{
+				Resource: res,
+				Deleted:  filter.StateInclusive,
+			})
+			if err != nil {
+				return err
+			}
+
+			// get deltas and prepare upsert accordingly
+			aux := current.New(rr)
+			aux.Walk(func(cc *systemTypes.ResourceTranslation) error {
+				cc.ID = nextID()
+				cc.CreatedAt = *now()
+				cc.CreatedBy = me.Identity()
+
+				return nil
+			})
+			sysLocale = append(sysLocale, aux...)
+
+			for _, diff := range current.Old(rr) {
+				old := diff[0]
+				new := diff[1]
+
+				// soft delete; restore old message
+				if new.Message == "" {
+					new.Message = old.Message
+					if new.DeletedAt == nil {
+						new.DeletedAt = now()
+						new.DeletedBy = me.Identity()
+					}
+				} else {
+					new.UpdatedAt = now()
+					new.UpdatedBy = me.Identity()
+
+					new.DeletedAt = nil
+					new.DeletedBy = 0
+				}
+
+				sysLocale = append(sysLocale, new)
+			}
+		}
+
+		err = store.UpsertResourceTranslation(ctx, s, sysLocale...)
 		if err != nil {
 			return err
 		}
 
-		// get deltas and prepare upsert accordingly
-		aux := current.New(rr)
-		aux.Walk(func(cc *systemTypes.ResourceTranslation) error {
-			cc.ID = nextID()
-			cc.CreatedAt = *now()
-			cc.CreatedBy = me.Identity()
-
-			return nil
-		})
-		sysLocale = append(sysLocale, aux...)
-
-		aux = current.Old(rr)
-		aux.Walk(func(cc *systemTypes.ResourceTranslation) error {
-			cc.UpdatedAt = now()
-			cc.UpdatedBy = me.Identity()
-			return nil
-		})
-		sysLocale = append(sysLocale, aux...)
-	}
-
-	err = store.UpsertResourceTranslation(ctx, svc.store, sysLocale...)
+		return nil
+	})
 	if err != nil {
 		return err
 	}
 
 	// Reload ALL resource translations
 	// @todo we could probably do this more selectively and refresh only updated resources?
-	_ = locale.Global().ReloadResourceTranslations(ctx)
-
-	return nil
+	return locale.Global().ReloadResourceTranslations(ctx)
 }
 
 func (svc resourceTranslationsManager) Locale() locale.Resource {
 	return svc.locale
 }
 
-func (svc resourceTranslationsManager) Module(ctx context.Context, namespaceID uint64, ID uint64) (locale.ResourceTranslationSet, error) {
+func (svc resourceTranslationsManager) Module(ctx context.Context, namespaceID uint64, id uint64) (locale.ResourceTranslationSet, error) {
 	var (
 		err error
 		out locale.ResourceTranslationSet
@@ -140,7 +156,7 @@ func (svc resourceTranslationsManager) Module(ctx context.Context, namespaceID u
 		k   types.LocaleKey
 	)
 
-	res, err = svc.loadModule(ctx, svc.store, namespaceID, ID)
+	res, err = svc.loadModule(ctx, svc.store, namespaceID, id)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +176,7 @@ func (svc resourceTranslationsManager) Module(ctx context.Context, namespaceID u
 	return append(out, tmp...), err
 }
 
-func (svc resourceTranslationsManager) Namespace(ctx context.Context, ID uint64) (locale.ResourceTranslationSet, error) {
+func (svc resourceTranslationsManager) Namespace(ctx context.Context, id uint64) (locale.ResourceTranslationSet, error) {
 	var (
 		err error
 		out locale.ResourceTranslationSet
@@ -168,7 +184,7 @@ func (svc resourceTranslationsManager) Namespace(ctx context.Context, ID uint64)
 		k   types.LocaleKey
 	)
 
-	res, err = svc.loadNamespace(ctx, svc.store, ID)
+	res, err = svc.loadNamespace(ctx, svc.store, id)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +198,7 @@ func (svc resourceTranslationsManager) Namespace(ctx context.Context, ID uint64)
 			Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), k.Path),
 		})
 
-		k = types.LocaleKeyNamespaceSubtitle
+		k = types.LocaleKeyNamespaceMetaSubtitle
 		out = append(out, &locale.ResourceTranslation{
 			Resource: res.ResourceTranslation(),
 			Lang:     tag.String(),
@@ -190,7 +206,7 @@ func (svc resourceTranslationsManager) Namespace(ctx context.Context, ID uint64)
 			Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), k.Path),
 		})
 
-		k = types.LocaleKeyNamespaceDescription
+		k = types.LocaleKeyNamespaceMetaDescription
 		out = append(out, &locale.ResourceTranslation{
 			Resource: res.ResourceTranslation(),
 			Lang:     tag.String(),
@@ -199,10 +215,11 @@ func (svc resourceTranslationsManager) Namespace(ctx context.Context, ID uint64)
 		})
 
 	}
+
 	return out, nil
 }
 
-func (svc resourceTranslationsManager) Page(ctx context.Context, namespaceID uint64, ID uint64) (locale.ResourceTranslationSet, error) {
+func (svc resourceTranslationsManager) Page(ctx context.Context, namespaceID uint64, id uint64) (locale.ResourceTranslationSet, error) {
 	var (
 		err error
 		out locale.ResourceTranslationSet
@@ -210,7 +227,7 @@ func (svc resourceTranslationsManager) Page(ctx context.Context, namespaceID uin
 		k   types.LocaleKey
 	)
 
-	res, err = svc.loadPage(ctx, svc.store, namespaceID, ID)
+	res, err = svc.loadPage(ctx, svc.store, namespaceID, id)
 	if err != nil {
 		return nil, err
 	}

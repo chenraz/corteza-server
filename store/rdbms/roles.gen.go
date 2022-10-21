@@ -73,7 +73,7 @@ func (s Store) SearchRoles(ctx context.Context, f types.RoleFilter) (types.RoleS
 		}
 
 		// Apply sorting expr from filter to query
-		if q, err = setOrderBy(q, sort, s.sortableRoleColumns()); err != nil {
+		if q, err = setOrderBy(q, sort, s.sortableRoleColumns(), s.Config().SqlSortHandler); err != nil {
 			return err
 		}
 
@@ -456,21 +456,16 @@ func (s Store) execDeleteRoles(ctx context.Context, cnd squirrel.Sqlizer) error 
 func (s Store) internalRoleRowScanner(row rowScanner) (res *types.Role, err error) {
 	res = &types.Role{}
 
-	if _, has := s.config.RowScanners["role"]; has {
-		scanner := s.config.RowScanners["role"].(func(_ rowScanner, _ *types.Role) error)
-		err = scanner(row, res)
-	} else {
-		err = row.Scan(
-			&res.ID,
-			&res.Name,
-			&res.Handle,
-			&res.Meta,
-			&res.CreatedAt,
-			&res.UpdatedAt,
-			&res.ArchivedAt,
-			&res.DeletedAt,
-		)
-	}
+	err = row.Scan(
+		&res.ID,
+		&res.Name,
+		&res.Handle,
+		&res.Meta,
+		&res.CreatedAt,
+		&res.UpdatedAt,
+		&res.ArchivedAt,
+		&res.DeletedAt,
+	)
 
 	if err == sql.ErrNoRows {
 		return nil, store.ErrNotFound.Stack(1)

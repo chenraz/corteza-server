@@ -1,6 +1,9 @@
 package handlers
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
 
 type (
 	Links struct {
@@ -26,6 +29,7 @@ type (
 		OAuth2Token,
 		OAuth2Info,
 		OAuth2DefaultClient,
+		OAuth2PublicKeys,
 
 		Mfa,
 
@@ -42,11 +46,16 @@ type (
 
 		Base,
 
-		Assets string
+		Assets,
+
+		AuthAssets string
 	}
 )
 
-var BasePath string = "/"
+var (
+	invalidLinkChars        = regexp.MustCompile(`[^-A-Za-z0-9+&@#/%?=~_|!:,.;\\(\\)]`)
+	BasePath         string = "/"
+)
 
 func GetLinks() Links {
 	var b = strings.TrimSuffix(BasePath, "/") + "/"
@@ -72,6 +81,7 @@ func GetLinks() Links {
 		OAuth2Token:           b + "auth/oauth2/token",
 		OAuth2Info:            b + "auth/oauth2/info",
 		OAuth2DefaultClient:   b + "auth/oauth2/default-client",
+		OAuth2PublicKeys:      b + "auth/oauth2/public-keys",
 
 		Mfa:              b + "auth/mfa",
 		MfaTotpNewSecret: b + "auth/mfa/totp/setup",
@@ -85,8 +95,9 @@ func GetLinks() Links {
 		SamlMetadata: b + "auth/external/saml/metadata",
 		SamlLogout:   b + "auth/external/saml/slo",
 
-		Assets: b + "auth/assets/public",
-		Base: b,
+		Assets:     b + "assets",
+		AuthAssets: b + "auth/assets/public",
+		Base:       b,
 	}
 }
 
@@ -98,4 +109,8 @@ func tbp(s string) string {
 	}
 
 	return s
+}
+
+func sanitizeLink(l string) string {
+	return invalidLinkChars.ReplaceAllString(l, "")
 }

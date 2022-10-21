@@ -73,7 +73,7 @@ func (s Store) SearchComposePages(ctx context.Context, f types.PageFilter) (type
 		}
 
 		// Apply sorting expr from filter to query
-		if q, err = setOrderBy(q, sort, s.sortableComposePageColumns()); err != nil {
+		if q, err = setOrderBy(q, sort, s.sortableComposePageColumns(), s.Config().SqlSortHandler); err != nil {
 			return err
 		}
 
@@ -452,26 +452,22 @@ func (s Store) execDeleteComposePages(ctx context.Context, cnd squirrel.Sqlizer)
 func (s Store) internalComposePageRowScanner(row rowScanner) (res *types.Page, err error) {
 	res = &types.Page{}
 
-	if _, has := s.config.RowScanners["composePage"]; has {
-		scanner := s.config.RowScanners["composePage"].(func(_ rowScanner, _ *types.Page) error)
-		err = scanner(row, res)
-	} else {
-		err = row.Scan(
-			&res.ID,
-			&res.SelfID,
-			&res.NamespaceID,
-			&res.ModuleID,
-			&res.Handle,
-			&res.Title,
-			&res.Description,
-			&res.Blocks,
-			&res.Visible,
-			&res.Weight,
-			&res.CreatedAt,
-			&res.UpdatedAt,
-			&res.DeletedAt,
-		)
-	}
+	err = row.Scan(
+		&res.ID,
+		&res.SelfID,
+		&res.NamespaceID,
+		&res.ModuleID,
+		&res.Handle,
+		&res.Title,
+		&res.Description,
+		&res.Config,
+		&res.Blocks,
+		&res.Visible,
+		&res.Weight,
+		&res.CreatedAt,
+		&res.UpdatedAt,
+		&res.DeletedAt,
+	)
 
 	if err == sql.ErrNoRows {
 		return nil, store.ErrNotFound.Stack(1)
@@ -516,6 +512,7 @@ func (Store) composePageColumns(aa ...string) []string {
 		alias + "handle",
 		alias + "title",
 		alias + "description",
+		alias + "config",
 		alias + "blocks",
 		alias + "visible",
 		alias + "weight",
@@ -554,6 +551,7 @@ func (s Store) internalComposePageEncoder(res *types.Page) store.Payload {
 		"handle":        res.Handle,
 		"title":         res.Title,
 		"description":   res.Description,
+		"config":        res.Config,
 		"blocks":        res.Blocks,
 		"visible":       res.Visible,
 		"weight":        res.Weight,

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"math"
 	rand2 "math/rand"
 	"regexp"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/eventbus"
 	"github.com/cortezaproject/corteza-server/pkg/filter"
 	"github.com/cortezaproject/corteza-server/pkg/handle"
+	"github.com/cortezaproject/corteza-server/pkg/payload"
 	"github.com/cortezaproject/corteza-server/pkg/rand"
 	"github.com/cortezaproject/corteza-server/store"
 	"github.com/cortezaproject/corteza-server/system/service/event"
@@ -59,10 +61,20 @@ const (
 	credentialsTypeMFAEmailOTP                 = "mfa-email-otp"
 
 	credentialsTokenLength = 32
+
+	passwordMinLength = 8
+	passwordMaxLength = 256
+
+	tokenReqMaxCount  = 5
+	tokenReqMaxWindow = time.Minute * 15
 )
 
 var (
 	reEmail = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+\\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+
+	oneTokenPerUser = map[string]bool{
+		credentialsTypeResetPasswordToken: true,
+	}
 )
 
 func defaultProviderValidator(provider string) error {
@@ -607,6 +619,10 @@ func (svc auth) ChangePassword(ctx context.Context, userID uint64, oldPassword, 
 			return err
 		}
 
+		if err = svc.RemoveAccessTokens(ctx, u); err != nil {
+			return err
+		}
+
 		return nil
 	}()
 
@@ -618,8 +634,36 @@ func (svc auth) hashPassword(password string) (hash []byte, err error) {
 }
 
 func (svc auth) CheckPasswordStrength(password string) bool {
-	if len(password) <= 4 {
+	pwdL := len(password)
+
+	// Ignore defined password constraints
+	if !svc.settings.Auth.Internal.PasswordConstraints.PasswordSecurity {
+		return true
+	}
+
+	// Check the password length
+	minL := math.Max(float64(passwordMinLength), float64(svc.settings.Auth.Internal.PasswordConstraints.MinLength))
+	if pwdL < int(minL) || pwdL > passwordMaxLength {
 		return false
+	}
+
+	// Check special constraints
+	// - numeric characters
+	count := svc.settings.Auth.Internal.PasswordConstraints.MinNumCount
+	if count > 0 {
+		rr := regexp.MustCompile("[0-9]")
+		if uint(len(rr.FindAllStringIndex(password, -1))) < count {
+			return false
+		}
+	}
+
+	// - special characters
+	count = svc.settings.Auth.Internal.PasswordConstraints.MinSpecialCount
+	if count > 0 {
+		rr := regexp.MustCompile("[^0-9a-zA-Z]")
+		if uint(len(rr.FindAllStringIndex(password, -1))) < count {
+			return false
+		}
 	}
 
 	return true
@@ -926,6 +970,39 @@ func (svc auth) procLogin(ctx context.Context, s store.Storer, u *types.User, c 
 		return
 	}
 
+	{
+		var eapSec *types.ExternalAuthProviderSecurity
+
+		switch p.Provider {
+		case credentialsTypePassword:
+			// nothing to do with password provider
+
+		case "saml":
+			// we need to fetch SAML security settings from different part of settings
+			eapSec = &CurrentSettings.Auth.External.Saml.Security
+
+		default:
+			eap := CurrentSettings.Auth.External.Providers.FindByHandle(p.Provider)
+
+			if eap != nil {
+				eapSec = &eap.Security
+			}
+
+		}
+
+		if eapSec != nil {
+			// if authenticated with external auth provider
+			// there might be additional roles that need to be
+			// set to this security session
+			u.SetRoles(internalAuth.ApplyRoleSecurity(
+				payload.ParseUint64s(eapSec.PermittedRoles),
+				payload.ParseUint64s(eapSec.ProhibitedRoles),
+				payload.ParseUint64s(eapSec.ForcedRoles),
+				u.Roles()...,
+			)...)
+		}
+	}
+
 	if c != nil {
 		c.LastUsedAt = now()
 		if err = store.UpdateCredentials(ctx, s, c); err != nil {
@@ -937,67 +1014,55 @@ func (svc auth) procLogin(ctx context.Context, s store.Storer, u *types.User, c 
 	return nil
 }
 
-func (svc auth) loadUserFromToken(ctx context.Context, token, kind string) (u *types.User, err error) {
+// Loads user from token and removes that token right after
+func (svc auth) loadUserFromToken(ctx context.Context, token, kind string) (u *types.User, _ error) {
 	var (
 		aam = &authActionProps{
 			credentials: &types.Credentials{Kind: kind},
 		}
 	)
 
-	credentialsID, credentials := svc.validateToken(token)
-	if credentialsID == 0 {
-		return nil, AuthErrInvalidToken(aam)
-	}
+	return u, svc.store.Tx(ctx, func(ctx context.Context, s store.Storer) (err error) {
+		credentialsID, credentials := validateToken(token)
+		if credentialsID == 0 {
+			return AuthErrInvalidToken(aam)
+		}
 
-	c, err := store.LookupCredentialsByID(ctx, svc.store, credentialsID)
-	if errors.IsNotFound(err) {
-		return nil, AuthErrInvalidToken(aam)
-	}
+		c, err := store.LookupCredentialsByID(ctx, s, credentialsID)
+		if errors.IsNotFound(err) {
+			return AuthErrInvalidToken(aam)
+		}
 
-	aam.setCredentials(c)
+		aam.setCredentials(c)
 
-	if err != nil {
-		return
-	}
+		if err != nil {
+			return
+		}
 
-	if err = store.DeleteCredentialsByID(ctx, svc.store, c.ID); err != nil {
-		return
-	}
+		if err = store.DeleteCredentialsByID(ctx, s, c.ID); err != nil {
+			return
+		}
 
-	if !c.Valid() || c.Credentials != credentials {
-		return nil, AuthErrInvalidToken(aam)
-	}
+		if !c.Valid() || c.Credentials != credentials {
+			return AuthErrInvalidToken(aam)
+		}
 
-	u, err = store.LookupUserByID(ctx, svc.store, c.OwnerID)
-	if err != nil {
-		return nil, err
-	}
+		u, err = store.LookupUserByID(ctx, s, c.OwnerID)
+		if err != nil {
+			return err
+		}
 
-	aam.setUser(u)
+		aam.setUser(u)
 
-	// context will be updated with new identity
-	// in the caller fn
+		// context will be updated with new identity
+		// in the caller fn
 
-	if !u.Valid() {
-		return nil, AuthErrInvalidCredentials(aam)
-	}
+		if !u.Valid() {
+			return AuthErrInvalidCredentials(aam)
+		}
 
-	return u, nil
-}
-
-func (svc auth) validateToken(token string) (ID uint64, credentials string) {
-	// Token = <32 random chars><credentials-id>
-	if len(token) <= credentialsTokenLength {
-		return
-	}
-
-	ID, _ = strconv.ParseUint(token[credentialsTokenLength:], 10, 64)
-	if ID == 0 {
-		return
-	}
-
-	credentials = token[:credentialsTokenLength]
-	return
+		return nil
+	})
 }
 
 // Generates & stores user token
@@ -1011,7 +1076,35 @@ func (svc auth) createUserToken(ctx context.Context, u *types.User, kind string)
 		}
 	)
 
-	err = func() error {
+	err = svc.store.Tx(ctx, func(ctx context.Context, s store.Storer) (err error) {
+		if u == nil || u.ID == 0 {
+			return AuthErrGeneric()
+		}
+
+		// Rate limit requests
+		cc, _, err := store.SearchCredentials(ctx, s, types.CredentialsFilter{
+			OwnerID: u.ID,
+			Kind:    kind,
+
+			// we want to count deleted tokens as well
+			Deleted: filter.StateInclusive,
+		})
+
+		if err != nil {
+			return err
+		}
+
+		// gt/eq since this current request is not yet stored
+		if err = svc.checkTokenRate(cc, tokenReqMaxWindow, tokenReqMaxCount); err != nil {
+			return
+		}
+
+		// removes expired and soft-deleted tokens
+		// and enforces one-token-per-user rule
+		if err = svc.cleanupCredentials(ctx, s, cc); err != nil {
+			return
+		}
+
 		switch kind {
 		case credentialsTypeMFAEmailOTP:
 			expSec := svc.settings.Auth.MultiFactor.EmailOTP.Expires
@@ -1048,7 +1141,7 @@ func (svc auth) createUserToken(ctx context.Context, u *types.User, kind string)
 			ExpiresAt:   &expiresAt,
 		}
 
-		err = store.CreateCredentials(ctx, svc.store, c)
+		err = store.CreateCredentials(ctx, s, c)
 
 		if err != nil {
 			return err
@@ -1064,9 +1157,76 @@ func (svc auth) createUserToken(ctx context.Context, u *types.User, kind string)
 		}
 
 		return nil
-	}()
+	})
 
 	return token, svc.recordAction(ctx, aam, AuthActionIssueToken, err)
+}
+
+// checks existing tokens and ensure that the creation rate is within limits
+func (svc auth) checkTokenRate(cc types.CredentialsSet, window time.Duration, max int) error {
+	if len(cc) == 0 || window == 0 || max == 0 {
+		return nil
+	}
+
+	var (
+		cutoff = now().Add(window * -1)
+		count  = 0
+	)
+
+	for _, c := range cc {
+		if c.CreatedAt.Before(cutoff) {
+			// skip tokens created before cutoff
+			continue
+		}
+
+		count++
+
+		if count > max {
+			break
+		}
+	}
+
+	if count > max {
+		return AuthErrRateLimitExceeded()
+	}
+
+	return nil
+}
+
+func (svc auth) cleanupCredentials(ctx context.Context, s store.Credentials, cc types.CredentialsSet) (err error) {
+	var (
+		update types.CredentialsSet
+		remove types.CredentialsSet
+	)
+
+	for _, c := range cc {
+		switch {
+		case oneTokenPerUser[c.Kind]:
+			// if token type is shortlisted in one-token-per-user
+			// mark all existing tokens as deleted if to
+			//
+			// only want to mark them as deleted ad
+			c.DeletedAt = now()
+			update = append(update, c)
+
+		case false, // just a placeholder
+			(c.DeletedAt != nil && c.DeletedAt.Add(tokenReqMaxWindow).Before(*now())),
+			(c.ExpiresAt != nil && c.ExpiresAt.Before(*now())):
+			// schedule all soft-deleted and expired token
+			// for removal
+			remove = append(remove, c)
+		}
+	}
+
+	if err = store.UpdateCredentials(ctx, s, update...); err != nil {
+		return
+	}
+
+	if err = store.DeleteCredentials(ctx, s, remove...); err != nil {
+		return
+	}
+
+	return
 }
 
 // Automatically promotes user to super-administrator if it is the first non-system user in the database
@@ -1468,4 +1628,19 @@ func (svc auth) RemoveAccessTokens(ctx context.Context, user *types.User) error 
 		AuthActionAccessTokensRemoved,
 		svc.store.DeleteAuthOA2TokenByUserID(ctx, user.ID),
 	)
+}
+
+func validateToken(token string) (ID uint64, credentials string) {
+	// Token = <32 random chars><credentials-id>
+	if len(token) <= credentialsTokenLength {
+		return
+	}
+
+	ID, _ = strconv.ParseUint(token[credentialsTokenLength:], 10, 64)
+	if ID == 0 {
+		return
+	}
+
+	credentials = token[:credentialsTokenLength]
+	return
 }

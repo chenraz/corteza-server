@@ -14,7 +14,7 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/label"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
 	"github.com/cortezaproject/corteza-server/system/types"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -236,6 +236,11 @@ type (
 		//
 		// Script to execute
 		Script string
+
+		// Args POST parameter
+		//
+		// Arguments to pass to the script
+		Args map[string]interface{}
 	}
 )
 
@@ -407,7 +412,7 @@ func (r RoleCreate) GetLabels() map[string]string {
 // Fill processes request and fills internal variables
 func (r *RoleCreate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -415,6 +420,53 @@ func (r *RoleCreate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["name"]; ok && len(val) > 0 {
+				r.Name, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["handle"]; ok && len(val) > 0 {
+				r.Handle, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["meta[]"]; ok {
+				r.Meta, err = types.ParseRoleMeta(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["meta"]; ok {
+				r.Meta, err = types.ParseRoleMeta(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -524,7 +576,7 @@ func (r RoleUpdate) GetLabels() map[string]string {
 // Fill processes request and fills internal variables
 func (r *RoleUpdate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -532,6 +584,53 @@ func (r *RoleUpdate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["name"]; ok && len(val) > 0 {
+				r.Name, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["handle"]; ok && len(val) > 0 {
+				r.Handle, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["meta[]"]; ok {
+				r.Meta, err = types.ParseRoleMeta(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["meta"]; ok {
+				r.Meta, err = types.ParseRoleMeta(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -804,7 +903,7 @@ func (r RoleMove) GetOrganisationID() uint64 {
 // Fill processes request and fills internal variables
 func (r *RoleMove) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -812,6 +911,22 @@ func (r *RoleMove) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["organisationID"]; ok && len(val) > 0 {
+				r.OrganisationID, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -871,7 +986,7 @@ func (r RoleMerge) GetDestination() uint64 {
 // Fill processes request and fills internal variables
 func (r *RoleMerge) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -879,6 +994,22 @@ func (r *RoleMerge) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["destination"]; ok && len(val) > 0 {
+				r.Destination, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -1051,6 +1182,7 @@ func (r RoleTriggerScript) Auditable() map[string]interface{} {
 	return map[string]interface{}{
 		"roleID": r.RoleID,
 		"script": r.Script,
+		"args":   r.Args,
 	}
 }
 
@@ -1064,10 +1196,15 @@ func (r RoleTriggerScript) GetScript() string {
 	return r.Script
 }
 
+// Auditable returns all auditable/loggable parameters
+func (r RoleTriggerScript) GetArgs() map[string]interface{} {
+	return r.Args
+}
+
 // Fill processes request and fills internal variables
 func (r *RoleTriggerScript) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -1075,6 +1212,34 @@ func (r *RoleTriggerScript) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["script"]; ok && len(val) > 0 {
+				r.Script, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["args[]"]; ok {
+				r.Args, err = parseMapStringInterface(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["args"]; ok {
+				r.Args, err = parseMapStringInterface(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -1087,6 +1252,18 @@ func (r *RoleTriggerScript) Fill(req *http.Request) (err error) {
 
 		if val, ok := req.Form["script"]; ok && len(val) > 0 {
 			r.Script, err = val[0], nil
+			if err != nil {
+				return err
+			}
+		}
+
+		if val, ok := req.Form["args[]"]; ok {
+			r.Args, err = parseMapStringInterface(val)
+			if err != nil {
+				return err
+			}
+		} else if val, ok := req.Form["args"]; ok {
+			r.Args, err = parseMapStringInterface(val)
 			if err != nil {
 				return err
 			}

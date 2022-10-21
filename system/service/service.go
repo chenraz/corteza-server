@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"github.com/cortezaproject/corteza-server/pkg/discovery"
+
 	automationService "github.com/cortezaproject/corteza-server/automation/service"
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
 	"github.com/cortezaproject/corteza-server/pkg/eventbus"
@@ -29,10 +31,11 @@ type (
 
 	Config struct {
 		ActionLog options.ActionLogOpt
+		Discovery options.DiscoveryOpt
 		Storage   options.ObjectStoreOpt
 		Template  options.TemplateOpt
 		Auth      options.AuthOpt
-		RBAC      options.RBACOpt
+		RBAC      options.RbacOpt
 		Limit     options.LimitOpt
 	}
 
@@ -79,6 +82,7 @@ var (
 	DefaultQueue               *queue
 	DefaultApigwRoute          *apigwRoute
 	DefaultApigwFilter         *apigwFilter
+	DefaultApigwProfiler       *apigwProfiler
 	DefaultReport              *report
 
 	DefaultStatistics *statistics
@@ -120,34 +124,52 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, ws websock
 		DefaultActionlog = actionlog.NewService(DefaultStore, log, tee, policy)
 	}
 
+	// Activity log for system resources
+	{
+		l := log
+		if !c.Discovery.Debug {
+			l = zap.NewNop()
+		}
+
+		DefaultResourceActivityLog := discovery.Service(l, c.Discovery, DefaultStore, eventbus.Service())
+		err = DefaultResourceActivityLog.InitResourceActivityLog(ctx, []string{
+			//(types.User{}).RbacResource(), // @todo user?? suppose to be system:user
+			"system:user",
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	DefaultAccessControl = AccessControl()
 
 	DefaultSettings = Settings(ctx, DefaultStore, DefaultLogger, DefaultAccessControl, CurrentSettings)
 
 	if DefaultObjectStore == nil {
+		var (
+			opt    = c.Storage
+			bucket string
+		)
 		const svcPath = "system"
-		if c.Storage.MinioEndpoint != "" {
-			var bucket = svcPath
-			if c.Storage.MinioBucket != "" {
-				bucket = c.Storage.MinioBucket + c.Storage.MinioBucketSep + svcPath
-			}
+		if opt.MinioEndpoint != "" {
+			bucket = minio.GetBucket(opt.MinioBucket, svcPath)
 
-			DefaultObjectStore, err = minio.New(bucket, minio.Options{
-				Endpoint:        c.Storage.MinioEndpoint,
-				Secure:          c.Storage.MinioSecure,
-				Strict:          c.Storage.MinioStrict,
-				AccessKeyID:     c.Storage.MinioAccessKey,
-				SecretAccessKey: c.Storage.MinioSecretKey,
+			DefaultObjectStore, err = minio.New(bucket, opt.MinioPathPrefix, svcPath, minio.Options{
+				Endpoint:        opt.MinioEndpoint,
+				Secure:          opt.MinioSecure,
+				Strict:          opt.MinioStrict,
+				AccessKeyID:     opt.MinioAccessKey,
+				SecretAccessKey: opt.MinioSecretKey,
 
-				ServerSideEncryptKey: []byte(c.Storage.MinioSSECKey),
+				ServerSideEncryptKey: []byte(opt.MinioSSECKey),
 			})
 
 			log.Info("initializing minio",
 				zap.String("bucket", bucket),
-				zap.String("endpoint", c.Storage.MinioEndpoint),
+				zap.String("endpoint", opt.MinioEndpoint),
 				zap.Error(err))
 		} else {
-			path := c.Storage.Path + "/" + svcPath
+			path := opt.Path + "/" + svcPath
 			DefaultObjectStore, err = plain.New(path)
 			log.Info("initializing store",
 				zap.String("path", path),
@@ -163,11 +185,11 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, ws websock
 
 	DefaultRenderer = Renderer(c.Template)
 	DefaultResourceTranslation = ResourceTranslation()
-	DefaultReport = Report(DefaultStore, DefaultAccessControl, DefaultActionlog, eventbus.Service())
 	DefaultAuthNotification = AuthNotification(CurrentSettings, DefaultRenderer, c.Auth)
 	DefaultAuth = Auth(AuthOptions{LimitUsers: c.Limit.SystemUsers})
 	DefaultAuthClient = AuthClient(DefaultStore, DefaultAccessControl, DefaultActionlog, eventbus.Service(), c.Auth)
 	DefaultUser = User(UserOptions{LimitUsers: c.Limit.SystemUsers})
+	DefaultReport = Report(DefaultStore, DefaultAccessControl, DefaultActionlog, eventbus.Service())
 	DefaultRole = Role()
 	DefaultApplication = Application(DefaultStore, DefaultAccessControl, DefaultActionlog, eventbus.Service())
 	DefaultReminder = Reminder(ctx, DefaultLogger.Named("reminder"), ws)
@@ -176,6 +198,7 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, ws websock
 	DefaultAttachment = Attachment(DefaultObjectStore)
 	DefaultQueue = Queue()
 	DefaultApigwRoute = Route()
+	DefaultApigwProfiler = Profiler()
 	DefaultApigwFilter = Filter()
 
 	if err = initRoles(ctx, log.Named("rbac.roles"), c.RBAC, eventbus.Service(), rbac.Global()); err != nil {

@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
 	"github.com/cortezaproject/corteza-server/system/types"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -237,7 +237,7 @@ func (r QueuesCreate) GetMeta() types.QueueMeta {
 // Fill processes request and fills internal variables
 func (r *QueuesCreate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -245,6 +245,41 @@ func (r *QueuesCreate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["queue"]; ok && len(val) > 0 {
+				r.Queue, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["consumer"]; ok && len(val) > 0 {
+				r.Consumer, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["meta[]"]; ok {
+				r.Meta, err = types.ParseQueueMeta(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["meta"]; ok {
+				r.Meta, err = types.ParseQueueMeta(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -358,7 +393,7 @@ func (r QueuesUpdate) GetMeta() types.QueueMeta {
 // Fill processes request and fills internal variables
 func (r *QueuesUpdate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -366,6 +401,41 @@ func (r *QueuesUpdate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["queue"]; ok && len(val) > 0 {
+				r.Queue, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["consumer"]; ok && len(val) > 0 {
+				r.Consumer, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["meta[]"]; ok {
+				r.Meta, err = types.ParseQueueMeta(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["meta"]; ok {
+				r.Meta, err = types.ParseQueueMeta(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 

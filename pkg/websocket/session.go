@@ -4,15 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"sync"
+	"time"
+
 	"github.com/cortezaproject/corteza-server/pkg/auth"
 	"github.com/cortezaproject/corteza-server/pkg/errors"
 	"github.com/cortezaproject/corteza-server/pkg/id"
 	"github.com/cortezaproject/corteza-server/pkg/options"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
-	"net"
-	"sync"
-	"time"
 )
 
 // active sessions of users
@@ -24,10 +25,22 @@ var (
 )
 
 type (
+	conection interface {
+		Close() error
+		RemoteAddr() net.Addr
+		WriteMessage(messageType int, data []byte) error
+		SetWriteDeadline(t time.Time) error
+		ReadMessage() (messageType int, p []byte, err error)
+		SetReadDeadline(t time.Time) error
+		SetPongHandler(h func(appData string) error)
+	}
+
 	session struct {
+		l sync.RWMutex
+
 		id   uint64
 		once sync.Once
-		conn *websocket.Conn
+		conn conection
 
 		ctx       context.Context
 		ctxCancel context.CancelFunc
@@ -68,34 +81,16 @@ func Session(ctx context.Context, ws *server, conn *websocket.Conn) *session {
 	return s
 }
 
-func (s *session) connected() (err error) {
-	s.logger.Info("connected", zap.String("remoteAddr", s.conn.RemoteAddr().String()))
-
-	//// Tell everyone that user has connected
-	//if err = s.sendPresence("connected"); err != nil {
-	//	return
-	//}
-	//
-	//
-	//// Create a heartbeat every minute for this user
-	//go func() {
-	//	defer sentry.Recover()
-	//
-	//	t := time.NewTicker(time.Second * 60)
-	//	for {
-	//		select {
-	//		case <-s.ctx.Done():
-	//			return
-	//		case <-t.C:
-	//			_ = s.sendPresence("active")
-	//		}
-	//	}
-	//}()
-
-	return nil
+func (s *session) Identity() auth.Identifiable {
+	s.l.RLock()
+	defer s.l.RUnlock()
+	return s.identity
 }
 
-func (s *session) disconnected() {
+func (s *session) disconnect() {
+	s.l.Lock()
+	defer s.l.Unlock()
+
 	// Cancel context
 	s.ctxCancel()
 
@@ -103,46 +98,52 @@ func (s *session) disconnected() {
 
 	// Close connection
 	_ = s.conn.Close()
+
+	close(s.send)
+	close(s.stop)
 	s.conn = nil
 }
 
-//func (s *session) sendPresence(_ string) error {
-//	return nil
-//}
-
-func (s *session) Handle() (err error) {
-	if err = s.connected(); err != nil {
-		s.Close()
-		return
-	}
-
+func (s *session) Handle() error {
 	go func() {
 		// Close unidentified connections in 5sec
 		<-time.NewTimer(time.Second * 5).C
-		if s.identity == nil {
-			s.Write([]byte(closingUnidentifiedConn))
+		if s.Identity() == nil {
+			_, _ = s.Write(closingUnidentifiedConn)
 			s.logger.Info("closing unidentified connection")
 			s.Close()
 		}
 	}()
 
 	go func() {
-		if err = s.readLoop(); err != nil {
+		if err := s.readLoop(); err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				// read will return net.ErrClosed when
+				// recovering from panic
+				return
+			}
+
 			s.logger.Error("read failure", zap.Error(err))
 		}
 		s.Close()
 	}()
 
-	if err = s.writeLoop(); err != nil {
+	if err := s.writeLoop(); err != nil {
+		if errors.Is(err, net.ErrClosed) {
+			// write will return net.ErrClosed when
+			// recovering from panic
+			return nil
+		}
+
 		s.logger.Error("write failure", zap.Error(err))
 	}
 
-	return
+	return nil
 }
 
 func (s *session) Close() {
 	s.once.Do(func() {
-		s.disconnected()
+		s.disconnect()
 		s.server.RemoveSession(s)
 	})
 }
@@ -163,18 +164,36 @@ func (s *session) readLoop() (err error) {
 	)
 
 	for {
-		if s.conn == nil {
-			return nil
+		if raw, err = s.read(); err != nil {
+			return
 		}
 
-		if _, raw, err = s.conn.ReadMessage(); err != nil {
-			return errHandler("read failed", err)
+		if raw == nil {
+			continue
 		}
 
 		if err = s.procRawMessage(raw); err != nil {
 			return
 		}
 	}
+}
+
+func (s *session) read() (raw []byte, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			s.logger.Debug("recovering from websocket read panic", zap.Any("recovered-error", recovered))
+			err = net.ErrClosed
+		}
+	}()
+
+	s.l.RLock()
+	defer s.l.RUnlock()
+
+	if _, raw, err = s.conn.ReadMessage(); err != nil {
+		return nil, errHandler("websocket read failed", err)
+	}
+
+	return
 }
 
 func (s *session) procRawMessage(raw []byte) (err error) {
@@ -193,10 +212,11 @@ func (s *session) procRawMessage(raw []byte) (err error) {
 			return fmt.Errorf("unauthorized: %w", err)
 		}
 
+		i := s.Identity()
 		s.logger.Debug(
 			"authenticated",
-			zap.Uint64("userID", s.identity.Identity()),
-			zap.Uint64s("roles", s.identity.Roles()),
+			zap.Uint64("userID", i.Identity()),
+			zap.Uint64s("roles", i.Roles()),
 		)
 
 		s.server.StoreSession(s)
@@ -205,7 +225,7 @@ func (s *session) procRawMessage(raw []byte) (err error) {
 		return
 	}
 
-	if s.identity == nil {
+	if s.Identity() == nil {
 		return fmt.Errorf("unauthenticated session")
 	}
 
@@ -213,53 +233,14 @@ func (s *session) procRawMessage(raw []byte) (err error) {
 	return fmt.Errorf("unknown message type '%s'", pw.Type)
 }
 
+// reads send & stop channels and sends received messages to websocket connection via write fn()
 func (s *session) writeLoop() error {
 	ticker := time.NewTicker(s.config.PingPeriod)
 
-	defer func() {
-		ticker.Stop()
-		s.Close() // break readLoop
-	}()
-
-	write := func(msg []byte) (err error) {
-		if s.conn == nil {
-			// Connection closed, nowhere to write
-			return
-		}
-
-		if err = s.conn.SetWriteDeadline(time.Now().Add(s.config.Timeout)); err != nil {
-			return fmt.Errorf("deadline error: %w", err)
-		}
-
-		if msg != nil && s.conn != nil {
-			return s.conn.WriteMessage(websocket.TextMessage, msg)
-		}
-
-		return
-	}
-
-	ping := func() (err error) {
-		if s.conn == nil {
-			// Connection closed, nothing to ping
-			return
-		}
-
-		if err = s.conn.SetWriteDeadline(time.Now().Add(s.config.Timeout)); err != nil {
-			return
-		}
-
-		if s.conn != nil {
-			return s.conn.WriteMessage(websocket.PingMessage, nil)
-		}
-
-		return
-	}
+	defer ticker.Stop()
+	defer s.Close() // break readLoop
 
 	for {
-		if s.conn == nil {
-			return nil
-		}
-
 		select {
 		case msg, ok := <-s.send:
 			if !ok {
@@ -267,38 +248,63 @@ func (s *session) writeLoop() error {
 				return nil
 			}
 
-			if err := errHandler("send failed", write(msg)); err != nil {
+			if err := s.write(websocket.TextMessage, msg); err != nil {
 				return err
 			}
 
-		case msg := <-s.stop:
+			// continue with wait & write/ping loop
+
+		case msg, ok := <-s.stop:
+			if !ok {
+				// channel closed
+				return nil
+			}
+
 			// Shutdown requested, don't care if the message is delivered
-			_ = write(msg)
+			if err := s.write(websocket.TextMessage, msg); err != nil {
+				return err
+			}
+
+			// stopping, break the loop.
 			return nil
 
 		case <-ticker.C:
-			if err := ping(); err != nil {
-				return errHandler("ping failed", err)
+			if err := s.write(websocket.PingMessage, nil); err != nil {
+				return err
 			}
+
+			// continue with wait & write/ping loop
 		}
 	}
 }
 
+// writes messages to websocket connection
+func (s *session) write(t int, msg []byte) (err error) {
+	s.l.RLock()
+	defer s.l.RUnlock()
+
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			s.logger.Debug("recovering from websocket write panic", zap.Any("recovered-error", recovered))
+			err = net.ErrClosed
+		}
+	}()
+
+	if err = s.conn.SetWriteDeadline(time.Now().Add(s.config.Timeout)); err != nil {
+		return fmt.Errorf("deadline error: %w", err)
+	}
+
+	return errHandler("websocket write failed", s.conn.WriteMessage(t, msg))
+}
+
 func (s *session) authenticate(p *payloadAuth) error {
-	claims, err := s.server.accessToken.Authenticate(p.AccessToken)
+	identity, err := s.server.tokenValidator(s.ctx, p.AccessToken)
 	if err != nil {
 		return err
 	}
 
-	if !auth.CheckScope(claims["scope"], "api") {
-		return fmt.Errorf("client does not allow use of websockets (missing 'api' scope)")
-	}
-
-	// Get identity using JWT claims
-	identity := auth.ClaimsToIdentity(claims)
-
-	if s.identity != nil {
-		if s.identity.Identity() != identity.Identity() {
+	if i := s.Identity(); i != nil {
+		if i.Identity() != identity.Identity() {
 			return fmt.Errorf("identity does not match")
 		}
 	}
@@ -307,13 +313,22 @@ func (s *session) authenticate(p *payloadAuth) error {
 		return fmt.Errorf("invalid identity")
 	}
 
+	s.l.Lock()
+	defer s.l.Unlock()
+
 	s.identity = identity
-	s.Write([]byte(ok))
+	_, _ = s.Write(ok)
 	return nil
 }
 
 // sendBytes sends byte to channel or timeout
 func (s *session) Write(p []byte) (int, error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			s.logger.Debug("recovering from websocket write panic", zap.Any("recovered-error", recovered))
+		}
+	}()
+
 	select {
 	case s.send <- p:
 		return len(p), nil
@@ -322,7 +337,7 @@ func (s *session) Write(p []byte) (int, error) {
 	}
 }
 
-func errHandler(wrap string, err error) error {
+func errHandler(prefix string, err error) error {
 	if err == nil {
 		return nil
 	}
@@ -336,5 +351,6 @@ func errHandler(wrap string, err error) error {
 		// suppress errors when reading/writing from/to a closed connection
 		return nil
 	}
-	return fmt.Errorf(wrap+": %w", err)
+
+	return fmt.Errorf(prefix+": %w", err)
 }

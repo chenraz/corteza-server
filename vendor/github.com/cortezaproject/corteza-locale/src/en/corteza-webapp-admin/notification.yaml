@@ -38,6 +38,8 @@ user:
   unsuspend:
     success: User unsuspended
     error: User suspension failed
+  import:
+    success: Users imported successfully
 role:
   fetch:
     error: Role fetch failed
@@ -219,12 +221,18 @@ settings:
   ui:
     fetch:
       error: UI settings fetch failed
+    update:
+      success: UI settings updated
+      error: UI settings update failed
 permissions:
   fetch:
     error: Permissions fetch failed
   update:
     success: Permissions updated
     error: Permissions update failed
+  clone:
+    success: Permissions cloned
+    error: Permissions clone failed
   role:
     error: Failed to add role
 

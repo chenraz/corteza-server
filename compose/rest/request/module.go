@@ -15,7 +15,7 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/label"
 	"github.com/cortezaproject/corteza-server/pkg/locale"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	sqlxTypes "github.com/jmoiron/sqlx/types"
 	"io"
 	"mime/multipart"
@@ -193,6 +193,11 @@ type (
 		//
 		// Script to execute
 		Script string
+
+		// Args POST parameter
+		//
+		// Arguments to pass to the script
+		Args map[string]interface{}
 	}
 
 	ModuleListTranslations struct {
@@ -405,7 +410,7 @@ func (r ModuleCreate) GetLabels() map[string]string {
 // Fill processes request and fills internal variables
 func (r *ModuleCreate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -413,6 +418,48 @@ func (r *ModuleCreate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["name"]; ok && len(val) > 0 {
+				r.Name, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["handle"]; ok && len(val) > 0 {
+				r.Handle, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["meta"]; ok && len(val) > 0 {
+				r.Meta, err = payload.ParseJSONTextWithErr(val[0])
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -588,7 +635,7 @@ func (r ModuleUpdate) GetLabels() map[string]string {
 // Fill processes request and fills internal variables
 func (r *ModuleUpdate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -596,6 +643,55 @@ func (r *ModuleUpdate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["name"]; ok && len(val) > 0 {
+				r.Name, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["handle"]; ok && len(val) > 0 {
+				r.Handle, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["meta"]; ok && len(val) > 0 {
+				r.Meta, err = payload.ParseJSONTextWithErr(val[0])
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["updatedAt"]; ok && len(val) > 0 {
+				r.UpdatedAt, err = payload.ParseISODatePtrWithErr(val[0])
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -733,6 +829,7 @@ func (r ModuleTriggerScript) Auditable() map[string]interface{} {
 		"namespaceID": r.NamespaceID,
 		"moduleID":    r.ModuleID,
 		"script":      r.Script,
+		"args":        r.Args,
 	}
 }
 
@@ -751,10 +848,15 @@ func (r ModuleTriggerScript) GetScript() string {
 	return r.Script
 }
 
+// Auditable returns all auditable/loggable parameters
+func (r ModuleTriggerScript) GetArgs() map[string]interface{} {
+	return r.Args
+}
+
 // Fill processes request and fills internal variables
 func (r *ModuleTriggerScript) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -762,6 +864,34 @@ func (r *ModuleTriggerScript) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["script"]; ok && len(val) > 0 {
+				r.Script, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["args[]"]; ok {
+				r.Args, err = parseMapStringInterface(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["args"]; ok {
+				r.Args, err = parseMapStringInterface(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -774,6 +904,18 @@ func (r *ModuleTriggerScript) Fill(req *http.Request) (err error) {
 
 		if val, ok := req.Form["script"]; ok && len(val) > 0 {
 			r.Script, err = val[0], nil
+			if err != nil {
+				return err
+			}
+		}
+
+		if val, ok := req.Form["args[]"]; ok {
+			r.Args, err = parseMapStringInterface(val)
+			if err != nil {
+				return err
+			}
+		} else if val, ok := req.Form["args"]; ok {
+			r.Args, err = parseMapStringInterface(val)
 			if err != nil {
 				return err
 			}
@@ -880,7 +1022,7 @@ func (r ModuleUpdateTranslations) GetTranslations() locale.ResourceTranslationSe
 // Fill processes request and fills internal variables
 func (r *ModuleUpdateTranslations) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -888,6 +1030,16 @@ func (r *ModuleUpdateTranslations) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
 		}
 	}
 

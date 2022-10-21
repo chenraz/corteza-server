@@ -6,12 +6,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -30,7 +30,7 @@ import (
 	"github.com/cortezaproject/corteza-server/store"
 	systemService "github.com/cortezaproject/corteza-server/system/service"
 	"github.com/cortezaproject/corteza-server/system/types"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	oauth2def "github.com/go-oauth2/oauth2/v4"
 	"go.uber.org/zap"
 	"golang.org/x/text/language"
@@ -50,10 +50,9 @@ type (
 var PublicAssets embed.FS
 
 // New initializes Auth service that orchestrates session manager, oauth2 manager and http request handlers
-func New(ctx context.Context, log *zap.Logger, s store.Storer, opt options.AuthOpt) (svc *service, err error) {
+func New(ctx context.Context, log *zap.Logger, oa2m oauth2def.Manager, s store.Storer, opt options.AuthOpt, defClient *types.AuthClient) (svc *service, err error) {
 	var (
-		tpls      templateExecutor
-		defClient *types.AuthClient
+		tpls templateExecutor
 	)
 
 	log = log.Named("auth")
@@ -72,14 +71,7 @@ func New(ctx context.Context, log *zap.Logger, s store.Storer, opt options.AuthO
 
 	sesManager := request.NewSessionManager(s, opt, log)
 
-	oauth2Manager := oauth2.NewManager(
-		opt,
-		log,
-		&oauth2.ContextClientStore{},
-		&oauth2.CortezaTokenStore{Store: s},
-	)
-
-	oauth2Server := oauth2.NewServer(oauth2Manager)
+	oauth2Server := oauth2.NewServer(oa2m)
 
 	// Called after oauth2 authorization request is validated
 	// We'll try to get valid user out of the session or redirect user to login page
@@ -93,17 +85,10 @@ func New(ctx context.Context, log *zap.Logger, s store.Storer, opt options.AuthO
 		// this is a bit silly and a bad design of the oauth2 server lib
 		// why do we need to keep on load the client??
 		var (
-			clientID uint64
-			client   *types.AuthClient
+			client *types.AuthClient
 		)
 
-		clientID, err = strconv.ParseUint(id, 10, 64)
-		if err != nil {
-			return false, fmt.Errorf("could not authorize client: %w", err)
-		}
-
-		client, err = store.LookupAuthClientByID(ctx, s, clientID)
-		if err != nil {
+		if client, err = clientLookup(ctx, s, id); err != nil {
 			return false, fmt.Errorf("could not authorize client: %w", err)
 		}
 
@@ -119,25 +104,16 @@ func New(ctx context.Context, log *zap.Logger, s store.Storer, opt options.AuthO
 		// this is a bit silly and a bad design of the oauth2 server lib
 		// why do we need to keep on load the client??
 		var (
-			clientID uint64
-			client   *types.AuthClient
+			client *types.AuthClient
 		)
 
-		clientID, err = strconv.ParseUint(tgr.ClientID, 10, 64)
-		if err != nil {
-			return false, fmt.Errorf("could not authorize client: %w", err)
-		}
-
-		client, err = store.LookupAuthClientByID(ctx, s, clientID)
-		if err != nil {
+		if client, err = clientLookup(ctx, s, tgr.ClientID); err != nil {
 			return false, fmt.Errorf("could not authorize client: %w", err)
 		}
 
 		// ensure all requested scopes are allowed on a client
-		for _, scope := range strings.Split(tgr.Scope, " ") {
-			if !auth.CheckScope(client.Scope, scope) {
-				return false, fmt.Errorf("client does not allow use of '%s' scope", scope)
-			}
+		if !auth.CheckScope(client.Scope, strings.Split(tgr.Scope, " ")...) {
+			return false, fmt.Errorf("client does not allow use of '%s' scope", client.Scope)
 		}
 
 		return true, nil
@@ -147,20 +123,12 @@ func New(ctx context.Context, log *zap.Logger, s store.Storer, opt options.AuthO
 		fieldsValue = make(map[string]interface{})
 		handlers.SubSplit(ti, fieldsValue)
 		fieldsValue["refresh_token_expires_in"] = int(ti.GetRefreshExpiresIn() / time.Second)
-		if err = handlers.Profile(ctx, ti, fieldsValue); err != nil {
+		if err = userProfile(ctx, s, ti, fieldsValue); err != nil {
 			log.Error("failed to add profile data", zap.Error(err))
 		}
 
 		return
 	})
-
-	if opt.DefaultClient != "" {
-		// default client will help streamline authorization with default clients
-		defClient, err = store.LookupAuthClientByHandle(ctx, s, opt.DefaultClient)
-		if err != nil {
-			return nil, fmt.Errorf("cannot load default client: %w", err)
-		}
-	}
 
 	var (
 		tplLoader templateLoader
@@ -296,6 +264,11 @@ func (svc *service) LoadSamlService(ctx context.Context, s *settings.Settings) (
 		PrivateKey:  keyPair.PrivateKey.(*rsa.PrivateKey),
 		IdpMeta:     md,
 
+		SignRequests:    s.Saml.SignRequests,
+		SignatureMethod: s.Saml.SignMethod,
+
+		Binding: s.Saml.Binding,
+
 		IdentityPayload: saml.IdpIdentityPayload{
 			Name:       s.Saml.IDP.IdentName,
 			Handle:     s.Saml.IDP.IdentHandle,
@@ -423,23 +396,29 @@ func (svc service) MountHttpRoutes(basePath string, r chi.Router) {
 	svc.handlers.MountHttpRoutes(r)
 
 	const uriRoot = "/auth/assets/public"
-	if svc.opt.DevelopmentMode {
+	var (
+		assetHandler http.Handler
+		useEmbedded  = len(svc.opt.AssetsPath) == 0
+	)
+
+	if useEmbedded {
+		assetHandler = http.StripPrefix(basePath+"/auth/", http.FileServer(http.FS(PublicAssets)))
+	} else {
 		var root = strings.TrimRight(svc.opt.AssetsPath, "/") + "/public"
 
 		if err := dirCheck(root); err != nil {
 			svc.log.Error(
-				"failed to run in development mode (AUTH_DEVELOPMENT_MODE=true)",
+				"failed to configure auth assets handler",
 				zap.Error(err),
 				zap.String("AUTH_ASSETS_PATH", svc.opt.AssetsPath),
 			)
 		} else {
-			r.Handle(uriRoot+"/*", http.StripPrefix(basePath+uriRoot, http.FileServer(http.Dir(root))))
-			return
+			assetHandler = http.StripPrefix(basePath+uriRoot, http.FileServer(http.Dir(root)))
 		}
 	}
 
 	// fallback to embedded assets
-	r.Handle(uriRoot+"/*", http.StripPrefix(basePath+"/auth/", http.FileServer(http.FS(PublicAssets))))
+	r.Handle(uriRoot+"/*", assetHandler)
 }
 
 // checks if directory exists & is readable
@@ -452,18 +431,48 @@ func dirCheck(path string) (err error) {
 	return
 }
 
-//func (svc service) WellKnownOpenIDConfiguration() http.HandlerFunc {
-//	return func(w http.ResponseWriter, r *http.Request) {
-//		json.NewEncoder(w).Encode(map[string]interface{}{
-//			"issuer":                                svc.opt.BaseURL,
-//			"authorization_endpoint":                svc.opt.BaseURL + "/oauth2/authorize",
-//			"token_endpoint":                        svc.opt.BaseURL + "/oauth2/token",
-//			"jwks_uri":                              svc.opt.BaseURL + "/oauth2/public-keys", // @todo
-//			"subject_types_supported":               []string{"public"},
-//			"response_types_supported":              []string{"public"},
-//			"id_token_signing_alg_values_supported": []string{"RS256", "HS512"},
-//		})
+func (svc service) WellKnownOpenIDConfiguration() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"issuer":                                svc.opt.BaseURL,
+			"authorization_endpoint":                svc.opt.BaseURL + "/oauth2/authorize",
+			"token_endpoint":                        svc.opt.BaseURL + "/oauth2/token",
+			"jwks_uri":                              svc.opt.BaseURL + "/oauth2/public-keys",
+			"scope_supported":                       []string{"profile", "api"},
+			"id_token_signing_alg_values_supported": []string{"RS256", "HS512"},
+			"response_types_supported":              []string{"code", "token"},
+		})
+
+		w.Header().Set("Content-Type", "application/json")
+	}
+}
+
+// Profile fills map with user's data
 //
-//		w.Header().Set("Content-Type", "application/json")
-//	}
-//}
+// If scope supports it (contains "profile") user is loaded and
+// map is filled with username (handle), email and name
+func userProfile(ctx context.Context, s store.Users, ti oauth2def.TokenInfo, data map[string]interface{}) error {
+	if !auth.CheckScope(ti.GetScope(), "profile") {
+		return nil
+	}
+
+	userID, _ := auth.ExtractFromSubClaim(ti.GetUserID())
+	if userID == 0 {
+		return fmt.Errorf("invalid user ID in 'sub' claim")
+	}
+
+	user, err := store.LookupUserByID(ctx, s, userID)
+	if err != nil {
+		return err
+	}
+
+	data["handle"] = user.Handle
+	data["name"] = user.Name
+	data["email"] = user.Email
+
+	if user.Meta != nil && user.Meta.PreferredLanguage != "" {
+		data["preferred_language"] = user.Meta.PreferredLanguage
+	}
+
+	return nil
+}

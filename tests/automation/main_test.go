@@ -23,7 +23,7 @@ import (
 	"github.com/cortezaproject/corteza-server/store/sqlite3"
 	sysTypes "github.com/cortezaproject/corteza-server/system/types"
 	"github.com/cortezaproject/corteza-server/tests/helpers"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/steinfletcher/apitest"
 	"github.com/stretchr/testify/require"
@@ -37,7 +37,7 @@ type (
 
 		cUser  *sysTypes.User
 		roleID uint64
-		token  string
+		token  []byte
 	}
 )
 
@@ -84,7 +84,7 @@ func InitTestApp() {
 		r = chi.NewRouter()
 		r.Use(server.BaseMiddleware(false, logger.Default())...)
 		helpers.BindAuthMiddleware(r)
-		rest.MountRoutes(r)
+		r.Group(rest.MountRoutes())
 	}
 }
 
@@ -107,7 +107,8 @@ func newHelper(t *testing.T) helper {
 	helpers.UpdateRBAC(h.roleID)
 
 	var err error
-	h.token, err = auth.DefaultJwtHandler.Generate(context.Background(), h.cUser)
+	ctx := context.Background()
+	h.token, err = auth.TokenIssuer.Issue(ctx, auth.WithIdentity(h.cUser))
 	if err != nil {
 		panic(err)
 	}

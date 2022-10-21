@@ -9,7 +9,9 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/options"
 	"github.com/cortezaproject/corteza-server/pkg/plugin"
 	"github.com/cortezaproject/corteza-server/store"
-	"github.com/go-chi/chi"
+	"github.com/cortezaproject/corteza-server/system/types"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-oauth2/oauth2/v4"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
@@ -17,8 +19,9 @@ import (
 
 type (
 	httpApiServer interface {
-		MountRoutes(mm ...func(chi.Router))
 		Serve(ctx context.Context)
+		Activate(mm ...func(chi.Router))
+		Shutdown()
 	}
 
 	grpcServer interface {
@@ -33,6 +36,7 @@ type (
 
 	authServicer interface {
 		MountHttpRoutes(string, chi.Router)
+		WellKnownOpenIDConfiguration() http.HandlerFunc
 		UpdateSettings(*settings.Settings)
 		Watch(ctx context.Context)
 	}
@@ -60,6 +64,10 @@ type (
 
 		// CLI Commands
 		Command *cobra.Command
+
+		oa2m oauth2.Manager
+
+		DefaultAuthClient *types.AuthClient
 
 		// Servers
 		HttpServer httpApiServer

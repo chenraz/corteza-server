@@ -12,7 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	sqlxTypes "github.com/jmoiron/sqlx/types"
 	"io"
 	"mime/multipart"
@@ -373,7 +373,7 @@ func (r ReminderCreate) GetRemindAt() *time.Time {
 // Fill processes request and fills internal variables
 func (r *ReminderCreate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -381,6 +381,43 @@ func (r *ReminderCreate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["resource"]; ok && len(val) > 0 {
+				r.Resource, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["assignedTo"]; ok && len(val) > 0 {
+				r.AssignedTo, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["payload"]; ok && len(val) > 0 {
+				r.Payload, err = payload.ParseJSONTextWithErr(val[0])
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["remindAt"]; ok && len(val) > 0 {
+				r.RemindAt, err = payload.ParseISODatePtrWithErr(val[0])
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -467,7 +504,7 @@ func (r ReminderUpdate) GetRemindAt() *time.Time {
 // Fill processes request and fills internal variables
 func (r *ReminderUpdate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -475,6 +512,43 @@ func (r *ReminderUpdate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["resource"]; ok && len(val) > 0 {
+				r.Resource, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["assignedTo"]; ok && len(val) > 0 {
+				r.AssignedTo, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["payload"]; ok && len(val) > 0 {
+				r.Payload, err = payload.ParseJSONTextWithErr(val[0])
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["remindAt"]; ok && len(val) > 0 {
+				r.RemindAt, err = payload.ParseISODatePtrWithErr(val[0])
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -660,7 +734,7 @@ func (r ReminderSnooze) GetRemindAt() *time.Time {
 // Fill processes request and fills internal variables
 func (r *ReminderSnooze) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -668,6 +742,22 @@ func (r *ReminderSnooze) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["remindAt"]; ok && len(val) > 0 {
+				r.RemindAt, err = payload.ParseISODatePtrWithErr(val[0])
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 

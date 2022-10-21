@@ -36,27 +36,13 @@ name:
   label: Full namespace name *
   placeholder: Enter namespace name
 noResults: No namespaces found
-notification:
-  application:
-    createFailed: Could not create namespace application
-    fetchFailed: Could not fetch namespace application
-    saveFailed: Could not save namespace application
-  assetUploadFailed: Could not upload attached assets
-  createFailed: Could not create namespace
-  deleteFailed: Could not delete this namespace
-  disabled: Namespace disabled - redirecting
-  saveFailed: Could not save this namespace
-  cloneFailed: Could not clone this namespace
-  saved: Namespace saved
-  imported: Namespace imported
-  importFailed: Namespace failed to import
 searchPlaceholder: Type here to search among all namespaces...
 setPermissions: Set namespace permissions
 slug:
   description: The short name will be used in the URL
   label: Short name *
   placeholder: Enter a short name for the namespace
-  invalid-handle-characters: Should be al least 2 characters long and start with a letter. Can contains only letters, numbers, dash, underscore and dot
+  invalid-handle-characters: Should be at least 2 characters long and start with a letter. Can contain only letters, numbers, dashes, underscores and dots
 subtitle:
   label: Subtitle
   placeholder: Enter namespace subtitle

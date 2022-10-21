@@ -2,12 +2,13 @@ package app
 
 import (
 	"context"
+	"net/http"
 	"testing"
 
 	"github.com/cortezaproject/corteza-server/auth/external"
 	authSettings "github.com/cortezaproject/corteza-server/auth/settings"
 	"github.com/cortezaproject/corteza-server/system/types"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,10 @@ type (
 )
 
 func (*authSettingsUpdaterMockedAuthService) MountHttpRoutes(string, chi.Router) {}
-func (*authSettingsUpdaterMockedAuthService) Watch(context.Context)              {}
+func (*authSettingsUpdaterMockedAuthService) WellKnownOpenIDConfiguration() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {}
+}
+func (*authSettingsUpdaterMockedAuthService) Watch(context.Context) {}
 func (m *authSettingsUpdaterMockedAuthService) UpdateSettings(settings *authSettings.Settings) {
 	m.settings = settings
 }

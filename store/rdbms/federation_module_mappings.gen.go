@@ -85,7 +85,7 @@ func (s Store) SearchFederationModuleMappings(ctx context.Context, f types.Modul
 		}
 
 		// Apply sorting expr from filter to query
-		if q, err = setOrderBy(q, sort, s.sortableFederationModuleMappingColumns()); err != nil {
+		if q, err = setOrderBy(q, sort, s.sortableFederationModuleMappingColumns(), s.Config().SqlSortHandler); err != nil {
 			return err
 		}
 
@@ -459,17 +459,12 @@ func (s Store) execDeleteFederationModuleMappings(ctx context.Context, cnd squir
 func (s Store) internalFederationModuleMappingRowScanner(row rowScanner) (res *types.ModuleMapping, err error) {
 	res = &types.ModuleMapping{}
 
-	if _, has := s.config.RowScanners["federationModuleMapping"]; has {
-		scanner := s.config.RowScanners["federationModuleMapping"].(func(_ rowScanner, _ *types.ModuleMapping) error)
-		err = scanner(row, res)
-	} else {
-		err = row.Scan(
-			&res.FederationModuleID,
-			&res.ComposeModuleID,
-			&res.ComposeNamespaceID,
-			&res.FieldMapping,
-		)
-	}
+	err = row.Scan(
+		&res.FederationModuleID,
+		&res.ComposeModuleID,
+		&res.ComposeNamespaceID,
+		&res.FieldMapping,
+	)
 
 	if err == sql.ErrNoRows {
 		return nil, store.ErrNotFound.Stack(1)

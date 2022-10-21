@@ -73,7 +73,7 @@ func (s Store) SearchQueueMessages(ctx context.Context, f types.QueueMessageFilt
 		}
 
 		// Apply sorting expr from filter to query
-		if q, err = setOrderBy(q, sort, s.sortableQueueMessageColumns()); err != nil {
+		if q, err = setOrderBy(q, sort, s.sortableQueueMessageColumns(), s.Config().SqlSortHandler); err != nil {
 			return err
 		}
 
@@ -380,18 +380,13 @@ func (s Store) execDeleteQueueMessages(ctx context.Context, cnd squirrel.Sqlizer
 func (s Store) internalQueueMessageRowScanner(row rowScanner) (res *types.QueueMessage, err error) {
 	res = &types.QueueMessage{}
 
-	if _, has := s.config.RowScanners["queueMessage"]; has {
-		scanner := s.config.RowScanners["queueMessage"].(func(_ rowScanner, _ *types.QueueMessage) error)
-		err = scanner(row, res)
-	} else {
-		err = row.Scan(
-			&res.ID,
-			&res.Queue,
-			&res.Payload,
-			&res.Processed,
-			&res.Created,
-		)
-	}
+	err = row.Scan(
+		&res.ID,
+		&res.Queue,
+		&res.Payload,
+		&res.Processed,
+		&res.Created,
+	)
 
 	if err == sql.ErrNoRows {
 		return nil, store.ErrNotFound.Stack(1)

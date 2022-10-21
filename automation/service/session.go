@@ -38,6 +38,8 @@ type (
 		workflowID uint64
 		session    chan *wfexec.Session
 		graph      *wfexec.Graph
+		invoker    auth.Identifiable
+		runner     auth.Identifiable
 		trace      bool
 		callStack  []uint64
 	}
@@ -48,6 +50,16 @@ type (
 	}
 
 	WaitFn func(ctx context.Context) (*expr.Vars, wfexec.SessionStatus, types.Stacktrace, error)
+)
+
+const (
+	// when the state changes, state-change-handler is called and for non-fatal,
+	// non-interactive or non-delay steps (that are much more frequent) we need
+	// to limit how often the store is updated with the updated session info
+	//
+	// We use the size of the stacktrace and for every F (see the value of the constant)
+	// we flush the session info to the store.
+	sessionStateFlushFrequency = 1000
 )
 
 func Session(log *zap.Logger, opt options.WorkflowOpt, ps promptSender) *session {
@@ -159,14 +171,36 @@ func (svc *session) PendingPrompts(ctx context.Context) (pp []*wfexec.PendingPro
 //
 // Start is an asynchronous operation
 //
+// Please note that context passed to the function is NOT the the one that is
+// used for the execution of the workflow. See watch function!
+//
 // It does not check user's permissions to execute workflow(s) so it should be used only when !
-func (svc *session) Start(g *wfexec.Graph, i auth.Identifiable, ssp types.SessionStartParams) (wait WaitFn, err error) {
+func (svc *session) Start(ctx context.Context, g *wfexec.Graph, ssp types.SessionStartParams) (wait WaitFn, err error) {
 	var (
 		start wfexec.Step
 	)
 
+	if g == nil {
+		return nil, errors.InvalidData("cannot start workflow, uninitialized graph")
+	}
+
+	if len(ssp.CallStack) > svc.opt.CallStackSize {
+		return nil, WorkflowErrMaximumCallStackSizeExceeded()
+	}
+
+	ssp.CallStack = append(ssp.CallStack, ssp.WorkflowID)
+
+	if ssp.Invoker == nil {
+		return nil, errors.InvalidData("cannot start workflow without user")
+	}
+
+	if ssp.Runner == nil {
+		ssp.Runner = ssp.Invoker
+	}
+
 	if ssp.StepID == 0 {
-		// starting step is not explicitly workflows on trigger, find orphan step
+		// starting step is not explicitly set
+		// find orphan step
 		switch oo := g.Orphans(); len(oo) {
 		case 1:
 			start = oo[0]
@@ -182,14 +216,18 @@ func (svc *session) Start(g *wfexec.Graph, i auth.Identifiable, ssp types.Sessio
 	}
 
 	var (
-		ctx = auth.SetIdentityToContext(context.Background(), i)
-		ses = svc.spawn(g, ssp.WorkflowID, ssp.Trace, ssp.CallStack)
+		ses = svc.spawn(g, ssp.WorkflowID, ssp.Trace, ssp.CallStack, ssp.Runner, ssp.Invoker)
 	)
 
 	ses.CreatedAt = *now()
-	ses.CreatedBy = i.Identity()
+	ses.CreatedBy = ssp.Invoker.Identity()
 	ses.Status = types.SessionStarted
 	ses.Apply(ssp)
+
+	_ = ssp.Input.AssignFieldValue("eventType", expr.Must(expr.NewString(ssp.EventType)))
+	_ = ssp.Input.AssignFieldValue("resourceType", expr.Must(expr.NewString(ssp.ResourceType)))
+	_ = ssp.Input.AssignFieldValue("invoker", expr.Must(expr.NewAny(ssp.Invoker)))
+	_ = ssp.Input.AssignFieldValue("runner", expr.Must(expr.NewAny(ssp.Runner)))
 
 	if err = ses.Exec(ctx, start, ssp.Input); err != nil {
 		return
@@ -231,13 +269,15 @@ func (svc *session) Resume(sessionID, stateID uint64, i auth.Identifiable, input
 //
 // We need initial context for the session because we want to catch all cancellations or timeouts from there
 // and not from any potential HTTP requests or similar temporary context that can prematurely destroy a workflow session
-func (svc *session) spawn(g *wfexec.Graph, workflowID uint64, trace bool, callStack []uint64) (ses *types.Session) {
+func (svc *session) spawn(g *wfexec.Graph, workflowID uint64, trace bool, callStack []uint64, runner, invoker auth.Identifiable) (ses *types.Session) {
 	s := &spawn{
 		workflowID: workflowID,
 		session:    make(chan *wfexec.Session, 1),
 		graph:      g,
 		trace:      trace,
 		callStack:  callStack,
+		invoker:    invoker,
+		runner:     runner,
 	}
 
 	// Send new-session request
@@ -245,6 +285,9 @@ func (svc *session) spawn(g *wfexec.Graph, workflowID uint64, trace bool, callSt
 
 	// blocks until session is set
 	ses = types.NewSession(<-s.session)
+	if !svc.opt.StackTraceEnabled {
+		ses.DisableStacktrace()
+	}
 
 	svc.mux.Lock()
 	svc.pool[ses.ID] = ses
@@ -252,6 +295,7 @@ func (svc *session) spawn(g *wfexec.Graph, workflowID uint64, trace bool, callSt
 	return ses
 }
 
+// Watch looks over session's spawn queue
 func (svc *session) Watch(ctx context.Context) {
 	gcTicker := time.NewTicker(time.Second)
 	lpTicker := time.NewTicker(time.Second * 30)
@@ -266,6 +310,8 @@ func (svc *session) Watch(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case s := <-svc.spawnQueue:
+				var execCtx = context.Background()
+
 				opts := []wfexec.SessionOpt{
 					wfexec.SetWorkflowID(s.workflowID),
 					wfexec.SetCallStack(s.callStack...),
@@ -273,14 +319,28 @@ func (svc *session) Watch(ctx context.Context) {
 				}
 
 				if svc.opt.ExecDebug {
+					log := svc.log.
+						Named("exec").
+						With(zap.Uint64("workflowID", s.workflowID)).
+						With(zap.Uint64("runnerID", s.runner.Identity())).
+						With(zap.Uint64s("runnerRoles", s.runner.Roles()))
+
 					opts = append(
 						opts,
-						wfexec.SetLogger(svc.log.Named("exec").With(zap.Uint64("workflowID", s.workflowID))),
+						wfexec.SetLogger(log),
 						wfexec.SetDumpStacktraceOnPanic(true),
 					)
 				}
 
-				s.session <- wfexec.NewSession(ctx, s.graph, opts...)
+				// Encode runner into execution context
+				// runner is used as identity and for access control
+				execCtx = auth.SetIdentityToContext(execCtx, s.runner)
+
+				// Encode invoker into execution context
+				// invoker is used
+				execCtx = context.WithValue(execCtx, workflowInvokerCtxKey{}, s.invoker)
+
+				s.session <- wfexec.NewSession(execCtx, s.graph, opts...)
 				// case time for a pool cleanup
 				// @todo cleanup pool when sessions are complete
 
@@ -360,14 +420,11 @@ func (svc *session) stateChangeHandler(ctx context.Context) wfexec.StateChangeHa
 			return
 		}
 
-		const (
-			// how often do we flush to store
-			flushFrequency = 10
-		)
+		log = log.With(zap.Uint64("workflowID", ses.WorkflowID))
 
 		var (
 			// By default, we want to update session when new status is prompted, delayed, completed or failed
-			// But if status is active, we'll flush it every X frames (flushFrequency)
+			// But if status is active, we'll flush it every X frames (sessionStateFlushFrequency)
 			update = true
 
 			frame = state.MakeFrame()
@@ -388,7 +445,17 @@ func (svc *session) stateChangeHandler(ctx context.Context) wfexec.StateChangeHa
 
 			// Send the pending prompts to user
 			if svc.promptSender != nil {
-				for _, pp := range s.AllPendingPrompts() {
+				for _, pp := range s.UnsentPendingPrompts() {
+					// Prevent prompts from being re-sent
+					//
+					// This here collects all of the pending prompts and (re-)sends them.
+					// The problem occurs if you display multiple prompts in parallel --
+					// they get duplicated.
+					//
+					// Patching back-end with this simple fix, but we should probably
+					// refactor the logic that handles prompting a bit.
+					pp.Original.MarkSent()
+
 					if err := svc.promptSender.Send("workflowSessionPrompt", pp, pp.OwnerId); err != nil {
 						svc.log.Error("failed to send prompt to user", zap.Error(err))
 					}
@@ -411,8 +478,8 @@ func (svc *session) stateChangeHandler(ctx context.Context) wfexec.StateChangeHa
 			ses.Status = types.SessionFailed
 
 		default:
-			// force update on every 10 new frames but only when stacktrace is not nil
-			update = ses.RuntimeStacktrace != nil && len(ses.RuntimeStacktrace)%flushFrequency == 0
+			// force update on every F new frames (F=sessionStateFlushFrequency) but only when stacktrace is not nil
+			update = ses.RuntimeStacktrace != nil && len(ses.RuntimeStacktrace)%sessionStateFlushFrequency == 0
 		}
 
 		if !update {
@@ -423,8 +490,6 @@ func (svc *session) stateChangeHandler(ctx context.Context) wfexec.StateChangeHa
 
 		if err := svc.store.UpsertAutomationSession(ctx, ses); err != nil {
 			log.Error("failed to update session", zap.Error(err))
-		} else {
-			log.Debug("session updated", zap.Stringer("status", ses.Status))
 		}
 	}
 }

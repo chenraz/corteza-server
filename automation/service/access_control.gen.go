@@ -6,10 +6,6 @@ package service
 // the code is regenerated.
 //
 
-// Definitions file that controls how this file is generated:
-// - automation.workflow.yaml
-// - automation.yaml
-
 import (
 	"context"
 	"fmt"
@@ -28,6 +24,7 @@ type (
 			Can(rbac.Session, string, rbac.Resource) bool
 			Grant(context.Context, ...*rbac.Rule) error
 			FindRulesByRoleID(roleID uint64) (rr rbac.RuleSet)
+			CloneRulesByRoleID(ctx context.Context, fromRoleID uint64, toRoleID ...uint64) error
 		}
 	}
 )
@@ -184,6 +181,17 @@ func (svc accessControl) FindRulesByRoleID(ctx context.Context, roleID uint64) (
 	return svc.rbac.FindRulesByRoleID(roleID), nil
 }
 
+// CloneRulesByRoleID clone all rules of a Role S to a specific Role T
+//
+// This function is auto-generated
+func (svc accessControl) CloneRulesByRoleID(ctx context.Context, fromRoleID uint64, toRoleID ...uint64) error {
+	if !svc.CanGrant(ctx) {
+		return AccessControlErrNotAllowedToSetPermissions()
+	}
+
+	return svc.rbac.CloneRulesByRoleID(ctx, fromRoleID, toRoleID...)
+}
+
 // CanReadWorkflow checks if current user can read workflow
 //
 // This function is auto-generated
@@ -237,42 +245,48 @@ func (svc accessControl) CanManageSessionsOnWorkflow(ctx context.Context, r *typ
 //
 // This function is auto-generated
 func (svc accessControl) CanGrant(ctx context.Context) bool {
-	return svc.can(ctx, "grant", &types.Component{})
+	r := &types.Component{}
+	return svc.can(ctx, "grant", r)
 }
 
 // CanCreateWorkflow checks if current user can create workflows
 //
 // This function is auto-generated
 func (svc accessControl) CanCreateWorkflow(ctx context.Context) bool {
-	return svc.can(ctx, "workflow.create", &types.Component{})
+	r := &types.Component{}
+	return svc.can(ctx, "workflow.create", r)
 }
 
 // CanSearchTriggers checks if current user can list, search or filter triggers
 //
 // This function is auto-generated
 func (svc accessControl) CanSearchTriggers(ctx context.Context) bool {
-	return svc.can(ctx, "triggers.search", &types.Component{})
+	r := &types.Component{}
+	return svc.can(ctx, "triggers.search", r)
 }
 
 // CanSearchSessions checks if current user can list, search or filter sessions
 //
 // This function is auto-generated
 func (svc accessControl) CanSearchSessions(ctx context.Context) bool {
-	return svc.can(ctx, "sessions.search", &types.Component{})
+	r := &types.Component{}
+	return svc.can(ctx, "sessions.search", r)
 }
 
 // CanSearchWorkflows checks if current user can list, search or filter workflows
 //
 // This function is auto-generated
 func (svc accessControl) CanSearchWorkflows(ctx context.Context) bool {
-	return svc.can(ctx, "workflows.search", &types.Component{})
+	r := &types.Component{}
+	return svc.can(ctx, "workflows.search", r)
 }
 
 // CanManageResourceTranslations checks if current user can list, search, create, or update resource translations
 //
 // This function is auto-generated
 func (svc accessControl) CanManageResourceTranslations(ctx context.Context) bool {
-	return svc.can(ctx, "resource-translations.manage", &types.Component{})
+	r := &types.Component{}
+	return svc.can(ctx, "resource-translations.manage", r)
 }
 
 // rbacResourceValidator validates known component's resource by routing it to the appropriate validator
@@ -318,22 +332,22 @@ func rbacResourceOperations(r string) map[string]bool {
 	return nil
 }
 
-// rbacWorkflowResourceValidator checks validity of rbac resource and operations
+// rbacWorkflowResourceValidator checks validity of RBAC resource and operations
 //
 // Can be called without operations to check for validity of resource string only
 //
 // This function is auto-generated
 func rbacWorkflowResourceValidator(r string, oo ...string) error {
-	defOps := rbacResourceOperations(r)
-	for _, o := range oo {
-		if !defOps[o] {
-			return fmt.Errorf("invalid operation '%s' for automation Workflow resource", o)
-		}
-	}
-
 	if !strings.HasPrefix(r, types.WorkflowResourceType) {
 		// expecting resource to always include path
 		return fmt.Errorf("invalid resource type")
+	}
+
+	defOps := rbacResourceOperations(r)
+	for _, o := range oo {
+		if !defOps[o] {
+			return fmt.Errorf("invalid operation '%s' for workflow resource", o)
+		}
 	}
 
 	const sep = "/"
@@ -351,7 +365,7 @@ func rbacWorkflowResourceValidator(r string, oo ...string) error {
 	for i := 0; i < len(pp); i++ {
 		if pp[i] != "*" {
 			if i > 0 && pp[i-1] == "*" {
-				return fmt.Errorf("invalid resource path wildcard level (%d) for Workflow", i)
+				return fmt.Errorf("invalid path wildcard level (%d) for workflow resource", i)
 			}
 
 			if _, err := cast.ToUint64E(pp[i]); err != nil {
@@ -362,22 +376,22 @@ func rbacWorkflowResourceValidator(r string, oo ...string) error {
 	return nil
 }
 
-// rbacComponentResourceValidator checks validity of rbac resource and operations
+// rbacComponentResourceValidator checks validity of RBAC resource and operations
 //
 // Can be called without operations to check for validity of resource string only
 //
 // This function is auto-generated
 func rbacComponentResourceValidator(r string, oo ...string) error {
-	defOps := rbacResourceOperations(r)
-	for _, o := range oo {
-		if !defOps[o] {
-			return fmt.Errorf("invalid operation '%s' for automation resource", o)
-		}
-	}
-
 	if !strings.HasPrefix(r, types.ComponentResourceType) {
 		// expecting resource to always include path
 		return fmt.Errorf("invalid resource type")
+	}
+
+	defOps := rbacResourceOperations(r)
+	for _, o := range oo {
+		if !defOps[o] {
+			return fmt.Errorf("invalid operation '%s' for automation component resource", o)
+		}
 	}
 
 	return nil

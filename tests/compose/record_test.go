@@ -8,14 +8,17 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/cortezaproject/corteza-server/compose/service"
+	"github.com/cortezaproject/corteza-server/compose/service/values"
 	"github.com/cortezaproject/corteza-server/compose/types"
 	"github.com/cortezaproject/corteza-server/pkg/id"
 	"github.com/cortezaproject/corteza-server/store"
+	systemService "github.com/cortezaproject/corteza-server/system/service"
 	"github.com/cortezaproject/corteza-server/tests/helpers"
 	"github.com/steinfletcher/apitest"
 	jsonpath "github.com/steinfletcher/apitest-jsonpath"
@@ -149,7 +152,11 @@ func (h helper) makeRecord(module *types.Module, rvs ...*types.RecordValue) *typ
 		CreatedAt:   time.Now(),
 		ModuleID:    module.ID,
 		NamespaceID: module.NamespaceID,
-		Values:      rvs,
+
+		// We are directly storing the record values here, so ensure
+		// everything is formatted in the same manner as it would be
+		// when stored through the service
+		Values: values.Formatter().Run(module, rvs),
 	}
 
 	h.noError(store.CreateComposeRecord(context.Background(), service.DefaultStore, module, rec))
@@ -417,7 +424,7 @@ func TestRecordCreateWithErrors(t *testing.T) {
 		Assert(helpers.AssertRecordValueError(
 			&types.RecordValueError{
 				Kind:    "empty",
-				Message: "",
+				Message: "record-field.errors.empty",
 				Meta:    map[string]interface{}{"field": "required"},
 			},
 		)).
@@ -542,24 +549,53 @@ func TestRecordUpdate_forbiddenFields(t *testing.T) {
 	module := h.repoMakeRecordModuleWithFields("record testing module",
 		&types.ModuleField{Name: "f1", Kind: "String"},
 		&types.ModuleField{Name: "f2", Kind: "String"},
+
+		// we'll test all kinds of boolean inputs
+		&types.ModuleField{Name: "f-b-f-n", Kind: "Bool"},
+		&types.ModuleField{Name: "f-b-f-m", Kind: "Bool"},
+		&types.ModuleField{Name: "f-b-f-e", Kind: "Bool"},
+		&types.ModuleField{Name: "f-b-f-z", Kind: "Bool"},
+		&types.ModuleField{Name: "f-b-t-n", Kind: "Bool"},
+		&types.ModuleField{Name: "f-b-t-m", Kind: "Bool"},
+		&types.ModuleField{Name: "f-b-t-v", Kind: "Bool"},
 	)
 	record := h.makeRecord(module,
 		&types.RecordValue{Name: "f1", Value: "f1.v1"},
 		&types.RecordValue{Name: "f2", Value: "f2.v1"},
+		&types.RecordValue{Name: "f-b-f-n", Value: "0"}, // no-value
+		&types.RecordValue{Name: "f-b-f-e", Value: "0"}, // empty
+		&types.RecordValue{Name: "f-b-f-z", Value: "0"}, // zero
+		&types.RecordValue{Name: "f-b-t-n", Value: "1"}, // no-value
+		&types.RecordValue{Name: "f-b-t-v", Value: "1"}, // value
 	)
-	helpers.AllowMe(h, types.ModuleRbacResource(0, 0), "record.update")
-	helpers.DenyMe(h, module.Fields[1].RbacResource(), "record.value.update")
+	helpers.AllowMe(h, types.RecordRbacResource(0, 0, record.ID), "update")
+	helpers.AllowMe(h, module.Fields[0].RbacResource(), "record.value.update")
+	helpers.DenyMe(h, types.ModuleFieldRbacResource(0, record.ModuleID, 0), "record.value.update")
 
 	h.apiInit().
 		Post(fmt.Sprintf("/namespace/%d/module/%d/record/%d", module.NamespaceID, module.ID, record.ID)).
-		JSON(fmt.Sprintf(`{"values": [{"name": "f1", "value": "f1.v1"}, {"name": "f2", "value": "f2.v1"}]}`)).
+		JSON(fmt.Sprintf(`{"values": [
+			{"name": "f1", "value": "f1.v1"},
+			{"name": "f2", "value": "f2.v1"},
+			{"name": "f-b-f-n"},
+			{"name": "f-b-f-e", "value": ""},
+			{"name": "f-b-f-z", "value": "0"},
+			{"name": "f-b-t-v", "value": "1"}
+		]}`)).
+		Header("Accept", "application/json").
 		Expect(t).
 		Status(http.StatusOK).
+		Assert(helpers.AssertNoErrors).
 		End()
 
 	r := h.lookupRecordByID(module, record.ID)
 	h.a.NotNil(r)
 	h.a.Equal("f2.v1", r.Values.FilterByName("f2")[0].Value)
+	h.a.Equal("", r.Values.FilterByName("f-b-f-n")[0].Value)
+	h.a.Equal("", r.Values.FilterByName("f-b-f-e")[0].Value)
+	h.a.Equal("", r.Values.FilterByName("f-b-f-z")[0].Value)
+	h.a.Equal("1", r.Values.FilterByName("f-b-t-n")[0].Value)
+	h.a.Equal("1", r.Values.FilterByName("f-b-t-v")[0].Value)
 }
 
 func TestRecordUpdate_refUnchanged(t *testing.T) {
@@ -727,6 +763,188 @@ func TestRecordDelete(t *testing.T) {
 
 	r := h.lookupRecordByID(module, record.ID)
 	h.a.NotNil(r.DeletedAt)
+}
+
+func TestRecordAttachment(t *testing.T) {
+	h := newHelper(t)
+	h.clearRecords()
+
+	namespace := h.makeNamespace("record attachment testing namespace")
+
+	helpers.AllowMe(h, types.NamespaceRbacResource(0), "read")
+	helpers.AllowMe(h, types.ModuleRbacResource(0, 0), "read", "record.create")
+	helpers.AllowMe(h, types.RecordRbacResource(0, 0, 0), "read")
+	helpers.AllowMe(h, types.ModuleFieldRbacResource(0, 0, 0), "record.value.read", "record.value.update")
+
+	const maxSizeLimit = 1
+
+	module := h.makeModule(
+		namespace,
+		"module",
+		&types.ModuleField{Name: "no_constraints", Kind: "File"},
+		&types.ModuleField{
+			Name:    "max_size",
+			Kind:    "File",
+			Options: types.ModuleFieldOptions{"maxSize": maxSizeLimit},
+		},
+		&types.ModuleField{
+			Name: "img_only",
+			Kind: "File",
+			Options: types.ModuleFieldOptions{
+				"maxSize":   maxSizeLimit,
+				"mimetypes": "image/gif, image/png, image/jpeg",
+			},
+		},
+		&types.ModuleField{Name: "str", Kind: "String"},
+		&types.ModuleField{
+			Name: "csv_only",
+			Kind: "File",
+			Options: types.ModuleFieldOptions{
+				"mimetypes": "text/csv",
+			},
+		},
+	)
+
+	xxlBlob := bytes.Repeat([]byte("0"), maxSizeLimit*1_000_000+1)
+
+	testImgFh, err := os.ReadFile("./testdata/test.png")
+	h.noError(err)
+
+	testCsvFh, err := os.ReadFile("./testdata/test.csv")
+	h.noError(err)
+
+	defer func() {
+		// reset settings after we're done
+		systemService.CurrentSettings.Compose.Record.Attachments.MaxSize = 0
+		systemService.CurrentSettings.Compose.Record.Attachments.Mimetypes = nil
+	}()
+
+	systemService.CurrentSettings.Compose.Record.Attachments.MaxSize = maxSizeLimit
+	systemService.CurrentSettings.Compose.Record.Attachments.Mimetypes = []string{}
+
+	cc := []struct {
+		name  string
+		file  []byte
+		fname string
+		mtype string
+		form  map[string]string
+		test  func(*http.Response, *http.Request) error
+	}{
+		{
+			"empty file",
+			[]byte(""),
+			"empty",
+			"plain/text",
+			map[string]string{"fieldName": "no_constraints"},
+			helpers.AssertError("attachment.errors.notAllowedToCreateEmptyAttachment"),
+		},
+		{
+			"no file",
+			nil,
+			"empty",
+			"plain/text",
+			map[string]string{"fieldName": "no_constraints"},
+			helpers.AssertError("attachment.errors.notAllowedToCreateEmptyAttachment"),
+		},
+		{
+			"no field",
+			[]byte("."),
+			"dot",
+			"plain/text",
+			nil,
+			helpers.AssertError("attachment.errors.invalidModuleField"),
+		},
+		{
+			"invalid field",
+			[]byte("."),
+			"dot",
+			"plain/text",
+			map[string]string{"fieldName": "str"},
+			helpers.AssertError("attachment.errors.invalidModuleField"),
+		},
+		{
+			"valid upload, no constraints",
+			[]byte("."),
+			"dot",
+			"plain/text",
+			map[string]string{"fieldName": "no_constraints"},
+			helpers.AssertNoErrors,
+		},
+		{
+			"global max size - over sized",
+			xxlBlob,
+			"numbers",
+			"plain/text",
+			map[string]string{"fieldName": "no_constraints"},
+			helpers.AssertError("attachment.errors.tooLarge"),
+		},
+		{
+			"field max size - ok",
+			[]byte("12345"),
+			"numbers",
+			"plain/text",
+			map[string]string{"fieldName": "max_size"},
+			helpers.AssertNoErrors,
+		},
+		{
+			"field max size - over sized",
+			xxlBlob,
+			"numbers",
+			"plain/text",
+			map[string]string{"fieldName": "max_size"},
+			helpers.AssertError("attachment.errors.tooLarge"),
+		},
+		{
+			"global mimetype - invalid",
+			testImgFh,
+			"numbers.gif",
+			"image/gif",
+			map[string]string{"fieldName": "no_constraints"},
+			helpers.AssertError("attachment.errors.failedToProcessImage"),
+		},
+		{
+			"field mimetype - ok",
+			testImgFh,
+			"image.png",
+			"image/gif",
+			map[string]string{"fieldName": "img_only"},
+			helpers.AssertNoErrors,
+		},
+		{
+			"field mimetype - invalid",
+			testImgFh,
+			"image.png",
+			"image/gif",
+			map[string]string{"fieldName": "img_only"},
+			helpers.AssertNoErrors,
+		},
+		{
+			"csv file - ok",
+			testCsvFh,
+			"testCSV",
+			"text/csv",
+			map[string]string{"fieldName": "csv_only"},
+			helpers.AssertNoErrors,
+		},
+	}
+
+	for _, c := range cc {
+		t.Run(c.name, func(t *testing.T) {
+			h.t = t
+
+			helpers.InitFileUpload(t, h.apiInit(),
+				fmt.Sprintf("/namespace/%d/module/%d/record/attachment", module.NamespaceID, module.ID),
+				c.form,
+				c.file,
+				c.fname,
+				c.mtype,
+			).
+				Status(http.StatusOK).
+				Assert(c.test).
+				End()
+
+		})
+	}
 }
 
 func TestRecordExport(t *testing.T) {
@@ -1063,7 +1281,7 @@ func TestRecordFieldModulePermissionCheck(t *testing.T) {
 		Assert(jsonpath.Present(`$.response.values[? @.name=="email"]`)).
 		End()
 
-		// Searching records should work as before but without read-protected fields
+	// Searching records should work as before but without read-protected fields
 	h.apiInit().
 		Get(fmt.Sprintf("/namespace/%d/module/%d/record/", module.NamespaceID, module.ID)).
 		Header("Accept", "application/json").

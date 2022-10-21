@@ -250,6 +250,16 @@ func (svc *service) flush(ctx context.Context) (err error) {
 	return
 }
 
+// SignificantRoles returns two list of significant roles.
+//
+// See sigRoles on rules for more details
+func (svc *service) SignificantRoles(res Resource, op string) (aRR, dRR []uint64) {
+	svc.l.Lock()
+	defer svc.l.Unlock()
+
+	return svc.rules.sigRoles(res.RbacResource(), op)
+}
+
 func (svc service) String() (out string) {
 	tpl := "%-5v %-20s to %-20s %-30s\n"
 	out += strings.Repeat("-", 120) + "\n"
@@ -278,4 +288,34 @@ func (svc service) String() (out string) {
 	out += strings.Repeat("-", 120) + "\n"
 
 	return
+}
+
+// CloneRulesByRoleID clone all rules of a Role S to a specific Role T by removing its existing rules
+func (svc *service) CloneRulesByRoleID(ctx context.Context, fromRoleID uint64, toRoleID ...uint64) (err error) {
+	var (
+		updatedRules RuleSet
+	)
+
+	// Make sure rules of fromRoleID stays intact
+	rr := svc.FindRulesByRoleID(fromRoleID)
+
+	for _, roleID := range toRoleID {
+		// Remove existing rules
+		existingRules := svc.FindRulesByRoleID(roleID)
+		for _, rule := range existingRules {
+			// Make sure to remove existing rules
+			rule.Access = Inherit
+		}
+		updatedRules = append(updatedRules, existingRules...)
+
+		// Clone rules from role S to role T
+		for _, rule := range rr {
+			// Make sure everything is properly set
+			r := *rule
+			r.RoleID = roleID
+			updatedRules = append(updatedRules, &r)
+		}
+	}
+
+	return svc.Grant(ctx, updatedRules...)
 }

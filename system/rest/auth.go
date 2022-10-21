@@ -2,6 +2,7 @@ package rest
 
 import (
 	"context"
+
 	"github.com/cortezaproject/corteza-server/pkg/auth"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
 	"github.com/cortezaproject/corteza-server/system/rest/request"
@@ -13,10 +14,13 @@ import (
 var _ = errors.Wrap
 
 type (
+	tokenGenerator interface {
+		Generate(ctx context.Context, i auth.Identifiable, clientID uint64, scope ...string) (token []byte, err error)
+	}
+
 	Auth struct {
-		tokenHandler auth.TokenGenerator
-		settings     *types.AppSettings
-		authSvc      authUserService
+		settings *types.AppSettings
+		authSvc  authUserService
 	}
 
 	authUserResponse struct {
@@ -46,9 +50,8 @@ type (
 
 func (Auth) New() *Auth {
 	return &Auth{
-		tokenHandler: auth.DefaultJwtHandler,
-		settings:     service.CurrentSettings,
-		authSvc:      service.DefaultAuth,
+		settings: service.CurrentSettings,
+		authSvc:  service.DefaultAuth,
 	}
 }
 
@@ -70,13 +73,13 @@ func (ctrl *Auth) makePayload(ctx context.Context, user *types.User) (*authUserR
 	}
 
 	// Generate and save the token
-	t, err := ctrl.tokenHandler.Generate(ctx, user)
+	t, err := auth.TokenIssuer.Issue(ctx, auth.WithIdentity(user))
 	if err != nil {
 		return nil, nil
 	}
 
 	return &authUserResponse{
-		JWT: t,
+		JWT: string(t),
 		User: &authUserPayload{
 			userPayload: &userPayload{
 				ID:       user.ID,

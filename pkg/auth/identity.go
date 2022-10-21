@@ -55,5 +55,6 @@ func ExtractFromSubClaim(sub string) (userID uint64, rr []uint64) {
 			rr[p-1] = id
 		}
 	}
+
 	return
 }

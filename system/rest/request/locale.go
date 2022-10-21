@@ -12,7 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -350,7 +350,7 @@ func (r LocaleCreateResource) GetOwnerID() uint64 {
 // Fill processes request and fills internal variables
 func (r *LocaleCreateResource) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -358,6 +358,57 @@ func (r *LocaleCreateResource) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["lang"]; ok && len(val) > 0 {
+				r.Lang, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["resource"]; ok && len(val) > 0 {
+				r.Resource, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["key"]; ok && len(val) > 0 {
+				r.Key, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["place"]; ok && len(val) > 0 {
+				r.Place, err = payload.ParseInt(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["message"]; ok && len(val) > 0 {
+				r.Message, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["ownerID"]; ok && len(val) > 0 {
+				r.OwnerID, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -470,7 +521,7 @@ func (r LocaleUpdateResource) GetOwnerID() uint64 {
 // Fill processes request and fills internal variables
 func (r *LocaleUpdateResource) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -478,6 +529,57 @@ func (r *LocaleUpdateResource) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["lang"]; ok && len(val) > 0 {
+				r.Lang, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["resource"]; ok && len(val) > 0 {
+				r.Resource, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["key"]; ok && len(val) > 0 {
+				r.Key, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["place"]; ok && len(val) > 0 {
+				r.Place, err = payload.ParseInt(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["message"]; ok && len(val) > 0 {
+				r.Message, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["ownerID"]; ok && len(val) > 0 {
+				r.OwnerID, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 

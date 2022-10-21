@@ -54,6 +54,8 @@ type (
 		IsBoolean() bool
 		IsNumeric() bool
 		IsDateTime() bool
+		IsTimeOnly() bool
+		IsDateOnly() bool
 		IsRef() bool
 	}
 
@@ -423,7 +425,7 @@ func BuildCursor(q squirrel.SelectBuilder, cursor *filter.PagingCursor) squirrel
 	return q
 }
 
-func setOrderBy(q squirrel.SelectBuilder, sort filter.SortExprSet, sortable map[string]string) (squirrel.SelectBuilder, error) {
+func setOrderBy(q squirrel.SelectBuilder, sort filter.SortExprSet, sortable map[string]string, sortHandler func(exp string, desc bool) string) (squirrel.SelectBuilder, error) {
 	var (
 		col     string
 		has     bool
@@ -442,9 +444,8 @@ func setOrderBy(q squirrel.SelectBuilder, sort filter.SortExprSet, sortable map[
 			sqlSort[i] = c.Column
 		}
 
-		if sort[i].Descending {
-			sqlSort[i] += " DESC"
-		}
+		// Let DB specific sort handler determine the appropriate  syntax
+		sqlSort[i] = sortHandler(sqlSort[i], sort[i].Descending)
 	}
 
 	return q.OrderBy(sqlSort...), nil

@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
 	"github.com/cortezaproject/corteza-server/system/types"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -136,7 +136,7 @@ func (r SettingsUpdate) GetValues() types.SettingValueSet {
 // Fill processes request and fills internal variables
 func (r *SettingsUpdate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -144,6 +144,16 @@ func (r *SettingsUpdate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
 		}
 	}
 
@@ -250,7 +260,7 @@ func (r SettingsSet) GetOwnerID() uint64 {
 // Fill processes request and fills internal variables
 func (r *SettingsSet) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -258,6 +268,24 @@ func (r *SettingsSet) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			// Ignoring upload as its handled in the POST params section
+
+			if val, ok := req.MultipartForm.Value["ownerID"]; ok && len(val) > 0 {
+				r.OwnerID, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 

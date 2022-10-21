@@ -2,11 +2,14 @@ package automation
 
 import (
 	"context"
-	"github.com/stretchr/testify/require"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestHttpRequestMaker(t *testing.T) {
@@ -35,6 +38,22 @@ func TestHttpRequestMaker(t *testing.T) {
 		r.Equal("http://localhost/test", req.URL.String())
 	})
 
+	t.Run("basic timeout", func(t *testing.T) {
+		var (
+			r   = require.New(t)
+			ctx = context.Background()
+
+			_, err = httpRequestHandler{}.send(ctx, &httpRequestSendArgs{
+				Timeout:          time.Nanosecond,
+				HeaderAuthBearer: "foo",
+				Url:              "http://localhost/test",
+				Method:           "GET",
+			})
+		)
+
+		r.True(errors.Is(err, context.DeadlineExceeded))
+	})
+
 	t.Run("post form", func(t *testing.T) {
 		var (
 			r  = require.New(t)
@@ -51,5 +70,20 @@ func TestHttpRequestMaker(t *testing.T) {
 		r.NoError(err)
 		r.Equal("POST", req.Method)
 		validateBody(r, req, "a=a&b=b&b=b&i=42")
+	})
+
+	t.Run("basic auth", func(t *testing.T) {
+		var (
+			r  = require.New(t)
+			in = &httpRequestSendArgs{
+				HeaderAuthUsername: "foo",
+				HeaderAuthPassword: "bar",
+			}
+			req, err = httpRequestHandler{}.makeRequest(context.Background(), in)
+		)
+
+		r.NoError(err)
+		r.Len(req.Header["Authorization"], 1)
+		r.Equal(req.Header["Authorization"][0], "Basic Zm9vOmJhcg==")
 	})
 }

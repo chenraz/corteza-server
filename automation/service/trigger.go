@@ -528,11 +528,15 @@ func (svc *trigger) registerTriggers(wf *types.Workflow, runAs auth.Identifiable
 		registerWorkflow = wf.Enabled && wf.DeletedAt == nil
 	)
 
-	// convert only registerable and issuless workflwos
+	// convert only registrable and workflows without issues
 	if registerWorkflow && len(wf.Issues) == 0 {
 		// Convert workflow only when valid (no issues, enable, not delete)
 		if g, issues = Convert(svc.workflow, wf); len(issues) > 0 {
 			wfLog.Error("failed to convert workflow to graph", zap.Error(issues))
+			_ = issues.Walk(func(i *types.WorkflowIssue) error {
+				wfLog.Debug("workflow issue found: "+i.Description, zap.Any("culprit", i.Culprit))
+				return nil
+			})
 			g = nil
 		}
 	}
@@ -556,11 +560,6 @@ func (svc *trigger) registerTriggers(wf *types.Workflow, runAs auth.Identifiable
 			continue
 		}
 
-		if t.EventType == "onManual" {
-			// skip onManual trigger registration,
-			// we'll handle them directly
-		}
-
 		var (
 			cnstr eventbus.ConstraintMatcher
 			ops   = make([]eventbus.HandlerRegOp, 0, len(t.Constraints)+2)
@@ -577,7 +576,7 @@ func (svc *trigger) registerTriggers(wf *types.Workflow, runAs auth.Identifiable
 				).Wrap(wf.Issues)
 			}
 		} else {
-			handlerFn = makeWorkflowHandler(svc.ac, svc.session, t, wf, g, runAs)
+			handlerFn = makeWorkflowHandler(svc.workflow, wf, t)
 		}
 
 		ops = append(
@@ -699,7 +698,7 @@ func validateWorkflowTriggers(wf *types.Workflow, tt ...*types.Trigger) (wis typ
 	)
 
 	for i, t := range tt {
-		if !t.Enabled {
+		if !t.Enabled || t.DeletedAt != nil {
 			continue
 		}
 

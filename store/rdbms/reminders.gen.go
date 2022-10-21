@@ -73,7 +73,7 @@ func (s Store) SearchReminders(ctx context.Context, f types.ReminderFilter) (typ
 		}
 
 		// Apply sorting expr from filter to query
-		if q, err = setOrderBy(q, sort, s.sortableReminderColumns()); err != nil {
+		if q, err = setOrderBy(q, sort, s.sortableReminderColumns(), s.Config().SqlSortHandler); err != nil {
 			return err
 		}
 
@@ -432,26 +432,21 @@ func (s Store) execDeleteReminders(ctx context.Context, cnd squirrel.Sqlizer) er
 func (s Store) internalReminderRowScanner(row rowScanner) (res *types.Reminder, err error) {
 	res = &types.Reminder{}
 
-	if _, has := s.config.RowScanners["reminder"]; has {
-		scanner := s.config.RowScanners["reminder"].(func(_ rowScanner, _ *types.Reminder) error)
-		err = scanner(row, res)
-	} else {
-		err = row.Scan(
-			&res.ID,
-			&res.Resource,
-			&res.Payload,
-			&res.SnoozeCount,
-			&res.AssignedTo,
-			&res.AssignedBy,
-			&res.AssignedAt,
-			&res.DismissedBy,
-			&res.DismissedAt,
-			&res.RemindAt,
-			&res.CreatedAt,
-			&res.UpdatedAt,
-			&res.DeletedAt,
-		)
-	}
+	err = row.Scan(
+		&res.ID,
+		&res.Resource,
+		&res.Payload,
+		&res.SnoozeCount,
+		&res.AssignedTo,
+		&res.AssignedBy,
+		&res.AssignedAt,
+		&res.DismissedBy,
+		&res.DismissedAt,
+		&res.RemindAt,
+		&res.CreatedAt,
+		&res.UpdatedAt,
+		&res.DeletedAt,
+	)
 
 	if err == sql.ErrNoRows {
 		return nil, store.ErrNotFound.Stack(1)

@@ -11,7 +11,7 @@ package request
 import (
 	"encoding/json"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"io"
 	"fmt"
 	"mime/multipart"
@@ -77,7 +77,7 @@ func (r {{ export $.Endpoint.Entrypoint $a.Name }}) Get{{ export $p.Name }}() {{
 // Fill processes request and fills internal variables
 func (r *{{ export $.Endpoint.Entrypoint $a.Name }}) Fill(req *http.Request) (err error) {
     {{ if $a.Params.Post }}
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -120,6 +120,42 @@ func (r *{{ export $.Endpoint.Entrypoint $a.Name }}) Fill(req *http.Request) (er
 	{{- end }}
 
     {{ if $a.Params.Post }}
+    {
+        // Caching 32MB to memory, the rest to disk
+        if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+            return err
+        } else if err == nil {
+            // Multipart params
+            {{ range $p := $a.Params.Post }}
+                {{ if $p.IsUpload }}
+                // Ignoring {{ $p.Name }} as its handled in the POST params section
+                {{- else }}
+                    {{- if or $p.HasExplicitParser }}
+                    if val, ok := req.MultipartForm.Value["{{ $p.Name }}[]"]; ok {
+                        r.{{ export $p.Name }}, err = {{ $p.Parser "val" }}
+                        if err != nil {
+                            return err
+                        }
+                    } else if val, ok := req.MultipartForm.Value["{{ $p.Name }}"]; ok   {
+                        r.{{ export $p.Name }}, err = {{ $p.Parser "val" }}
+                        if err != nil {
+                            return err
+                        }
+                    }
+                    {{- else if not $p.IsSlice }}
+                    if val, ok := req.MultipartForm.Value["{{ $p.Name }}"]; ok && len(val) > 0  {
+                        r.{{ export $p.Name }}, err = {{ $p.Parser "val[0]" }}
+                        if err != nil {
+                            return err
+                        }
+                    }
+                    {{- end }}
+                {{- end }}
+
+            {{- end }}
+        }
+	}
+
     {
 	if err = req.ParseForm(); err != nil {
 		return err

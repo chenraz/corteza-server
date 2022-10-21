@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"github.com/cortezaproject/corteza-server/pkg/discovery"
 	"strconv"
 	"time"
 
@@ -22,14 +23,20 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/objstore/plain"
 	"github.com/cortezaproject/corteza-server/pkg/options"
 	"github.com/cortezaproject/corteza-server/store"
-	systemService "github.com/cortezaproject/corteza-server/system/service"
+	systemTypes "github.com/cortezaproject/corteza-server/system/types"
 	"go.uber.org/zap"
 )
 
 type (
+	userFinder interface {
+		FindByID(context.Context, uint64) (*systemTypes.User, error)
+	}
+
 	Config struct {
-		ActionLog options.ActionLogOpt
-		Storage   options.ObjectStoreOpt
+		ActionLog  options.ActionLogOpt
+		Discovery options.DiscoveryOpt
+		Storage    options.ObjectStoreOpt
+		UserFinder userFinder
 	}
 
 	eventDispatcher interface {
@@ -75,7 +82,7 @@ var (
 	}
 )
 
-// Initializes compose-only services
+// Initialize compose-only services
 func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, c Config) (err error) {
 	var (
 		hcd = healthcheck.Defaults()
@@ -99,33 +106,52 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, c Config) 
 		DefaultActionlog = actionlog.NewService(DefaultStore, log, tee, policy)
 	}
 
+	// Activity log for compose resources
+	{
+		l := log
+		if !c.Discovery.Debug {
+			l = zap.NewNop()
+		}
+
+		DefaultResourceActivityLog := discovery.Service(l, c.Discovery, DefaultStore, eventbus.Service())
+		err = DefaultResourceActivityLog.InitResourceActivityLog(ctx, []string{
+			(types.Namespace{}).LabelResourceKind(),
+			(types.Module{}).LabelResourceKind(),
+			(types.Record{}).LabelResourceKind(),
+		})
+		if err != nil {
+			return err
+		}
+	}
+
 	DefaultAccessControl = AccessControl()
 	DefaultResourceTranslation = ResourceTranslationsManager(locale.Global())
 
 	if DefaultObjectStore == nil {
+		var (
+			opt    = c.Storage
+			bucket string
+		)
 		const svcPath = "compose"
-		if c.Storage.MinioEndpoint != "" {
-			var bucket = svcPath
-			if c.Storage.MinioBucket != "" {
-				bucket = c.Storage.MinioBucket + c.Storage.MinioBucketSep + svcPath
-			}
+		if opt.MinioEndpoint != "" {
+			bucket = minio.GetBucket(opt.MinioBucket, svcPath)
 
-			DefaultObjectStore, err = minio.New(bucket, minio.Options{
-				Endpoint:        c.Storage.MinioEndpoint,
-				Secure:          c.Storage.MinioSecure,
-				Strict:          c.Storage.MinioStrict,
-				AccessKeyID:     c.Storage.MinioAccessKey,
-				SecretAccessKey: c.Storage.MinioSecretKey,
+			DefaultObjectStore, err = minio.New(bucket, opt.MinioPathPrefix, svcPath, minio.Options{
+				Endpoint:        opt.MinioEndpoint,
+				Secure:          opt.MinioSecure,
+				Strict:          opt.MinioStrict,
+				AccessKeyID:     opt.MinioAccessKey,
+				SecretAccessKey: opt.MinioSecretKey,
 
-				ServerSideEncryptKey: []byte(c.Storage.MinioSSECKey),
+				ServerSideEncryptKey: []byte(opt.MinioSSECKey),
 			})
 
 			log.Info("initializing minio",
 				zap.String("bucket", bucket),
-				zap.String("endpoint", c.Storage.MinioEndpoint),
+				zap.String("endpoint", opt.MinioEndpoint),
 				zap.Error(err))
 		} else {
-			path := c.Storage.Path + "/" + svcPath
+			path := opt.Path + "/" + svcPath
 			DefaultObjectStore, err = plain.New(path)
 			log.Info("initializing store",
 				zap.String("path", path),
@@ -147,7 +173,7 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, c Config) 
 	DefaultRecord = Record()
 	DefaultPage = Page()
 	DefaultChart = Chart()
-	DefaultNotification = Notification()
+	DefaultNotification = Notification(c.UserFinder)
 	DefaultAttachment = Attachment(DefaultObjectStore)
 
 	RegisterIteratorProviders()
@@ -157,6 +183,7 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, c Config) 
 		automation.ComposeModule{},
 		automation.ComposeRecord{},
 		automation.ComposeRecordValues{},
+		automation.Attachment{},
 	)
 
 	automation.RecordsHandler(
@@ -177,9 +204,10 @@ func Initialize(ctx context.Context, log *zap.Logger, s store.Storer, c Config) 
 		DefaultNamespace,
 	)
 
-	// Register reporters
-	// @todo additional datasource providers; generate?
-	systemService.DefaultReport.RegisterReporter("composeRecords", DefaultRecord)
+	automation.AttachmentHandler(
+		automationService.Registry(),
+		DefaultAttachment,
+	)
 
 	return nil
 }

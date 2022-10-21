@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"sync"
@@ -9,9 +10,25 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/errors"
 	"github.com/cortezaproject/corteza-server/pkg/options"
 	"github.com/cortezaproject/corteza-server/pkg/slice"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/websocket"
 	"go.uber.org/zap"
+)
+
+type (
+	tokenValidator func(context.Context, string) (auth.Identifiable, error)
+
+	server struct {
+		config options.WebsocketOpt
+		logger *zap.Logger
+
+		// user id => session id => session
+		sessions map[uint64]map[uint64]io.Writer
+
+		// keep lock on session map changes
+		l sync.RWMutex
+
+		tokenValidator tokenValidator
+	}
 )
 
 var (
@@ -25,33 +42,16 @@ var (
 	}
 )
 
-type (
-	server struct {
-		config options.WebsocketOpt
-		logger *zap.Logger
-
-		// user id => session id => session
-		sessions map[uint64]map[uint64]io.Writer
-
-		accessToken interface {
-			Authenticate(string) (jwt.MapClaims, error)
-		}
-
-		// keep lock on session map changes
-		l sync.RWMutex
-	}
-)
-
-func Server(logger *zap.Logger, config options.WebsocketOpt) *server {
+func Server(logger *zap.Logger, config options.WebsocketOpt, tv tokenValidator) *server {
 	if !config.LogEnabled {
 		logger = zap.NewNop()
 	}
 
 	return &server{
-		config:      config,
-		logger:      logger.Named("websocket"),
-		accessToken: auth.DefaultJwtHandler,
-		sessions:    make(map[uint64]map[uint64]io.Writer),
+		config:         config,
+		logger:         logger.Named("websocket"),
+		sessions:       make(map[uint64]map[uint64]io.Writer),
+		tokenValidator: tv,
 	}
 }
 
@@ -109,8 +109,8 @@ func (ws *server) Send(t string, payload interface{}, userIDs ...uint64) error {
 func (ws *server) StoreSession(s *session) {
 	ws.l.Lock()
 	defer ws.l.Unlock()
-	if s.identity != nil {
-		ws.storeSession(s, s.identity.Identity(), s.id)
+	if i := s.Identity(); i != nil {
+		ws.storeSession(s, i.Identity(), s.id)
 	}
 }
 
@@ -126,8 +126,8 @@ func (ws *server) storeSession(w io.Writer, uid, sid uint64) {
 func (ws *server) RemoveSession(s *session) {
 	ws.l.Lock()
 	defer ws.l.Unlock()
-	if s.identity != nil {
-		uid := s.identity.Identity()
+	if i := s.Identity(); i != nil {
+		uid := i.Identity()
 		delete(ws.sessions[uid], s.id)
 
 		if len(ws.sessions[uid]) == 0 {

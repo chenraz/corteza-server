@@ -29,7 +29,7 @@ import (
 	"github.com/cortezaproject/corteza-server/system/service"
 	"github.com/cortezaproject/corteza-server/system/types"
 	"github.com/cortezaproject/corteza-server/tests/helpers"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/spf13/afero"
 	"github.com/steinfletcher/apitest"
@@ -49,7 +49,7 @@ type (
 
 		cUser  *types.User
 		roleID uint64
-		token  string
+		token  []byte
 		data   embed.FS
 	}
 )
@@ -116,7 +116,7 @@ func InitTestApp() {
 		r.Use(server.BaseMiddleware(false, logger.Default())...)
 
 		helpers.BindAuthMiddleware(r)
-		rest.MountRoutes(r)
+		r.Group(rest.MountRoutes())
 		hh.MountHttpRoutes(r)
 	}
 }
@@ -142,7 +142,8 @@ func newHelper(t *testing.T) helper {
 	h.mockPermissionsWithAccess()
 
 	var err error
-	h.token, err = auth.DefaultJwtHandler.Generate(context.Background(), h.cUser)
+	ctx := context.Background()
+	h.token, err = auth.TokenIssuer.Issue(ctx, auth.WithIdentity(h.cUser))
 	if err != nil {
 		panic(err)
 	}

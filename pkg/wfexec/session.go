@@ -293,9 +293,30 @@ func (s *Session) AllPendingPrompts() (out []*PendingPrompt) {
 	defer s.mux.RUnlock()
 	s.mux.RLock()
 
-	out = make([]*PendingPrompt, 0, len(s.prompted))
+	return s.pendingPrompts(s.prompted)
+}
 
-	for _, p := range s.prompted {
+// UnsentPendingPrompts returns unsent pending prompts for all user
+func (s *Session) UnsentPendingPrompts() (out []*PendingPrompt) {
+	defer s.mux.RUnlock()
+	s.mux.RLock()
+
+	aux := s.pendingPrompts(s.prompted)
+	for _, p := range aux {
+		if p.Original.sent {
+			continue
+		}
+
+		out = append(out, p)
+	}
+
+	return
+}
+
+func (s *Session) pendingPrompts(prompted map[uint64]*prompted) (out []*PendingPrompt) {
+	out = make([]*PendingPrompt, 0, len(prompted))
+
+	for _, p := range prompted {
 		pending := p.toPending()
 		pending.SessionID = s.id
 		out = append(out, pending)
@@ -440,6 +461,12 @@ func (s *Session) worker(ctx context.Context) {
 
 			s.log.Debug("pulled state from queue", zap.Uint64("stateID", st.stateId))
 			if st.step == nil {
+				// We should not terminate if the session contains any delayed or prompted steps.
+				status := s.Status()
+				if status == SessionPrompted || status == SessionDelayed {
+					break
+				}
+
 				s.log.Debug("done, setting results and stopping the worker")
 
 				func() {
@@ -626,12 +653,7 @@ func (s *Session) exec(ctx context.Context, log *zap.Logger, st *State) (nxt []*
 			// push logger to context but raise the stacktrace level to panic
 			// to prevent overly verbose traces
 			ctx = logger.ContextWithValue(ctx, log)
-
-			// Context received in exec() wil not have the identity we're expecting
-			// so we need to pull it from state owner and add it to new context
-			// that is set to step exec function
-			stepCtx := auth.SetIdentityToContext(ctx, st.owner)
-			stepCtx = SetContextCallStack(stepCtx, s.callStack)
+			stepCtx := SetContextCallStack(ctx, s.callStack)
 
 			result, st.err = st.step.Exec(stepCtx, st.MakeRequest())
 

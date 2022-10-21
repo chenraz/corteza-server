@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
 	"github.com/cortezaproject/corteza-server/pkg/rbac"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -68,6 +68,18 @@ type (
 		//
 		// List of permission rules to set
 		Rules rbac.RuleSet
+	}
+
+	PermissionsClone struct {
+		// RoleID PATH parameter
+		//
+		// Role ID
+		RoleID uint64 `json:",string"`
+
+		// CloneToRoleID GET parameter
+		//
+		// Clone set of rules to roleID
+		CloneToRoleID []string
 	}
 )
 
@@ -218,7 +230,7 @@ func (r PermissionsUpdate) GetRules() rbac.RuleSet {
 // Fill processes request and fills internal variables
 func (r *PermissionsUpdate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -226,6 +238,16 @@ func (r *PermissionsUpdate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
 		}
 	}
 
@@ -242,6 +264,64 @@ func (r *PermissionsUpdate) Fill(req *http.Request) (err error) {
 		//        return err
 		//    }
 		//}
+	}
+
+	{
+		var val string
+		// path params
+
+		val = chi.URLParam(req, "roleID")
+		r.RoleID, err = payload.ParseUint64(val), nil
+		if err != nil {
+			return err
+		}
+
+	}
+
+	return err
+}
+
+// NewPermissionsClone request
+func NewPermissionsClone() *PermissionsClone {
+	return &PermissionsClone{}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r PermissionsClone) Auditable() map[string]interface{} {
+	return map[string]interface{}{
+		"roleID":        r.RoleID,
+		"cloneToRoleID": r.CloneToRoleID,
+	}
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r PermissionsClone) GetRoleID() uint64 {
+	return r.RoleID
+}
+
+// Auditable returns all auditable/loggable parameters
+func (r PermissionsClone) GetCloneToRoleID() []string {
+	return r.CloneToRoleID
+}
+
+// Fill processes request and fills internal variables
+func (r *PermissionsClone) Fill(req *http.Request) (err error) {
+
+	{
+		// GET params
+		tmp := req.URL.Query()
+
+		if val, ok := tmp["cloneToRoleID[]"]; ok {
+			r.CloneToRoleID, err = val, nil
+			if err != nil {
+				return err
+			}
+		} else if val, ok := tmp["cloneToRoleID"]; ok {
+			r.CloneToRoleID, err = val, nil
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	{

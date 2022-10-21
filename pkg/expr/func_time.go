@@ -173,6 +173,14 @@ func prepMod(base interface{}, mod interface{}) (*time.Time, int, error) {
 		t = &auxt
 	case *time.Time:
 		t = auxt
+	case string:
+		tt, err := cast.ToTimeE(auxt)
+
+		if err != nil {
+			return nil, 0, err
+		}
+
+		t = &tt
 	default:
 		return nil, 0, errors.New("unexpected input type")
 	}
@@ -190,10 +198,15 @@ func prepMod(base interface{}, mod interface{}) (*time.Time, int, error) {
 // https://github.com/lestrrat-go/strftime#supported-conversion-specifications
 func strfTime(base interface{}, f string) (string, error) {
 	t, _, err := prepMod(base, 0)
+
 	if err != nil {
 		return "", err
 	}
-	o, _ := strftime.Format(f, *t, strftime.WithMilliseconds('b'))
+
+	o, _ := strftime.Format(f, *t,
+		strftime.WithMilliseconds('b'),
+		strftime.WithUnixSeconds('L'))
+
 	return o, nil
 }
 

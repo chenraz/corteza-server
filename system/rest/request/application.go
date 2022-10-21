@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"github.com/cortezaproject/corteza-server/pkg/label"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	sqlxTypes "github.com/jmoiron/sqlx/types"
 	"io"
 	"mime/multipart"
@@ -228,6 +228,11 @@ type (
 		//
 		// Script to execute
 		Script string
+
+		// Args POST parameter
+		//
+		// Arguments to pass to the script
+		Args map[string]interface{}
 	}
 
 	ApplicationReorder struct {
@@ -429,7 +434,7 @@ func (r ApplicationCreate) GetLabels() map[string]string {
 // Fill processes request and fills internal variables
 func (r *ApplicationCreate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -437,6 +442,62 @@ func (r *ApplicationCreate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["name"]; ok && len(val) > 0 {
+				r.Name, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["enabled"]; ok && len(val) > 0 {
+				r.Enabled, err = payload.ParseBool(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["weight"]; ok && len(val) > 0 {
+				r.Weight, err = payload.ParseInt(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["unify"]; ok && len(val) > 0 {
+				r.Unify, err = payload.ParseJSONTextWithErr(val[0])
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["config"]; ok && len(val) > 0 {
+				r.Config, err = payload.ParseJSONTextWithErr(val[0])
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -554,7 +615,7 @@ func (r ApplicationUpdate) GetLabels() map[string]string {
 // Fill processes request and fills internal variables
 func (r *ApplicationUpdate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -562,6 +623,62 @@ func (r *ApplicationUpdate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["name"]; ok && len(val) > 0 {
+				r.Name, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["enabled"]; ok && len(val) > 0 {
+				r.Enabled, err = payload.ParseBool(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["weight"]; ok && len(val) > 0 {
+				r.Weight, err = payload.ParseInt(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["unify"]; ok && len(val) > 0 {
+				r.Unify, err = payload.ParseJSONTextWithErr(val[0])
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["config"]; ok && len(val) > 0 {
+				r.Config, err = payload.ParseJSONTextWithErr(val[0])
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -655,7 +772,7 @@ func (r ApplicationUpload) GetUpload() *multipart.FileHeader {
 // Fill processes request and fills internal variables
 func (r *ApplicationUpload) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -663,6 +780,17 @@ func (r *ApplicationUpload) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			// Ignoring upload as its handled in the POST params section
 		}
 	}
 
@@ -933,6 +1061,7 @@ func (r ApplicationTriggerScript) Auditable() map[string]interface{} {
 	return map[string]interface{}{
 		"applicationID": r.ApplicationID,
 		"script":        r.Script,
+		"args":          r.Args,
 	}
 }
 
@@ -946,10 +1075,15 @@ func (r ApplicationTriggerScript) GetScript() string {
 	return r.Script
 }
 
+// Auditable returns all auditable/loggable parameters
+func (r ApplicationTriggerScript) GetArgs() map[string]interface{} {
+	return r.Args
+}
+
 // Fill processes request and fills internal variables
 func (r *ApplicationTriggerScript) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -957,6 +1091,34 @@ func (r *ApplicationTriggerScript) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["script"]; ok && len(val) > 0 {
+				r.Script, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["args[]"]; ok {
+				r.Args, err = parseMapStringInterface(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["args"]; ok {
+				r.Args, err = parseMapStringInterface(val)
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -969,6 +1131,18 @@ func (r *ApplicationTriggerScript) Fill(req *http.Request) (err error) {
 
 		if val, ok := req.Form["script"]; ok && len(val) > 0 {
 			r.Script, err = val[0], nil
+			if err != nil {
+				return err
+			}
+		}
+
+		if val, ok := req.Form["args[]"]; ok {
+			r.Args, err = parseMapStringInterface(val)
+			if err != nil {
+				return err
+			}
+		} else if val, ok := req.Form["args"]; ok {
+			r.Args, err = parseMapStringInterface(val)
 			if err != nil {
 				return err
 			}
@@ -1010,7 +1184,7 @@ func (r ApplicationReorder) GetApplicationIDs() []string {
 // Fill processes request and fills internal variables
 func (r *ApplicationReorder) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -1018,6 +1192,16 @@ func (r *ApplicationReorder) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
 		}
 	}
 

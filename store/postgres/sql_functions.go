@@ -42,9 +42,13 @@ func sqlFunctionHandler(f ql.Function) (ql.ASTNode, error) {
 	case "QUARTER", "YEAR":
 		return ql.MakeFormattedNode(fmt.Sprintf("EXTRACT(%s FROM %%s::date)", f.Name), f.Arguments...), nil
 	case "DATE_FORMAT":
-		return ql.MakeFormattedNode("TO_CHAR(%s, %s)", f.Arguments...), nil
+		return ql.MakeReplacedFormattedNode("TO_CHAR(%s::TIMESTAMPTZ, %s::TEXT)", translateDateFormatParams, f.Arguments...), nil
+	case "TIMESTAMP":
+		return ql.MakeFormattedNode("TIMESTAMPTZ(%s::TIMESTAMPTZ)", f.Arguments...), nil
 	case "DATE":
 		return ql.MakeFormattedNode("%s::DATE", f.Arguments...), nil
+	case "TIME":
+		return ql.MakeFormattedNode("DATE_TRUNC('second', %s::TIME)::TIME", f.Arguments...), nil
 	case "DATE_ADD", "DATE_SUB", "STD":
 		return nil, fmt.Errorf("%q function is currently unsupported in PostgreSQL store backend", f.Name)
 	}

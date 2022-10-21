@@ -5,7 +5,7 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/locale"
 )
 
-func ErrUnauthorized() error {
+func errUnauthorized() error {
 	return errors.New(
 		errors.KindUnauthorized,
 
@@ -22,7 +22,7 @@ func ErrUnauthorized() error {
 	)
 }
 
-func ErrUnauthorizedScope() error {
+func errUnauthorizedScope() error {
 	return errors.New(
 		errors.KindUnauthorized,
 

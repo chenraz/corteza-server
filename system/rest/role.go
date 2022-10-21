@@ -26,6 +26,7 @@ type (
 	roleAccessController interface {
 		CanGrant(context.Context) bool
 
+		CanCreateRole(context.Context) bool
 		CanUpdateRole(context.Context, *types.Role) bool
 		CanDeleteRole(context.Context, *types.Role) bool
 		CanManageMembersOnRole(context.Context, *types.Role) bool
@@ -208,7 +209,7 @@ func (ctrl *Role) TriggerScript(ctx context.Context, r *request.RoleTriggerScrip
 	}
 
 	// @todo implement same behaviour as we have on record - role+oldRole
-	err = corredor.Service().Exec(ctx, r.Script, event.RoleOnManual(role, role))
+	err = corredor.Service().Exec(ctx, r.Script, corredor.ExtendScriptArgs(event.RoleOnManual(role, role), r.Args))
 	return role, err
 }
 

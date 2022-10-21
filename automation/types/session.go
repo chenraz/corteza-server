@@ -8,12 +8,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cortezaproject/corteza-server/pkg/auth"
 	"github.com/cortezaproject/corteza-server/pkg/expr"
 	"github.com/cortezaproject/corteza-server/pkg/filter"
 	"github.com/cortezaproject/corteza-server/pkg/wfexec"
 )
 
 type (
+	runtimeOptions struct {
+		disableStacktrace bool
+	}
+
 	// Instance of single workflow execution
 	Session struct {
 		ID         uint64 `json:"sessionID,string"`
@@ -42,6 +47,8 @@ type (
 
 		session *wfexec.Session
 
+		runtimeOpts runtimeOptions `json:"-"`
+
 		// For keeping runtime stacktrace,
 		// even if we do not want to store it on every update
 		//
@@ -53,6 +60,12 @@ type (
 	}
 
 	SessionStartParams struct {
+		// Always set, users that invoked/started the workflow session
+		Invoker auth.Identifiable
+
+		// Optional, (alternative) user that is running the workflow
+		Runner auth.Identifiable
+
 		WorkflowID   uint64
 		KeepFor      int
 		Trace        bool
@@ -103,6 +116,10 @@ func NewSession(s *wfexec.Session) *Session {
 		ID:      s.ID(),
 		session: s,
 	}
+}
+
+func (s *Session) DisableStacktrace() {
+	s.runtimeOpts.disableStacktrace = true
 }
 
 func (s *Session) Exec(ctx context.Context, step wfexec.Step, input *expr.Vars) error {
@@ -158,10 +175,12 @@ func (s *Session) Apply(ssp SessionStartParams) {
 }
 
 func (s *Session) AppendRuntimeStacktrace(frame *wfexec.Frame) {
-	s.l.RLock()
-	defer s.l.RUnlock()
+	if !s.runtimeOpts.disableStacktrace {
+		s.l.RLock()
+		defer s.l.RUnlock()
 
-	s.RuntimeStacktrace = append(s.RuntimeStacktrace, frame)
+		s.RuntimeStacktrace = append(s.RuntimeStacktrace, frame)
+	}
 }
 
 func (s *Session) CopyRuntimeStacktrace() {
@@ -192,6 +211,42 @@ func (set *Stacktrace) Scan(value interface{}) error {
 // Scan on WorkflowStepSet gracefully handles conversion from NULL
 func (set Stacktrace) Value() (driver.Value, error) {
 	return json.Marshal(set)
+}
+
+func (set Stacktrace) String() (str string) {
+	for i, f := range set {
+		str += fmt.Sprintf(
+			"[%3d] %-14s %d (",
+			i,
+			f.CreatedAt.Format("15:04:05.00000"),
+			f.StepID,
+		)
+
+		if f.Input.Len() == 0 {
+			str += "no input, "
+		}
+
+		if f.Scope.Len() == 0 {
+			str += "no scope, "
+		}
+
+		if f.Results.Len() == 0 {
+			str += "no results, "
+		}
+		str += ")"
+
+		if f.Scope.Len() > 0 {
+			str += fmt.Sprintf("   Scope:\n")
+			f.Scope.Each(func(k string, v expr.TypedValue) error {
+				str += fmt.Sprintf("     [%s]: %v\n", k, v)
+				return nil
+			})
+		}
+
+		str += "\n"
+	}
+
+	return
 }
 
 func (s SessionStatus) String() string {

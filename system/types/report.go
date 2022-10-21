@@ -8,6 +8,7 @@ import (
 
 	"github.com/cortezaproject/corteza-server/pkg/filter"
 	"github.com/cortezaproject/corteza-server/pkg/report"
+	"github.com/spf13/cast"
 )
 
 type (
@@ -16,8 +17,9 @@ type (
 		Handle string      `json:"handle"`
 		Meta   *ReportMeta `json:"meta,omitempty"`
 
-		Sources ReportDataSourceSet `json:"sources"`
-		Blocks  ReportBlockSet      `json:"blocks"`
+		Scenarios ReportScenarioSet   `json:"scenarios,omitempty"`
+		Sources   ReportDataSourceSet `json:"sources"`
+		Blocks    ReportBlockSet      `json:"blocks"`
 
 		// Report labels
 		Labels map[string]string `json:"labels,omitempty"`
@@ -29,6 +31,14 @@ type (
 		UpdatedAt *time.Time `json:"updatedAt,omitempty"`
 		DeletedBy uint64     `json:"deletedBy,omitempty"`
 		DeletedAt *time.Time `json:"deletedAt,omitempty"`
+	}
+
+	ReportScenarioSet []*ReportScenario
+	ScenarioFilterMap map[string]*report.Filter
+	ReportScenario    struct {
+		ScenarioID uint64            `json:"scenarioID,string,omitempty"`
+		Label      string            `json:"label"`
+		Filters    ScenarioFilterMap `json:"filters,omitempty"`
 	}
 
 	ReportDataSource struct {
@@ -43,7 +53,7 @@ type (
 	}
 
 	ReportBlock struct {
-		BlockID     uint64                   `json:"blockID"`
+		BlockID     uint64                   `json:"blockID,string"`
 		Title       string                   `json:"title"`
 		Description string                   `json:"description"`
 		Key         string                   `json:"key"`
@@ -77,6 +87,30 @@ type (
 		filter.Paging
 	}
 )
+
+// Initial ReportBlock struct definition omitted string casting for the BlockID (sorry)
+// so we need to handle that edge case when reading from DB.
+func (b *ReportBlock) UnmarshalJSON(data []byte) (err error) {
+	type internalReportBlock ReportBlock
+	i := struct {
+		internalReportBlock
+		BlockID interface{} `json:"blockID"`
+	}{}
+
+	if err = json.Unmarshal(data, &i); err != nil {
+		return
+	}
+
+	bID, err := cast.ToUint64E(i.BlockID)
+	if err != nil {
+		return
+	}
+
+	*b = ReportBlock(i.internalReportBlock)
+	b.BlockID = bID
+
+	return nil
+}
 
 func (ss ReportDataSourceSet) ModelSteps() report.StepDefinitionSet {
 	out := make(report.StepDefinitionSet, 0, 124)
@@ -154,6 +188,26 @@ func (vv *ReportDataSourceSet) Scan(value interface{}) error {
 	switch value.(type) {
 	case nil:
 		*vv = ReportDataSourceSet{}
+	case []uint8:
+		b := value.([]byte)
+		if err := json.Unmarshal(b, vv); err != nil {
+			return fmt.Errorf("cannot scan '%v' into ReportDataSourceSet: %w", string(b), err)
+		}
+	}
+
+	return nil
+}
+
+// Scan on ReportScenarioSet gracefully handles conversion from NULL
+func (vv ReportScenarioSet) Value() (driver.Value, error) {
+	return json.Marshal(vv)
+}
+
+func (vv *ReportScenarioSet) Scan(value interface{}) error {
+	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
+	switch value.(type) {
+	case nil:
+		*vv = ReportScenarioSet{}
 	case []uint8:
 		b := value.([]byte)
 		if err := json.Unmarshal(b, vv); err != nil {

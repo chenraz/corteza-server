@@ -52,7 +52,14 @@ func SetupGothProviders(log *zap.Logger, redirectUrl string, ep ...settings.Prov
 
 			wellKnown := strings.TrimSuffix(pc.IssuerUrl, "/") + WellKnown
 
-			if provider, err = openidConnect.New(pc.Key, pc.Secret, redirect, wellKnown, "email"); err != nil {
+			var scope []string
+			if len(pc.Scope) > 0 {
+				scope = strings.Split(pc.Scope, " ")
+			} else {
+				scope = append(scope, "email")
+			}
+
+			if provider, err = openidConnect.New(pc.Key, pc.Secret, redirect, wellKnown, scope...); err != nil {
 				log.Error("failed to discover OIDC provider", zap.Error(err), zap.String("well-known", wellKnown))
 				continue
 			} else {

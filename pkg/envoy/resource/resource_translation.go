@@ -48,6 +48,10 @@ func NewResourceTranslation(res types.ResourceTranslationSet, refResource string
 	return r
 }
 
+func (r *ResourceTranslation) Resource() interface{} {
+	return r.Res
+}
+
 func (r *ResourceTranslation) ReRef(old RefSet, new RefSet) {
 	r.base.ReRef(old, new)
 
@@ -69,8 +73,16 @@ func (l *ResourceTranslation) MarkDefault() {
 	l.Priority = 1
 }
 
+func (l *ResourceTranslation) IsDefault() bool {
+	return l.Priority == 1
+}
+
 func (l *ResourceTranslation) MarkGeneric() {
 	l.Priority = 0
+}
+
+func (l *ResourceTranslation) IsGeneric() bool {
+	return l.Priority == 0
 }
 
 func ResourceTranslationErrNotFound(ii Identifiers) error {

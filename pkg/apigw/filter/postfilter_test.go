@@ -1,12 +1,21 @@
 package filter
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
+	agctx "github.com/cortezaproject/corteza-server/pkg/apigw/ctx"
 	"github.com/cortezaproject/corteza-server/pkg/apigw/types"
+	"github.com/cortezaproject/corteza-server/pkg/expr"
+	"github.com/cortezaproject/corteza-server/pkg/options"
 	"github.com/stretchr/testify/require"
+)
+
+type (
+	mockHandlerRegistry struct{}
 )
 
 func Test_redirectionMerge(t *testing.T) {
@@ -26,7 +35,7 @@ func Test_redirectionMerge(t *testing.T) {
 	)
 
 	for _, tc := range tcc {
-		t.Run(tc.name, testMerge(NewRedirection(), tc))
+		t.Run(tc.name, testMerge(NewRedirection(options.ApigwOpt{}), tc))
 	}
 }
 
@@ -66,7 +75,7 @@ func Test_redirection(t *testing.T) {
 				rc  = httptest.NewRecorder()
 			)
 
-			h := getHandler(NewRedirection())
+			h := getHandler(NewRedirection(options.ApigwOpt{}))
 			h, err := h.Merge([]byte(tc.expr))
 
 			req.NoError(err)
@@ -86,7 +95,80 @@ func Test_redirection(t *testing.T) {
 	}
 }
 
+func Test_jsonResponse(t *testing.T) {
+	type (
+		tf struct {
+			name  string
+			expr  string
+			err   string
+			exp   string
+			scope interface{}
+		}
+
+		aux struct {
+			Name    string `json:"name"`
+			Surname string `json:"surname"`
+		}
+	)
+
+	var (
+		tcc = []tf{
+			{
+				name:  "Any response as JSON",
+				expr:  `{"expr": "records", "type": "KV"}`,
+				scope: expr.Must(expr.Any{}.Cast([]float64{3.14, 42.690})),
+				exp:   `[3.14,42.69]`,
+			},
+			{
+				name:  "KV response as JSON",
+				expr:  `{"expr": "records", "type": "KV"}`,
+				scope: map[string]string{"foo": "bar", "baz": "bzz"},
+				exp:   `{"baz":"bzz","foo":"bar"}`,
+			},
+			{
+				name:  "struct array response as JSON",
+				expr:  `{"expr": "toJSON(records)", "type": "String"}`,
+				scope: []aux{{"First", "Last"}, {"Foo", "bar"}},
+				exp:   `[{"name":"First","surname":"Last"},{"name":"Foo","surname":"bar"}]`,
+			},
+		}
+	)
+
+	for _, tc := range tcc {
+		t.Run(tc.name, func(t *testing.T) {
+			var (
+				req   = require.New(t)
+				r     = httptest.NewRequest(http.MethodGet, "/foo", http.NoBody)
+				rc    = httptest.NewRecorder()
+				scope = &types.Scp{"records": tc.scope}
+			)
+
+			r = r.WithContext(agctx.ScopeToContext(context.Background(), scope))
+
+			h := getHandler(NewJsonResponse(options.ApigwOpt{}, &mockHandlerRegistry{}))
+			h, err := h.Merge([]byte(tc.expr))
+
+			req.NoError(err)
+
+			hn := h.Handler()
+			err = hn(rc, r)
+
+			if tc.err != "" {
+				req.EqualError(err, tc.err)
+				return
+			}
+
+			req.NoError(err)
+			req.Equal(tc.exp, strings.TrimSuffix(rc.Body.String(), "\n"))
+		})
+	}
+}
+
 // hackity hack
 func getHandler(h types.Handler) types.Handler {
 	return h
+}
+
+func (r *mockHandlerRegistry) Type(ref string) expr.Type {
+	return expr.Any{}
 }

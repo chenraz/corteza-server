@@ -53,8 +53,10 @@ DEV_MAILHOG_SMTP_ADDR ?= 1025
 DEV_MAILHOG_HTTP_ADDR ?= 8025
 
 GIN_ARG_LADDR ?= localhost
-GIN_ARGS      ?= --laddr $(GIN_ARG_LADDR) --immediate
+GIN_ARGS      ?= --laddr $(GIN_ARG_LADDR) --build cmd/corteza --immediate
 
+GIN_CORTEZA_ENV_FILE ?= .env
+GIN_CORTEZA_BIN_ARGS ?= --env-file $(GIN_CORTEZA_ENV_FILE)
 
 DOCKER                ?= docker
 
@@ -107,7 +109,7 @@ $(RELEASE_PKEY):
 # Development
 
 watch: $(GIN)
-	$(GIN) $(GIN_ARGS) --build cmd/corteza run -- serve
+	$(GIN) $(GIN_ARGS) -- $(GIN_CORTEZA_BIN_ARGS) serve
 
 realize: watch # BC
 
@@ -130,14 +132,29 @@ watch.test.%: $(FSWATCH)
 
 watch.test: watch.test.unit
 
-# codegen: $(PROTOGEN)
-codegen: $(CODEGEN)
+# See codegen/README.md for details
+codegen:
+	@ make -C codegen all
+
+cue.fmt: $(CUE)
+	$(CUE) fmt -v codegen/*.cue
+	$(CUE) fmt -v codegen/schema/*.cue
+
+	$(CUE) fmt -v app/*.cue
+	$(CUE) fmt -v app/options/*.cue
+
+	$(CUE) fmt system/*.cue
+	$(CUE) fmt compose/*.cue
+	$(CUE) fmt automation/*.cue
+	$(CUE) fmt federation/*.cue
+
+codegen-legacy: $(CODEGEN)
 	@ $(CODEGEN) -v
 
-watch.codegen: $(CODEGEN)
+watch.codegen-legacy: $(CODEGEN)
 	@ $(CODEGEN) -w -v
 
-clean.codegen:
+clean.codegen-legacy:
 	rm -f $(CODEGEN)
 
 provision:
@@ -147,10 +164,14 @@ webapp:
 	@ $(MAKE) --directory=webapp
 
 locale.update:
-	$(GO) get github.com/cortezaproject/corteza-locale
+	$(GO) get github.com/cortezaproject/corteza-locale@2022.3.x
 	$(GO) mod vendor
 	git add --all vendor/github.com/cortezaproject
 	git commit -m 'Update corteza-locale dep' vendor/github.com/cortezaproject vendor/modules.txt go.mod go.sum
+
+
+outdated: $(MODOUTDATED)
+	$(GO) list -mod=mod -u -m -json all | $(MODOUTDATED) -update -direct
 
 #######################################################################################################################
 # Quality Assurance

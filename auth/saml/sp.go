@@ -37,6 +37,11 @@ type (
 		MetaURL string
 		SloURL  string
 
+		SignRequests    bool
+		SignatureMethod string
+
+		Binding string
+
 		// user meta from idp
 		IdentityPayload IdpIdentityPayload
 
@@ -65,6 +70,15 @@ func NewSamlSPService(log *zap.Logger, args SamlSPArgs) (s *SamlSPService, err e
 		SloURL:      *args.Host.ResolveReference(logoutURL),
 	}
 
+	if args.SignRequests {
+		sp.SignatureMethod = args.SignatureMethod
+	}
+
+	// default to GET
+	if args.Binding == "" {
+		args.Binding = saml.HTTPRedirectBinding
+	}
+
 	opts := samlsp.Options{
 		URL:         args.Host,
 		Key:         sp.Key,
@@ -81,6 +95,7 @@ func NewSamlSPService(log *zap.Logger, args SamlSPArgs) (s *SamlSPService, err e
 
 	handler.RequestTracker = samlsp.DefaultRequestTracker(opts, &handler.ServiceProvider)
 	handler.ServiceProvider = sp
+	handler.Binding = args.Binding
 
 	s = &SamlSPService{
 		log: log,

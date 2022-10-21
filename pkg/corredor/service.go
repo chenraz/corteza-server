@@ -13,7 +13,7 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/options"
 	"github.com/cortezaproject/corteza-server/pkg/sentry"
 	"github.com/cortezaproject/corteza-server/system/types"
-	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -103,10 +103,7 @@ type (
 		FindByAny(context.Context, interface{}) (*types.Role, error)
 	}
 
-	authTokenMaker interface {
-		auth.TokenEncoder
-		auth.TokenGenerator
-	}
+	authTokenMaker func(i auth.Identifiable) (signed []byte, err error)
 )
 
 const (
@@ -119,6 +116,9 @@ const (
 var (
 	// Global corredor service
 	gCorredor *service
+
+	// Lock for accessing global service
+	gLock sync.RWMutex
 
 	// List of event types that can be used as iteration
 	// initiator
@@ -145,11 +145,17 @@ const (
 )
 
 func Service() *service {
+	gLock.RLock()
+	defer gLock.RUnlock()
+
 	return gCorredor
 }
 
 // Setup start connects to Corredor & initialize service
 func Setup(logger *zap.Logger, opt options.CorredorOpt) (err error) {
+	gLock.Lock()
+	defer gLock.Unlock()
+
 	if gCorredor != nil {
 		// Prevent multiple initializations
 		return
@@ -169,8 +175,7 @@ func NewService(logger *zap.Logger, opt options.CorredorOpt) *service {
 
 		iteratorProviders: make(map[string]IteratorResourceFinder),
 
-		authTokenMaker: auth.DefaultJwtHandler,
-		eventRegistry:  eventbus.Service(),
+		eventRegistry: eventbus.Service(),
 
 		denyExec: make(map[string]map[uint64]bool),
 
@@ -663,7 +668,7 @@ func (svc service) exec(ctx context.Context, script string, runAs string, args S
 			zap.String("resourceType", args.ResourceType()),
 		)
 
-		token string
+		token []byte
 	)
 
 	// Returns context with identity set to service user
@@ -736,12 +741,12 @@ func (svc service) exec(ctx context.Context, script string, runAs string, args S
 		}
 
 		// Generate and save the token
-		token, err = svc.authTokenMaker.Generate(ctx, definer)
+		token, err = svc.authTokenMaker(definer)
 		if err != nil {
 			return
 		}
 
-		if err = encodeArguments(req.Args, "authToken", token); err != nil {
+		if err = encodeArguments(req.Args, "authToken", string(token)); err != nil {
 			return
 		}
 
@@ -754,12 +759,12 @@ func (svc service) exec(ctx context.Context, script string, runAs string, args S
 		}
 
 		// Generate and save the token
-		token, err = svc.authTokenMaker.Generate(ctx, invoker)
+		token, err = svc.authTokenMaker(invoker)
 		if err != nil {
 			return
 		}
 
-		if err = encodeArguments(req.Args, "authToken", token); err != nil {
+		if err = encodeArguments(req.Args, "authToken", string(token)); err != nil {
 			return
 		}
 	}

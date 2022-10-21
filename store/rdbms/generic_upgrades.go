@@ -74,6 +74,10 @@ func (g genericUpgrades) Upgrade(ctx context.Context, t *ddl.Table) error {
 		return g.all(ctx,
 			g.AddRolesMetaField,
 		)
+	case "compose_page":
+		return g.all(ctx,
+			g.AddComposeBlockConfigField,
+		)
 	case "compose_module":
 		return g.all(ctx,
 			g.AlterComposeModuleRenameJsonToMeta,
@@ -86,10 +90,19 @@ func (g genericUpgrades) Upgrade(ctx context.Context, t *ddl.Table) error {
 		return g.all(ctx,
 			g.CreateAutomationSessionIndexes,
 		)
-		//case "compose_attachment_binds":
-		//	return g.all(ctx,
-		//		g.MigrateComposeAttachmentsToBindsTable,
-		//	)
+	//case "compose_attachment_binds":
+	//	return g.all(ctx,
+	//		g.MigrateComposeAttachmentsToBindsTable,
+	//	)
+
+	case "reports":
+		return g.all(ctx,
+			g.AddScenariosField,
+		)
+	case "resource_activity_log":
+		return g.all(ctx,
+			g.AddResourceActivityLogMetaField,
+		)
 	}
 
 	return nil
@@ -269,12 +282,37 @@ func (g genericUpgrades) AddRolesMetaField(ctx context.Context) error {
 	return err
 }
 
+func (g genericUpgrades) AddComposeBlockConfigField(ctx context.Context) error {
+	_, err := g.u.AddColumn(ctx, "compose_page", &ddl.Column{
+		Name:         "config",
+		Type:         ddl.ColumnType{Type: ddl.ColumnTypeJson},
+		IsNull:       false,
+		DefaultValue: "'{}'",
+	})
+
+	return err
+}
+
 func (g genericUpgrades) RenameReminders(ctx context.Context) error {
 	return g.RenameTable(ctx, "sys_reminder", "reminders")
 }
 
 func (g genericUpgrades) DropOrganisationTable(ctx context.Context) error {
 	_, err := g.u.DropTable(ctx, "organization")
+	return err
+}
+
+func (g genericUpgrades) AddScenariosField(ctx context.Context) error {
+	var (
+		col = &ddl.Column{
+			Name:         "scenarios",
+			Type:         ddl.ColumnType{Type: ddl.ColumnTypeJson},
+			IsNull:       false,
+			DefaultValue: "NULL",
+		}
+	)
+
+	_, err := g.u.AddColumn(ctx, "reports", col)
 	return err
 }
 
@@ -418,4 +456,15 @@ func (g genericUpgrades) CreateAutomationSessionIndexes(ctx context.Context) (er
 	}
 
 	return
+}
+
+func (g genericUpgrades) AddResourceActivityLogMetaField(ctx context.Context) error {
+	_, err := g.u.AddColumn(ctx, "resource_activity_log", &ddl.Column{
+		Name:         "meta",
+		Type:         ddl.ColumnType{Type: ddl.ColumnTypeJson},
+		IsNull:       false,
+		DefaultValue: "'{}'",
+	})
+
+	return err
 }

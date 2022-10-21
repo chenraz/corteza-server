@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -23,7 +24,6 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/filter"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
 	"github.com/cortezaproject/corteza-server/store"
-	systemService "github.com/cortezaproject/corteza-server/system/service"
 )
 
 type (
@@ -50,7 +50,6 @@ type (
 		namespace     service.NamespaceService
 		attachment    service.AttachmentService
 		ac            recordAccessController
-		userFinder    systemService.UserService
 	}
 
 	recordAccessController interface {
@@ -62,6 +61,11 @@ type (
 	}
 )
 
+const (
+	defaultRecordSearchSize uint = 500
+	maxRecordSearchSize          = 1000
+)
+
 func (Record) New() *Record {
 	return &Record{
 		importSession: service.DefaultImportSession,
@@ -70,9 +74,6 @@ func (Record) New() *Record {
 		namespace:     service.DefaultNamespace,
 		attachment:    service.DefaultAttachment,
 		ac:            service.DefaultAccessControl,
-
-		// See comment at DefaultSystemUser definition
-		userFinder: systemService.DefaultUser,
 	}
 }
 
@@ -105,6 +106,12 @@ func (ctrl *Record) List(ctx context.Context, r *request.RecordList) (interface{
 		// Query param takes preference
 		f.Query = r.Query
 	}
+
+	if r.Limit == 0 {
+		r.Limit = defaultRecordSearchSize
+	}
+
+	r.Limit = uint(math.Min(float64(r.Limit), float64(maxRecordSearchSize)))
 
 	if f.Paging, err = filter.NewPaging(r.Limit, r.PageCursor); err != nil {
 		return nil, err
@@ -266,7 +273,8 @@ func (ctrl *Record) Upload(ctx context.Context, r *request.RecordUpload) (interf
 
 	defer file.Close()
 
-	a, err := ctrl.attachment.With(ctx).CreateRecordAttachment(
+	a, err := ctrl.attachment.CreateRecordAttachment(
+		ctx,
 		r.NamespaceID,
 		r.Upload.Filename,
 		r.Upload.Size,

@@ -25,6 +25,7 @@ type (
 
 		Handle string `json:"handle"`
 
+		Config PageConfig `json:"config"`
 		Blocks PageBlocks `json:"blocks"`
 
 		Children PageSet `json:"children,omitempty"`
@@ -74,6 +75,54 @@ type (
 		Variants map[string]string `json:"variants,omitempty"`
 	}
 
+	PageConfig struct {
+		// How page is presented in the navigation
+		NavItem struct {
+			Icon *PageConfigIcon `json:"icon,omitempty"`
+		} `json:"navItem"`
+
+		//// Example how page-config structure can evolve in the future
+		//Views []struct {
+		//	// what kind of output is this view intended for (screen, mobile...?)
+		//	Output string
+		//
+		//	// Migrated page blocks, might be replaced someday with a more complex structure
+		//	Blocks []PageBlock
+		//}
+	}
+
+	PageConfigIcon struct {
+		// Icon types and sources
+		//
+		// Note that backed does not enforce or validate all src value (types due to a limited
+		// awareness of capabilities and
+		//
+		// Type: empty or "link" (default):
+		// Indicate that src will contain an absolute or relative link to an icon.
+		// Can also be used for inline images (storing "base64:" prefixed string in source).
+		// This type and reference is not validated by the backend.
+		//
+		// Type: "library"
+		// Source references an icon from a library. Ref's value should be in the following
+		// notation: "font-awesome://<icon-identifier>".
+		// This type and source is not validated by the backend.
+		//
+		// Type: "svg"
+		// SRC contains raw SVG document
+
+		////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Other types that might be implemented in the future:
+		// "attachment"
+		// Reference (ID) to an existing attachment in local Corteza instance is expected
+		// This type and reference must be validated by the backend.
+
+		Type string `json:"type,omitempty"`
+		Src  string `json:"src"`
+
+		// Any custom styling that should be applied to the icon
+		Style map[string]string `json:"style,omitempty"`
+	}
+
 	PageFilter struct {
 		NamespaceID uint64 `json:"namespaceID,string"`
 		ParentID    uint64 `json:"parentID,string,omitempty"`
@@ -98,6 +147,15 @@ type (
 		filter.Sorting
 		filter.Paging
 	}
+
+	PageChildrenDeleteStrategy string
+)
+
+const (
+	PageChildrenOnDeleteAbort   PageChildrenDeleteStrategy = "abort"
+	PageChildrenOnDeleteForce   PageChildrenDeleteStrategy = "force"
+	PageChildrenOnDeleteRebase  PageChildrenDeleteStrategy = "rebase"
+	PageChildrenOnDeleteCascade PageChildrenDeleteStrategy = "cascade"
 )
 
 func (m Page) Clone() *Page {
@@ -115,15 +173,16 @@ func (p *Page) decodeTranslations(tt locale.ResourceTranslationIndex) {
 		)
 
 		// - generic page block stuff
-		if aux = tt.FindByKey(rpl.Replace(LocaleKeyPageBlockTitle.Path)); aux != nil {
+		if aux = tt.FindByKey(rpl.Replace(LocaleKeyPagePageBlockBlockIDTitle.Path)); aux != nil {
 			p.Blocks[i].Title = aux.Msg
 		}
-		if aux = tt.FindByKey(rpl.Replace(LocaleKeyPageBlockDescription.Path)); aux != nil {
+		if aux = tt.FindByKey(rpl.Replace(LocaleKeyPagePageBlockBlockIDDescription.Path)); aux != nil {
 			p.Blocks[i].Description = aux.Msg
 		}
 
 		// - automation page block stuff
-		if block.Kind == "Automation" {
+		switch block.Kind {
+		case "Automation":
 			bb, _ := block.Options["buttons"].([]interface{})
 			for j, auxBtn := range bb {
 				btn := auxBtn.(map[string]interface{})
@@ -139,11 +198,17 @@ func (p *Page) decodeTranslations(tt locale.ResourceTranslationIndex) {
 					"{{buttonID}}", strconv.FormatUint(buttonID, 10),
 				)
 
-				if aux = tt.FindByKey(rpl.Replace(LocaleKeyPageBlockAutomationButtonlabel.Path)); aux != nil {
+				if aux = tt.FindByKey(rpl.Replace(LocaleKeyPagePageBlockBlockIDButtonButtonIDLabel.Path)); aux != nil {
 					btn["label"] = aux.Msg
 				}
 			}
+
+		case "Content":
+			if aux = tt.FindByKey(rpl.Replace(LocaleKeyPagePageBlockBlockIDContentBody.Path)); aux != nil {
+				block.Options["body"] = aux.Msg
+			}
 		}
+
 	}
 }
 
@@ -160,18 +225,20 @@ func (p *Page) encodeTranslations() (out locale.ResourceTranslationSet) {
 		// - generic page block stuff
 		out = append(out, &locale.ResourceTranslation{
 			Resource: p.ResourceTranslation(),
-			Key:      rpl.Replace(LocaleKeyPageBlockTitle.Path),
+			Key:      rpl.Replace(LocaleKeyPagePageBlockBlockIDTitle.Path),
 			Msg:      block.Title,
 		})
 
 		out = append(out, &locale.ResourceTranslation{
 			Resource: p.ResourceTranslation(),
-			Key:      rpl.Replace(LocaleKeyPageBlockDescription.Path),
+			Key:      rpl.Replace(LocaleKeyPagePageBlockBlockIDDescription.Path),
 			Msg:      block.Description,
 		})
 
 		// - automation page block stuff
-		if block.Kind == "Automation" {
+
+		switch block.Kind {
+		case "Automation":
 			bb, _ := block.Options["buttons"].([]interface{})
 			for j, auxBtn := range bb {
 				btn := auxBtn.(map[string]interface{})
@@ -193,10 +260,18 @@ func (p *Page) encodeTranslations() (out locale.ResourceTranslationSet) {
 
 				out = append(out, &locale.ResourceTranslation{
 					Resource: p.ResourceTranslation(),
-					Key:      rpl.Replace(LocaleKeyPageBlockAutomationButtonlabel.Path),
+					Key:      rpl.Replace(LocaleKeyPagePageBlockBlockIDButtonButtonIDLabel.Path),
 					Msg:      btn["label"].(string),
 				})
+
 			}
+		case "Content":
+			body, _ := block.Options["body"].(string)
+			out = append(out, &locale.ResourceTranslation{
+				Resource: p.ResourceTranslation(),
+				Key:      rpl.Replace(LocaleKeyPagePageBlockBlockIDContentBody.Path),
+				Msg:      body,
+			})
 		}
 	}
 
@@ -270,4 +345,46 @@ func (set PageSet) FindByParent(parentID uint64) (out PageSet) {
 	}
 
 	return
+}
+
+// RecursiveWalk through all child pages
+func (set PageSet) RecursiveWalk(parent *Page, fn func(c *Page, parent *Page) error) (err error) {
+	if parent == nil {
+		return
+	}
+
+	for _, page := range set {
+		if page.SelfID != parent.ID {
+			continue
+		}
+
+		if err = fn(page, parent); err != nil {
+			return
+		}
+
+		if err = set.RecursiveWalk(page, fn); err != nil {
+			return
+		}
+	}
+
+	return
+}
+
+func (bb *PageConfig) Scan(value interface{}) error {
+	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
+	switch value.(type) {
+	case nil:
+		*bb = PageConfig{}
+	case []uint8:
+		b := value.([]byte)
+		if err := json.Unmarshal(b, bb); err != nil {
+			return errors.Wrapf(err, "cannot scan '%v' into PageConfig", string(b))
+		}
+	}
+
+	return nil
+}
+
+func (bb PageConfig) Value() (driver.Value, error) {
+	return json.Marshal(bb)
 }

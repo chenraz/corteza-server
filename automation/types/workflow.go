@@ -79,8 +79,20 @@ type (
 	}
 
 	WorkflowExecParams struct {
+		// When executed as a sub-workflow
+		CallerWorkflowID uint64
+
+		// When executed as a sub-workflow
+		CallerSessionID uint64
+
+		// When executed as a sub-workflow
+		CallerStepID uint64
+
 		// Start with this specific step
 		StepID uint64
+
+		EventType    string
+		ResourceType string
 
 		// Enable execution tracing
 		Trace bool
@@ -103,6 +115,11 @@ type (
 // @todo add flag on workflow to explicitly mark workflow as deferred even when there are no delay or prompt steps
 func (r Workflow) CheckDeferred() bool {
 	return r.Steps.HasDeferred()
+}
+
+// Executable returns true if workflow is valid and enabled
+func (r Workflow) Executable() bool {
+	return r.DeletedAt == nil && r.Enabled
 }
 
 func (r Workflow) Dict() map[string]interface{} {
@@ -149,6 +166,10 @@ func (set WorkflowIssueSet) Value() (driver.Value, error) {
 	return json.Marshal(set)
 }
 
+func (issue *WorkflowIssue) String() string {
+	return fmt.Sprintf("%s [%v]", issue.Description, issue.Culprit)
+}
+
 func (set *WorkflowIssueSet) Scan(value interface{}) error {
 	//lint:ignore S1034 This typecast is intentional, we need to get []byte out of a []uint8
 	switch value.(type) {
@@ -184,6 +205,23 @@ func (set WorkflowIssueSet) Append(err error, culprit map[string]int) WorkflowIs
 		Culprit:     culprit,
 		Description: err.Error(),
 	})
+}
+
+// Distinct returns set of issues without duplicates
+func (set WorkflowIssueSet) Distinct() (out WorkflowIssueSet) {
+	idx := make(map[string]bool)
+	out = make([]*WorkflowIssue, 0, len(set))
+
+	for i := range set {
+		if idx[set[i].String()] {
+			continue
+		}
+
+		out = append(out, set[i])
+		idx[set[i].String()] = true
+	}
+
+	return
 }
 
 func (set WorkflowIssueSet) SetCulprit(name string, pos int) WorkflowIssueSet {

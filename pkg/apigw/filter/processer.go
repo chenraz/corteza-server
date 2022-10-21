@@ -6,15 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 
+	"github.com/cortezaproject/corteza-server/automation/automation"
 	atypes "github.com/cortezaproject/corteza-server/automation/types"
 	agctx "github.com/cortezaproject/corteza-server/pkg/apigw/ctx"
 	"github.com/cortezaproject/corteza-server/pkg/apigw/types"
 	pe "github.com/cortezaproject/corteza-server/pkg/errors"
 	"github.com/cortezaproject/corteza-server/pkg/expr"
 	"github.com/cortezaproject/corteza-server/pkg/jsenv"
+	"github.com/cortezaproject/corteza-server/pkg/options"
 	"go.uber.org/zap"
 )
 
@@ -29,6 +30,7 @@ type (
 	}
 
 	WfExecer interface {
+		Load(ctx context.Context) error
 		Exec(ctx context.Context, workflowID uint64, p atypes.WorkflowExecParams) (*expr.Vars, atypes.Stacktrace, error)
 	}
 
@@ -36,6 +38,7 @@ type (
 		types.FilterMeta
 
 		vm  jsenv.Vm
+		fn  *jsenv.Fn
 		log *zap.Logger
 
 		params struct {
@@ -45,7 +48,7 @@ type (
 	}
 )
 
-func NewWorkflow(wf WfExecer) (p *workflow) {
+func NewWorkflow(opts options.ApigwOpt, wf WfExecer) (p *workflow) {
 	p = &workflow{}
 
 	p.d = wf
@@ -65,8 +68,12 @@ func NewWorkflow(wf WfExecer) (p *workflow) {
 	return
 }
 
-func (h workflow) New() types.Handler {
-	return NewWorkflow(h.d)
+func (h workflow) New(opts options.ApigwOpt) types.Handler {
+	return NewWorkflow(opts, h.d)
+}
+
+func (h workflow) Enabled() bool {
+	return true
 }
 
 func (h workflow) String() string {
@@ -80,7 +87,12 @@ func (h workflow) Meta() types.FilterMeta {
 func (h *workflow) Merge(params []byte) (types.Handler, error) {
 	err := json.NewDecoder(bytes.NewBuffer(params)).Decode(&h.params)
 
-	return h, err
+	if err != nil {
+		return h, err
+	}
+
+	// preload workflow cache
+	return h, h.d.Load(context.Background())
 }
 
 func (h workflow) Handler() types.HandlerFunc {
@@ -90,21 +102,10 @@ func (h workflow) Handler() types.HandlerFunc {
 			ctx   = r.Context()
 			scope = agctx.ScopeFromContext(ctx)
 		)
+		// cleanup scope for wf
+		scp := filterScope(scope, "opts")
 
-		payload, err := scope.Get("payload")
-
-		if err != nil {
-			return pe.Internal("could not get payload: %v", err)
-		}
-
-		// setup scope for workflow
-		vv := map[string]interface{}{
-			"payload": payload,
-			"request": r,
-		}
-
-		// get the request data and put it into vars
-		in, err := expr.NewVars(vv)
+		in, err := expr.NewVars(scp.Dict())
 
 		if err != nil {
 			return pe.Internal("could not validate request data: %v", err)
@@ -142,27 +143,18 @@ func (h workflow) Handler() types.HandlerFunc {
 			scope.Set(k, v)
 		}
 
-		ss := scope.Filter(func(k string, v interface{}) bool {
-			if k == "eventType" || k == "resourceType" {
-				return false
-			}
+		scope = filterScope(scope, "eventType", "resourceType", "invoker")
 
-			return true
-		})
-
-		scope = ss
-
-		scope.Set("request", r)
-		scope.Set("payload", payload)
+		// update scope for next items in pipeline
+		r.WithContext(agctx.ScopeToContext(ctx, scope))
 
 		return nil
 	}
 }
 
-func NewPayload(l *zap.Logger) (p *processerPayload) {
+func NewPayload(opts options.ApigwOpt, l *zap.Logger) (p *processerPayload) {
 	p = &processerPayload{}
 
-	// todo - check the consequences of doing this here
 	p.vm = jsenv.New(jsenv.NewTransformer(jsenv.LoaderJS, jsenv.TargetES2016))
 	p.log = l
 
@@ -179,17 +171,17 @@ func NewPayload(l *zap.Logger) (p *processerPayload) {
 	}
 
 	// register a request body reader
-	// since it's a readcloser, it can be read only once
-	p.vm.Register("readRequestBody", func(rc io.ReadCloser) string {
-		b, _ := io.ReadAll(rc)
-		return string(b)
-	})
+	p.vm.Register("readRequestBody", automation.ReadRequestBody)
 
 	return
 }
 
-func (h processerPayload) New() types.Handler {
-	return NewPayload(h.log)
+func (h processerPayload) New(opts options.ApigwOpt) types.Handler {
+	return NewPayload(opts, h.log)
+}
+
+func (h processerPayload) Enabled() bool {
+	return true
 }
 
 func (h processerPayload) String() string {
@@ -211,6 +203,8 @@ func (h *processerPayload) Merge(params []byte) (types.Handler, error) {
 		return nil, errors.New("could not register function, body empty")
 	}
 
+	h.fn, _ = h.vm.RegisterFunction(h.params.Func)
+
 	return h, err
 }
 
@@ -221,15 +215,18 @@ func (h processerPayload) Handler() types.HandlerFunc {
 			scope = agctx.ScopeFromContext(ctx)
 		)
 
-		scope.Set("request", r)
+		// cleanup scope for js
+		scp := filterScope(scope, "opts")
 
-		fn, err := h.vm.RegisterFunction(h.params.Func)
-
+		// check fn type
 		if err != nil {
 			return pe.InvalidData("could not register function: %v", err)
 		}
 
-		out, err := fn.Exec(h.vm.New(scope))
+		// need to find a consistent approach to the workflow jsenv function
+		// wf: input expr Var and the resulting variable in the jsenv is `input`
+		// apigw: input types.Scope and the resulting variable in the jsenv is `input['some_var']`
+		out, err := h.fn.Exec(h.vm.New(scp))
 
 		if err != nil {
 			return pe.Internal("could not exec payload function: %v", err)
@@ -240,7 +237,7 @@ func (h processerPayload) Handler() types.HandlerFunc {
 
 		// check if string
 		switch out.(type) {
-		case string:
+		case string, []byte:
 			// handling the newline, to keep the consistency with the json encoder
 			// which automatically appends the newline
 			_, err = rw.Write([]byte(fmt.Sprintf("%s\n", out)))
@@ -258,4 +255,18 @@ func (h processerPayload) Handler() types.HandlerFunc {
 
 func (h processerPayload) VM() jsenv.Vm {
 	return h.vm
+}
+
+func filterScope(scope *types.Scp, kk ...string) (s *types.Scp) {
+	s = scope.Filter(func(k string, v interface{}) bool {
+		for _, v := range kk {
+			if k == v {
+				return false
+			}
+		}
+
+		return true
+	})
+
+	return
 }

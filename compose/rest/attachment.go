@@ -7,11 +7,10 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/cortezaproject/corteza-server/pkg/api"
-
 	"github.com/cortezaproject/corteza-server/compose/rest/request"
 	"github.com/cortezaproject/corteza-server/compose/service"
 	"github.com/cortezaproject/corteza-server/compose/types"
+	"github.com/cortezaproject/corteza-server/pkg/api"
 	"github.com/cortezaproject/corteza-server/pkg/auth"
 	"github.com/pkg/errors"
 )
@@ -53,7 +52,7 @@ func (ctrl Attachment) List(ctx context.Context, r *request.AttachmentList) (int
 		FieldName:   r.FieldName,
 	}
 
-	set, filter, err := ctrl.attachment.With(ctx).Find(f)
+	set, filter, err := ctrl.attachment.Find(ctx, f)
 	return ctrl.makeFilterPayload(ctx, set, filter, err)
 }
 
@@ -62,7 +61,7 @@ func (ctrl Attachment) Read(ctx context.Context, r *request.AttachmentRead) (int
 		return nil, errors.New("Unauthorized")
 	}
 
-	a, err := ctrl.attachment.With(ctx).FindByID(r.NamespaceID, r.AttachmentID)
+	a, err := ctrl.attachment.FindByID(ctx, r.NamespaceID, r.AttachmentID)
 	return makeAttachmentPayload(ctx, a, err)
 }
 
@@ -71,12 +70,12 @@ func (ctrl Attachment) Delete(ctx context.Context, r *request.AttachmentDelete) 
 		return nil, errors.New("Unauthorized")
 	}
 
-	_, err := ctrl.attachment.With(ctx).FindByID(r.NamespaceID, r.AttachmentID)
+	_, err := ctrl.attachment.FindByID(ctx, r.NamespaceID, r.AttachmentID)
 	if err != nil {
 		return nil, err
 	}
 
-	return api.OK(), ctrl.attachment.With(ctx).DeleteByID(r.NamespaceID, r.AttachmentID)
+	return api.OK(), ctrl.attachment.DeleteByID(ctx, r.NamespaceID, r.AttachmentID)
 }
 
 func (ctrl Attachment) Original(ctx context.Context, r *request.AttachmentOriginal) (interface{}, error) {
@@ -117,7 +116,7 @@ func (ctrl Attachment) isAccessible(namespaceID, attachmentID, userID uint64, si
 
 func (ctrl Attachment) serve(ctx context.Context, namespaceID, attachmentID uint64, preview, download bool) (interface{}, error) {
 	return func(w http.ResponseWriter, req *http.Request) {
-		att, err := ctrl.attachment.With(ctx).FindByID(namespaceID, attachmentID)
+		att, err := ctrl.attachment.FindByID(ctx, namespaceID, attachmentID)
 		if err != nil {
 			// Simplify error handling for now
 			w.WriteHeader(http.StatusNotFound)

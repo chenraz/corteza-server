@@ -215,6 +215,10 @@ endpoints:
         type: string
         title: Script to execute
         required: true
+      - name: args
+        type: map[string]interface{}
+        parser: parseMapStringInterface
+        title: Arguments to pass to the script
   - name: listTranslations
     method: GET
     title: List translation
@@ -334,6 +338,10 @@ endpoints:
         name: blocks
         required: false
         title: Blocks JSON
+      - type: sqlxTypes.JSONText
+        name: config
+        required: false
+        title: Config JSON
   - name: read
     path: "/{pageID}"
     method: GET
@@ -396,6 +404,10 @@ endpoints:
         name: blocks
         required: false
         title: Blocks JSON
+      - type: sqlxTypes.JSONText
+        name: config
+        required: false
+        title: Config JSON
   - name: reorder
     method: POST
     title: Reorder pages
@@ -413,14 +425,13 @@ endpoints:
         title: Page ID order
   - name: delete
     path: "/{pageID}"
-    method: Delete
+    method: DELETE
     title: Delete page
     parameters:
       path:
-      - type: uint64
-        name: pageID
-        required: true
-        title: Page ID
+      - { type: uint64, name: pageID, required: true, title: Page ID }
+      get:
+      - { type: string, name: strategy, title: "Page delete strategy (abort, force, rebase, cascade)" }
   - name: upload
     path: "/{pageID}/attachment"
     method: POST
@@ -451,6 +462,10 @@ endpoints:
         type: string
         title: Script to execute
         required: true
+      - name: args
+        type: map[string]interface{}
+        parser: parseMapStringInterface
+        title: Arguments to pass to the script
 
   - name: listTranslations
     method: GET
@@ -623,6 +638,10 @@ endpoints:
         type: string
         title: Script to execute
         required: true
+      - name: args
+        type: map[string]interface{}
+        parser: parseMapStringInterface
+        title: Arguments to pass to the script
   - name: listTranslations
     method: GET
     title: List moudle translation
@@ -922,6 +941,10 @@ endpoints:
         type: string
         title: Script to execute
         required: true
+      - name: args
+        type: map[string]interface{}
+        parser: parseMapStringInterface
+        title: Arguments to pass to the script
 - title: Charts
   path: "/namespace/{namespaceID}/chart"
   entrypoint: chart
@@ -1293,3 +1316,7 @@ endpoints:
         type: string
         title: Script to execute
         required: true
+      - name: args
+        type: map[string]interface{}
+        parser: parseMapStringInterface
+        title: Arguments to pass to the script

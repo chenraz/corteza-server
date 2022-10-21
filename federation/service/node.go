@@ -24,13 +24,15 @@ const (
 )
 
 type (
+	tokenIssuer func(context.Context, auth.Identifiable) (token []byte, err error)
+
 	node struct {
 		store   store.Storer
 		sysUser service.UserService
 
 		actionlog actionlog.Recorder
 
-		tokenEncoder auth.TokenGenerator
+		tokenIssuer tokenIssuer
 
 		name    string
 		host    string
@@ -56,17 +58,17 @@ type (
 	}
 )
 
-func Node(s store.Storer, u service.UserService, al actionlog.Recorder, th auth.TokenHandler, options options.FederationOpt, ac nodeAccessController) *node {
+func Node(s store.Storer, u service.UserService, al actionlog.Recorder, th tokenIssuer, options options.FederationOpt, ac nodeAccessController) *node {
 	return &node{
-		store:        s,
-		sysUser:      u,
-		actionlog:    al,
-		tokenEncoder: th,
-		ac:           ac,
-		name:         options.Label,
-		host:         options.Host,
+		store:       s,
+		sysUser:     u,
+		actionlog:   al,
+		tokenIssuer: th,
+		ac:          ac,
+		name:        options.Label,
+		host:        options.Host,
 
-		// @todo use HTTP_API_BASE_URL (HTTPServerOpt.ApiBaseUrl) to prefix URI path
+		// @todo use HTTP_API_BASE_URL (HttpServerOpt.ApiBaseUrl) to prefix URI path
 		baseURL: "/federation",
 
 		handshaker: HttpHandshake(http.DefaultClient),
@@ -290,9 +292,9 @@ func (svc node) Pair(ctx context.Context, nodeID uint64) error {
 				return err
 			}
 
-			var accessToken string
+			var accessToken []byte
 			// Generate JWT token for the federated user
-			accessToken, err = svc.tokenEncoder.Generate(ctx, u)
+			accessToken, err = svc.tokenIssuer(ctx, u)
 			if err != nil {
 				return err
 			}
@@ -301,7 +303,7 @@ func (svc node) Pair(ctx context.Context, nodeID uint64) error {
 			n.UpdatedAt = now()
 
 			// Start handshake initialization remote node
-			if err = svc.handshaker.Init(ctx, n, accessToken); err != nil {
+			if err = svc.handshaker.Init(ctx, n, string(accessToken)); err != nil {
 				return err
 			}
 
@@ -361,15 +363,17 @@ func (svc node) HandshakeConfirm(ctx context.Context, nodeID uint64) error {
 			return err
 		}
 
-		var accessToken string
 		// Generate JWT token for the federated user
-		accessToken, err = svc.tokenEncoder.Generate(ctx, u)
+		var accessToken []byte
+		if accessToken, err = svc.tokenIssuer(ctx, u); err != nil {
+			return fmt.Errorf("could not confirm handshake: %w", err)
+		}
 
 		n.UpdatedBy = auth.GetIdentityFromContext(ctx).Identity()
 		n.UpdatedAt = now()
 
 		// Complete handshake on remote node
-		if err = svc.handshaker.Complete(ctx, n, accessToken); err != nil {
+		if err = svc.handshaker.Complete(ctx, n, string(accessToken)); err != nil {
 			return err
 		}
 

@@ -1,17 +1,15 @@
 package apigw
 
 import (
-	"bytes"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
-	"net/http/httputil"
 	"time"
 
 	actx "github.com/cortezaproject/corteza-server/pkg/apigw/ctx"
+	"github.com/cortezaproject/corteza-server/pkg/apigw/profiler"
 	"github.com/cortezaproject/corteza-server/pkg/apigw/types"
 	"github.com/cortezaproject/corteza-server/pkg/auth"
+	h "github.com/cortezaproject/corteza-server/pkg/http"
 	"github.com/cortezaproject/corteza-server/pkg/options"
 	"go.uber.org/zap"
 )
@@ -23,8 +21,9 @@ type (
 		method   string
 		meta     routeMeta
 
-		opts *options.ApigwOpt
+		opts options.ApigwOpt
 		log  *zap.Logger
+		pr   *profiler.Profiler
 
 		handler    http.Handler
 		errHandler types.ErrorHandlerFunc
@@ -39,33 +38,56 @@ type (
 func (r route) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	var (
 		ctx   = auth.SetIdentityToContext(req.Context(), auth.ServiceUser())
-		scope = types.Scp{}
 		start = time.Now()
+		scope = types.Scp{}
+		hit   = &profiler.Hit{}
 	)
 
 	r.log.Debug("started serving route")
 
-	b, _ := io.ReadAll(req.Body)
-	body := string(b)
+	ar, err := h.NewRequest(req)
 
-	// write again
-	req.Body = ioutil.NopCloser(bytes.NewBuffer(b))
+	if err != nil {
+		r.log.Error("could not get initial request", zap.Error(err))
+	}
 
 	scope.Set("opts", r.opts)
-	scope.Set("payload", body)
+	scope.Set("request", ar)
 
-	if r.opts.LogEnabled {
-		o, _ := httputil.DumpRequest(req, r.opts.LogRequestBody)
-		r.log.Debug("incoming request", zap.Any("request", string(o)))
+	// use profiler, override any profiling prefilter
+	if r.opts.ProfilerEnabled && r.opts.ProfilerGlobal {
+		// add request to profiler
+		hit = r.pr.Hit(ar)
+		hit.Route = r.ID
 	}
 
 	req = req.WithContext(actx.ScopeToContext(ctx, &scope))
+	req = req.WithContext(actx.ProfilerToContext(req.Context(), hit))
 
 	r.handler.ServeHTTP(w, req)
 
 	r.log.Debug("finished serving route",
 		zap.Duration("duration", time.Since(start)),
 	)
+
+	if !r.opts.ProfilerEnabled {
+		return
+	}
+
+	if r.opts.ProfilerGlobal {
+		r.pr.Push(hit)
+		return
+	}
+
+	if hit = actx.ProfilerFromContext(req.Context()); hit != nil && hit.R != nil {
+		// updated hit from a possible prefilter
+		// we need to push route ID even if the profiler is disabled
+		hit.Route = r.ID
+		hit.Status = http.StatusOK
+
+		r.pr.Push(hit)
+		r.log.Debug("pushing request to profiler")
+	}
 }
 
 func (r route) String() string {

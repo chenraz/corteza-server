@@ -199,12 +199,6 @@ func (svc user) FindByHandle(ctx context.Context, handle string) (u *types.User,
 }
 
 // FindByAny finds user by given identifier (context, id, handle, email)
-//
-// This function goes against the context anti (!!!) pattern we're using
-// (and trying to get rid of)
-//
-// Main reason to push ctx here as the 1st arg is allow (simple) interface definition
-// in the consumers that reside under the pkg/
 func (svc user) FindByAny(ctx context.Context, identifier interface{}) (u *types.User, err error) {
 	if ctx, ok := identifier.(context.Context); ok {
 		identifier = internalAuth.GetIdentityFromContext(ctx).Identity()
@@ -697,7 +691,7 @@ func (svc user) SetPassword(ctx context.Context, userID uint64, newPassword stri
 		a       = UserActionSetPassword
 	)
 
-	err = func() error {
+	err = func() (err error) {
 		if u, err = store.LookupUserByID(ctx, svc.store, userID); err != nil {
 			return err
 		}
@@ -712,6 +706,10 @@ func (svc user) SetPassword(ctx context.Context, userID uint64, newPassword stri
 			return UserErrNotAllowedToUpdate()
 		}
 
+		if err = svc.auth.RemoveAccessTokens(ctx, u); err != nil {
+			return
+		}
+
 		if newPassword == "" {
 			a = UserActionRemovePassword
 			return svc.auth.RemovePasswordCredentials(ctx, userID)
@@ -721,8 +719,8 @@ func (svc user) SetPassword(ctx context.Context, userID uint64, newPassword stri
 			return UserErrPasswordNotSecure()
 		}
 
-		if err := svc.auth.SetPasswordCredentials(ctx, userID, newPassword); err != nil {
-			return err
+		if err = svc.auth.SetPasswordCredentials(ctx, userID, newPassword); err != nil {
+			return
 		}
 
 		return nil

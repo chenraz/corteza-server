@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/cortezaproject/corteza-server/auth/external"
 	"github.com/cortezaproject/corteza-server/auth/request"
@@ -51,11 +52,12 @@ type (
 	}
 
 	userService interface {
+		FindByAny(ctx context.Context, identifier interface{}) (*types.User, error)
 		Update(context.Context, *types.User) (*types.User, error)
 	}
 
 	clientService interface {
-		LookupByID(context.Context, uint64) (*types.AuthClient, error)
+		Lookup(context.Context, interface{}) (*types.AuthClient, error)
 		Confirmed(context.Context, uint64) (types.AuthConfirmedClientSet, error)
 		Revoke(ctx context.Context, userID, clientID uint64) error
 	}
@@ -134,6 +136,20 @@ const (
 	TmplMfaTotp                  = "mfa-totp.html.tpl"
 	TmplMfaTotpDisable           = "mfa-totp-disable.html.tpl"
 	TmplInternalError            = "error-internal.html.tpl"
+
+	// 1k of data per POST field is all we allow
+	maxPostValueLength = 2 << 9
+
+	// general limitation on number of fields
+	maxPostFields = 10
+)
+
+var (
+	// wrapper around time.Now() that will aid service testing
+	now = func() *time.Time {
+		c := time.Now()
+		return &c
+	}
 )
 
 func init() {
@@ -146,6 +162,7 @@ func init() {
 // handles auth request and prepares request struct with request, session and response helper
 func (h *AuthHandlers) handle(fn handlerFn) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		var (
 			req = &request.AuthReq{
 				Response:   w,
@@ -166,6 +183,11 @@ func (h *AuthHandlers) handle(fn handlerFn) http.HandlerFunc {
 
 		err := func() (err error) {
 			if err = r.ParseForm(); err != nil {
+				return
+			}
+
+			if !validFormPost(r) {
+				req.Status = http.StatusRequestEntityTooLarge
 				return
 			}
 
@@ -412,4 +434,30 @@ func anonyOnly(fn handlerFn) handlerFn {
 
 func translator(req *request.AuthReq, ns string) func(key string, rr ...string) string {
 	return req.Locale.NS(req.Context(), ns)
+}
+
+// general validation of posted data
+//
+// quite primitive for now but should be effective against out-of-bounds attacks
+//
+// in the future, more sophisticated validation might be needed
+func validFormPost(r *http.Request) bool {
+	if len(r.Form) > maxPostFields {
+		// auth does not have any large forms
+		return false
+	}
+
+	// None of the values from the post fields should be longer than max length
+	for k, _ := range r.Form {
+		if len(r.Form[k]) > 1 {
+			// assuming only one value per field!
+			return false
+		}
+
+		if len(r.Form[k][0]) > maxPostValueLength {
+			return false
+		}
+	}
+
+	return true
 }

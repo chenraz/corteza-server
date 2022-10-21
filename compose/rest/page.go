@@ -40,7 +40,7 @@ type (
 
 			Create(ctx context.Context, page *types.Page) (*types.Page, error)
 			Update(ctx context.Context, page *types.Page) (*types.Page, error)
-			DeleteByID(ctx context.Context, namespaceID, pageID uint64) error
+			DeleteByID(ctx context.Context, namespaceID, pageID uint64, pds types.PageChildrenDeleteStrategy) error
 
 			Reorder(ctx context.Context, namespaceID, selfID uint64, pageIDs []uint64) error
 		}
@@ -115,11 +115,18 @@ func (ctrl *Page) Create(ctx context.Context, r *request.PageCreate) (interface{
 		}
 	)
 
+	if len(r.Config) > 2 {
+		if err = r.Config.Unmarshal(&mod.Config); err != nil {
+			return nil, err
+		}
+	}
+
 	if len(r.Blocks) > 2 {
 		if err = r.Blocks.Unmarshal(&mod.Blocks); err != nil {
 			return nil, err
 		}
 	}
+
 	mod, err = ctrl.page.Create(ctx, mod)
 	return ctrl.makePayload(ctx, mod, err)
 }
@@ -158,7 +165,17 @@ func (ctrl *Page) Update(ctx context.Context, r *request.PageUpdate) (interface{
 		}
 	)
 
+	if len(r.Config) > 2 {
+		// Process config if it was included in the request
+		// if not, do not assume that config has been removed!
+		if err = r.Config.Unmarshal(&mod.Config); err != nil {
+			return nil, err
+		}
+	}
+
 	if len(r.Blocks) > 2 {
+		// Process blocks if they were included in the request
+		// if not, do not assume that blocks were removed!
 		if err = r.Blocks.Unmarshal(&mod.Blocks); err != nil {
 			return nil, err
 		}
@@ -169,7 +186,18 @@ func (ctrl *Page) Update(ctx context.Context, r *request.PageUpdate) (interface{
 }
 
 func (ctrl *Page) Delete(ctx context.Context, r *request.PageDelete) (interface{}, error) {
-	return api.OK(), ctrl.page.DeleteByID(ctx, r.NamespaceID, r.PageID)
+	var strategy types.PageChildrenDeleteStrategy
+
+	switch aux := types.PageChildrenDeleteStrategy(r.Strategy); aux {
+	case types.PageChildrenOnDeleteForce,
+		types.PageChildrenOnDeleteRebase,
+		types.PageChildrenOnDeleteCascade:
+		strategy = aux
+	default:
+		strategy = types.PageChildrenOnDeleteAbort
+	}
+
+	return api.OK(), ctrl.page.DeleteByID(ctx, r.NamespaceID, r.PageID, strategy)
 }
 
 func (ctrl *Page) Upload(ctx context.Context, r *request.PageUpload) (interface{}, error) {
@@ -180,7 +208,8 @@ func (ctrl *Page) Upload(ctx context.Context, r *request.PageUpload) (interface{
 
 	defer file.Close()
 
-	a, err := ctrl.attachment.With(ctx).CreatePageAttachment(
+	a, err := ctrl.attachment.CreatePageAttachment(
+		ctx,
 		r.NamespaceID,
 		r.Upload.Filename,
 		r.Upload.Size,
@@ -205,7 +234,7 @@ func (ctrl *Page) TriggerScript(ctx context.Context, r *request.PageTriggerScrip
 	}
 
 	// @todo implement same behaviour as we have on record - page+oldPage
-	err = corredor.Service().Exec(ctx, r.Script, event.PageOnManual(page, page, namespace, nil))
+	err = corredor.Service().Exec(ctx, r.Script, corredor.ExtendScriptArgs(event.PageOnManual(page, page, namespace, nil), r.Args))
 	return ctrl.makePayload(ctx, page, err)
 }
 

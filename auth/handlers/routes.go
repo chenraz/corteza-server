@@ -3,10 +3,10 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/cortezaproject/corteza-server/auth/request"
 	"github.com/cortezaproject/corteza-server/pkg/actionlog"
+	"github.com/cortezaproject/corteza-server/pkg/auth"
 	"github.com/cortezaproject/corteza-server/pkg/locale"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
 	"github.com/gorilla/csrf"
 )
@@ -36,7 +36,7 @@ func (h *AuthHandlers) MountHttpRoutes(r chi.Router) {
 			r.Use(httprate.LimitByIP(h.Opt.RequestRateLimit, h.Opt.RequestRateWindowLength))
 		}
 
-		r.Use(request.ExtraReqInfoMiddleware)
+		r.Use(auth.ExtraReqInfoMiddleware)
 
 		r.Group(func(r chi.Router) {
 			// all routes protected with CSRF:
@@ -137,5 +137,6 @@ func (h *AuthHandlers) MountHttpRoutes(r chi.Router) {
 
 		r.HandleFunc("/auth/oauth2/token", h.handle(h.oauth2Token))
 		r.HandleFunc("/auth/oauth2/info", h.oauth2Info)
+		r.HandleFunc("/auth/oauth2/public-keys", h.oauth2PublicKeys)
 	})
 }

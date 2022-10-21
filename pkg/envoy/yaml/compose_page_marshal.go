@@ -2,6 +2,7 @@ package yaml
 
 import (
 	"context"
+	"strconv"
 
 	automationTypes "github.com/cortezaproject/corteza-server/automation/types"
 	composeTypes "github.com/cortezaproject/corteza-server/compose/types"
@@ -59,26 +60,29 @@ func (n *composePage) Prepare(ctx context.Context, state *envoy.ResourceState) (
 				switch ref.ResourceType {
 				case composeTypes.ModuleResourceType:
 					relMod := resource.FindComposeModule(state.ParentResources, ref.Identifiers)
-					cpb.relMod = append(cpb.relMod, relMod)
-					if cpb.relMod == nil {
+					if relMod == nil {
 						return resource.ComposeModuleErrUnresolved(ref.Identifiers)
 					}
+
+					cpb.relMod = append(cpb.relMod, relMod)
 					cpb.refMod = append(cpb.refMod, relModToRef(relMod))
 
 				case automationTypes.WorkflowResourceType:
 					relWf := resource.FindAutomationWorkflow(state.ParentResources, ref.Identifiers)
-					cpb.relWf = append(cpb.relWf, relWf)
-					if cpb.relWf == nil {
+					if relWf == nil {
 						return resource.AutomationWorkflowErrUnresolved(ref.Identifiers)
 					}
+
+					cpb.relWf = append(cpb.relWf, relWf)
 					cpb.refWf = append(cpb.refWf, relWfToRef(relWf))
 
 				case composeTypes.ChartResourceType:
 					relChart := resource.FindComposeChart(state.ParentResources, ref.Identifiers)
-					cpb.relChart = append(cpb.relChart, relChart)
-					if cpb.relChart == nil {
+					if relChart == nil {
 						return resource.ComposeChartErrUnresolved(ref.Identifiers)
 					}
+
+					cpb.relChart = append(cpb.relChart, relChart)
 					cpb.refChart = append(cpb.refChart, relChartToRef(relChart))
 
 				default:
@@ -135,14 +139,14 @@ func (p *composePage) MarshalYAML() (interface{}, error) {
 	nn, _ := makeMap()
 
 	if p.relMod != nil {
-		nn, err = addMap(nn, "module", firstOkString(p.relMod.Handle, p.relMod.Name))
+		nn, err = addMap(nn, "module", firstOkString(p.relMod.Handle, strconv.FormatUint(p.relMod.ID, 10)))
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if p.relParent != nil {
-		nn, err = addMap(nn, "parent", firstOkString(p.relParent.Handle, p.relParent.Title))
+		nn, err = addMap(nn, "parent", firstOkString(p.relParent.Handle, strconv.FormatUint(p.relParent.ID, 10)))
 		if err != nil {
 			return nil, err
 		}
@@ -188,17 +192,26 @@ func (c *composePageBlock) MarshalYAML() (interface{}, error) {
 	opt := c.res.Options
 	switch c.res.Kind {
 	case "RecordList":
-		opt["moduleID"] = c.refMod[0]
+		delete(opt, "moduleID")
+		if len(c.refMod) > 0 {
+			opt["moduleID"] = c.refMod[0]
+		}
 		delete(opt, "module")
 		break
 
 	case "RecordOrganizer":
-		opt["moduleID"] = c.refMod[0]
+		delete(opt, "moduleID")
+		if len(c.refMod) > 0 {
+			opt["moduleID"] = c.refMod[0]
+		}
 		delete(opt, "module")
 		break
 
 	case "Chart":
-		opt["chartID"] = c.refChart[0]
+		delete(opt, "chartID")
+		if len(c.refChart) > 0 {
+			opt["chartID"] = c.refChart[0]
+		}
 		delete(opt, "chart")
 		break
 
@@ -237,7 +250,10 @@ func (c *composePageBlock) MarshalYAML() (interface{}, error) {
 		break
 
 	case "Comment":
-		opt["moduleID"] = c.refMod[0]
+		delete(opt, "moduleID")
+		if len(c.refMod) > 0 {
+			opt["moduleID"] = c.refMod[0]
+		}
 		delete(opt, "module")
 		break
 

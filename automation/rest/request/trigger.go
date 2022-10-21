@@ -15,7 +15,7 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/expr"
 	"github.com/cortezaproject/corteza-server/pkg/label"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -468,7 +468,7 @@ func (r TriggerCreate) GetOwnedBy() uint64 {
 // Fill processes request and fills internal variables
 func (r *TriggerCreate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -476,6 +476,105 @@ func (r *TriggerCreate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["eventType"]; ok && len(val) > 0 {
+				r.EventType, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["resourceType"]; ok && len(val) > 0 {
+				r.ResourceType, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["enabled"]; ok && len(val) > 0 {
+				r.Enabled, err = payload.ParseBool(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["workflowID"]; ok && len(val) > 0 {
+				r.WorkflowID, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["workflowStepID"]; ok && len(val) > 0 {
+				r.WorkflowStepID, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["input[]"]; ok {
+				r.Input, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["input"]; ok {
+				r.Input, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["meta[]"]; ok {
+				r.Meta, err = types.ParseTriggerMeta(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["meta"]; ok {
+				r.Meta, err = types.ParseTriggerMeta(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["constraints[]"]; ok {
+				r.Constraints, err = types.ParseTriggerConstraintSet(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["constraints"]; ok {
+				r.Constraints, err = types.ParseTriggerConstraintSet(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["ownedBy"]; ok && len(val) > 0 {
+				r.OwnedBy, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -660,7 +759,7 @@ func (r TriggerUpdate) GetOwnedBy() uint64 {
 // Fill processes request and fills internal variables
 func (r *TriggerUpdate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -668,6 +767,105 @@ func (r *TriggerUpdate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["eventType"]; ok && len(val) > 0 {
+				r.EventType, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["resourceType"]; ok && len(val) > 0 {
+				r.ResourceType, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["enabled"]; ok && len(val) > 0 {
+				r.Enabled, err = payload.ParseBool(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["workflowID"]; ok && len(val) > 0 {
+				r.WorkflowID, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["workflowStepID"]; ok && len(val) > 0 {
+				r.WorkflowStepID, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["input[]"]; ok {
+				r.Input, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["input"]; ok {
+				r.Input, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["meta[]"]; ok {
+				r.Meta, err = types.ParseTriggerMeta(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["meta"]; ok {
+				r.Meta, err = types.ParseTriggerMeta(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["constraints[]"]; ok {
+				r.Constraints, err = types.ParseTriggerConstraintSet(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["constraints"]; ok {
+				r.Constraints, err = types.ParseTriggerConstraintSet(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["ownedBy"]; ok && len(val) > 0 {
+				r.OwnedBy, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 

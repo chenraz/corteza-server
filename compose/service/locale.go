@@ -14,7 +14,8 @@ import (
 
 func (svc resourceTranslationsManager) moduleExtended(ctx context.Context, res *types.Module) (out locale.ResourceTranslationSet, err error) {
 	var (
-		k types.LocaleKey
+		k   types.LocaleKey
+		set locale.ResourceTranslationSet
 	)
 
 	for _, tag := range svc.locale.Tags() {
@@ -27,29 +28,14 @@ func (svc resourceTranslationsManager) moduleExtended(ctx context.Context, res *
 				Msg:      svc.locale.TResourceFor(tag, f.ResourceTranslation(), k.Path),
 			})
 
-			k = types.LocaleKeyModuleFieldDescriptionView
+			k = types.LocaleKeyModuleFieldMetaDescriptionView
 			out = append(out, &locale.ResourceTranslation{
 				Resource: f.ResourceTranslation(),
 				Lang:     tag.String(),
 				Key:      k.Path,
 				Msg:      svc.locale.TResourceFor(tag, f.ResourceTranslation(), k.Path),
 			})
-			k = types.LocaleKeyModuleFieldDescriptionEdit
-			out = append(out, &locale.ResourceTranslation{
-				Resource: f.ResourceTranslation(),
-				Lang:     tag.String(),
-				Key:      k.Path,
-				Msg:      svc.locale.TResourceFor(tag, f.ResourceTranslation(), k.Path),
-			})
-
-			k = types.LocaleKeyModuleFieldHintView
-			out = append(out, &locale.ResourceTranslation{
-				Resource: f.ResourceTranslation(),
-				Lang:     tag.String(),
-				Key:      k.Path,
-				Msg:      svc.locale.TResourceFor(tag, f.ResourceTranslation(), k.Path),
-			})
-			k = types.LocaleKeyModuleFieldHintEdit
+			k = types.LocaleKeyModuleFieldMetaDescriptionEdit
 			out = append(out, &locale.ResourceTranslation{
 				Resource: f.ResourceTranslation(),
 				Lang:     tag.String(),
@@ -57,19 +43,47 @@ func (svc resourceTranslationsManager) moduleExtended(ctx context.Context, res *
 				Msg:      svc.locale.TResourceFor(tag, f.ResourceTranslation(), k.Path),
 			})
 
-			// Extra field bits
-			converted, err := svc.moduleFieldValidatorErrorHandler(ctx, tag, f, k.Path)
+			k = types.LocaleKeyModuleFieldMetaHintView
+			out = append(out, &locale.ResourceTranslation{
+				Resource: f.ResourceTranslation(),
+				Lang:     tag.String(),
+				Key:      k.Path,
+				Msg:      svc.locale.TResourceFor(tag, f.ResourceTranslation(), k.Path),
+			})
+			k = types.LocaleKeyModuleFieldMetaHintEdit
+			out = append(out, &locale.ResourceTranslation{
+				Resource: f.ResourceTranslation(),
+				Lang:     tag.String(),
+				Key:      k.Path,
+				Msg:      svc.locale.TResourceFor(tag, f.ResourceTranslation(), k.Path),
+			})
+
+			// Expressions
+			set, err = svc.moduleFieldExpressionsHandler(ctx, tag, f)
 			if err != nil {
 				return nil, err
 			}
-			out = append(out, converted...)
+			out = append(out, set...)
+
+			// Extra field bits
+			set, err = svc.moduleFieldOptionsHandler(ctx, tag, f)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, set...)
+
+			set, err = svc.moduleFieldBoolHandler(ctx, tag, f)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, set...)
 		}
 	}
 
 	return out, nil
 }
 
-func (svc resourceTranslationsManager) moduleFieldValidatorErrorHandler(ctx context.Context, tag language.Tag, f *types.ModuleField, k string) (locale.ResourceTranslationSet, error) {
+func (svc resourceTranslationsManager) moduleFieldExpressionsHandler(ctx context.Context, tag language.Tag, f *types.ModuleField) (locale.ResourceTranslationSet, error) {
 	out := make(locale.ResourceTranslationSet, 0, 10)
 
 	for i, v := range f.Expressions.Validators {
@@ -77,7 +91,8 @@ func (svc resourceTranslationsManager) moduleFieldValidatorErrorHandler(ctx cont
 		rpl := strings.NewReplacer(
 			"{{validatorID}}", strconv.FormatUint(vContentID, 10),
 		)
-		tKey := rpl.Replace(k)
+
+		tKey := rpl.Replace(types.LocaleKeyModuleFieldExpressionValidatorValidatorIDError.Path)
 
 		out = append(out, &locale.ResourceTranslation{
 			Resource: f.ResourceTranslation(),
@@ -90,9 +105,78 @@ func (svc resourceTranslationsManager) moduleFieldValidatorErrorHandler(ctx cont
 	return out, nil
 }
 
+func (svc resourceTranslationsManager) moduleFieldOptionsHandler(ctx context.Context, tag language.Tag, f *types.ModuleField) (locale.ResourceTranslationSet, error) {
+	out := make(locale.ResourceTranslationSet, 0, 10)
+
+	optsUnknown, has := f.Options["options"]
+	if !has {
+		return nil, nil
+	}
+
+	optsSlice, is := optsUnknown.([]interface{})
+	if !is {
+		return nil, nil
+	}
+
+	for _, optUnknown := range optsSlice {
+		var value string
+
+		// what is this we're dealing with?
+		// slice of strings (values) or map (value+text)
+		switch opt := optUnknown.(type) {
+		case string:
+			value = opt
+
+		case map[string]interface{}:
+			value, is = opt["value"].(string)
+			if !is {
+				continue
+			}
+		}
+
+		trKey := strings.NewReplacer("{{value}}", value).Replace(types.LocaleKeyModuleFieldMetaOptionsValueText.Path)
+
+		out = append(out, &locale.ResourceTranslation{
+			Resource: f.ResourceTranslation(),
+			Lang:     tag.String(),
+			Key:      trKey,
+			Msg:      svc.locale.TResourceFor(tag, f.ResourceTranslation(), trKey),
+		})
+	}
+
+	return out, nil
+}
+
+func (svc resourceTranslationsManager) moduleFieldBoolHandler(ctx context.Context, tag language.Tag, f *types.ModuleField) (locale.ResourceTranslationSet, error) {
+	if f.Kind != "Bool" {
+		return nil, nil
+	}
+
+	out := make(locale.ResourceTranslationSet, 0, 2)
+
+	trKey := strings.NewReplacer("{{value}}", "true").Replace(types.LocaleKeyModuleFieldMetaBoolValueLabel.Path)
+	out = append(out, &locale.ResourceTranslation{
+		Resource: f.ResourceTranslation(),
+		Lang:     tag.String(),
+		Key:      trKey,
+		Msg:      svc.locale.TResourceFor(tag, f.ResourceTranslation(), trKey),
+	})
+
+	trKey = strings.NewReplacer("{{value}}", "false").Replace(types.LocaleKeyModuleFieldMetaBoolValueLabel.Path)
+	out = append(out, &locale.ResourceTranslation{
+		Resource: f.ResourceTranslation(),
+		Lang:     tag.String(),
+		Key:      trKey,
+		Msg:      svc.locale.TResourceFor(tag, f.ResourceTranslation(), trKey),
+	})
+
+	return out, nil
+}
+
 func (svc resourceTranslationsManager) pageExtended(ctx context.Context, res *types.Page) (out locale.ResourceTranslationSet, err error) {
 	var (
-		k types.LocaleKey
+		k   types.LocaleKey
+		aux []*locale.ResourceTranslation
 	)
 
 	for _, tag := range svc.locale.Tags() {
@@ -103,7 +187,7 @@ func (svc resourceTranslationsManager) pageExtended(ctx context.Context, res *ty
 			)
 
 			// base stuff
-			k = types.LocaleKeyPageBlockTitle
+			k = types.LocaleKeyPagePageBlockBlockIDTitle
 			out = append(out, &locale.ResourceTranslation{
 				Resource: res.ResourceTranslation(),
 				Lang:     tag.String(),
@@ -111,7 +195,7 @@ func (svc resourceTranslationsManager) pageExtended(ctx context.Context, res *ty
 				Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), rpl.Replace(k.Path)),
 			})
 
-			k = types.LocaleKeyPageBlockDescription
+			k = types.LocaleKeyPagePageBlockBlockIDDescription
 			out = append(out, &locale.ResourceTranslation{
 				Resource: res.ResourceTranslation(),
 				Lang:     tag.String(),
@@ -121,12 +205,21 @@ func (svc resourceTranslationsManager) pageExtended(ctx context.Context, res *ty
 
 			switch block.Kind {
 			case "Automation":
-				aux, err := svc.pageExtendedAutomatinBlock(tag, res, block, pbContentID, k)
+				aux, err = svc.pageExtendedAutomationBlock(tag, res, block, pbContentID)
 				if err != nil {
 					return nil, err
 				}
 
 				out = append(out, aux...)
+			case "Content":
+				k = types.LocaleKeyPagePageBlockBlockIDContentBody
+				out = append(out, &locale.ResourceTranslation{
+					Resource: res.ResourceTranslation(),
+					Lang:     tag.String(),
+					Key:      rpl.Replace(k.Path),
+					Msg:      svc.locale.TResourceFor(tag, res.ResourceTranslation(), rpl.Replace(k.Path)),
+				})
+
 			}
 		}
 	}
@@ -134,10 +227,13 @@ func (svc resourceTranslationsManager) pageExtended(ctx context.Context, res *ty
 	return
 }
 
-func (svc resourceTranslationsManager) pageExtendedAutomatinBlock(tag language.Tag, res *types.Page, block types.PageBlock, blockID uint64, k types.LocaleKey) (locale.ResourceTranslationSet, error) {
-	out := make(locale.ResourceTranslationSet, 0, 10)
+func (svc resourceTranslationsManager) pageExtendedAutomationBlock(tag language.Tag, res *types.Page, block types.PageBlock, blockID uint64) (locale.ResourceTranslationSet, error) {
+	var (
+		k     = types.LocaleKeyPagePageBlockBlockIDButtonButtonIDLabel
+		out   = make(locale.ResourceTranslationSet, 0, 10)
+		bb, _ = block.Options["buttons"].([]interface{})
+	)
 
-	bb, _ := block.Options["buttons"].([]interface{})
 	for j, auxBtn := range bb {
 		btn := auxBtn.(map[string]interface{})
 

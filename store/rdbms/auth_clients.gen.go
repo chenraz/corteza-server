@@ -73,7 +73,7 @@ func (s Store) SearchAuthClients(ctx context.Context, f types.AuthClientFilter) 
 		}
 
 		// Apply sorting expr from filter to query
-		if q, err = setOrderBy(q, sort, s.sortableAuthClientColumns()); err != nil {
+		if q, err = setOrderBy(q, sort, s.sortableAuthClientColumns(), s.Config().SqlSortHandler); err != nil {
 			return err
 		}
 
@@ -443,32 +443,27 @@ func (s Store) execDeleteAuthClients(ctx context.Context, cnd squirrel.Sqlizer) 
 func (s Store) internalAuthClientRowScanner(row rowScanner) (res *types.AuthClient, err error) {
 	res = &types.AuthClient{}
 
-	if _, has := s.config.RowScanners["authClient"]; has {
-		scanner := s.config.RowScanners["authClient"].(func(_ rowScanner, _ *types.AuthClient) error)
-		err = scanner(row, res)
-	} else {
-		err = row.Scan(
-			&res.ID,
-			&res.Handle,
-			&res.Meta,
-			&res.Secret,
-			&res.Scope,
-			&res.ValidGrant,
-			&res.RedirectURI,
-			&res.Trusted,
-			&res.Enabled,
-			&res.ValidFrom,
-			&res.ExpiresAt,
-			&res.Security,
-			&res.OwnedBy,
-			&res.CreatedBy,
-			&res.UpdatedBy,
-			&res.DeletedBy,
-			&res.CreatedAt,
-			&res.UpdatedAt,
-			&res.DeletedAt,
-		)
-	}
+	err = row.Scan(
+		&res.ID,
+		&res.Handle,
+		&res.Meta,
+		&res.Secret,
+		&res.Scope,
+		&res.ValidGrant,
+		&res.RedirectURI,
+		&res.Trusted,
+		&res.Enabled,
+		&res.ValidFrom,
+		&res.ExpiresAt,
+		&res.Security,
+		&res.OwnedBy,
+		&res.CreatedBy,
+		&res.UpdatedBy,
+		&res.DeletedBy,
+		&res.CreatedAt,
+		&res.UpdatedAt,
+		&res.DeletedAt,
+	)
 
 	if err == sql.ErrNoRows {
 		return nil, store.ErrNotFound.Stack(1)

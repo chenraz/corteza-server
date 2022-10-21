@@ -41,6 +41,13 @@ func (h httpRequestHandler) send(ctx context.Context, args *httpRequestSendArgs)
 		return nil, err
 	}
 
+	if args.Timeout > 0 {
+		var tfn context.CancelFunc
+		ctx, tfn = context.WithTimeout(ctx, args.Timeout)
+		req = req.WithContext(ctx)
+		defer tfn()
+	}
+
 	rsp, err = http.DefaultClient.Do(req)
 	if err != nil {
 		return
@@ -113,12 +120,6 @@ func (h httpRequestHandler) makeRequest(ctx context.Context, args *httpRequestSe
 		return nil, err
 	}
 
-	if args.Timeout > 0 {
-		var tfn context.CancelFunc
-		ctx, tfn = context.WithTimeout(ctx, args.Timeout)
-		defer tfn()
-	}
-
 	if args.hasParams {
 		purl, err := url.Parse(args.Url)
 		if err != nil {
@@ -144,21 +145,18 @@ func (h httpRequestHandler) makeRequest(ctx context.Context, args *httpRequestSe
 
 	args.Headers.Set("User-Agent", args.HeaderUserAgent)
 
-	switch {
-	case len(args.HeaderAuthBearer) > 0:
-		args.Headers.Add("Authorization", "Bearer "+args.HeaderAuthBearer)
-	case len(args.HeaderAuthPassword+args.HeaderAuthPassword) > 0:
-		req.SetBasicAuth(
-			args.HeaderAuthPassword,
-			args.HeaderAuthPassword,
-		)
-	}
-
 	if len(args.HeaderContentType) > 0 {
 		args.Headers.Add("Content-Type", args.HeaderContentType)
 	}
 
 	req.Header = args.Headers
+
+	switch {
+	case len(args.HeaderAuthBearer) > 0:
+		req.Header.Add("Authorization", "Bearer "+args.HeaderAuthBearer)
+	case len(args.HeaderAuthUsername+args.HeaderAuthPassword) > 0:
+		req.SetBasicAuth(args.HeaderAuthUsername, args.HeaderAuthPassword)
+	}
 
 	return
 }

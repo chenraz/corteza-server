@@ -15,7 +15,7 @@ import (
 	"github.com/cortezaproject/corteza-server/pkg/expr"
 	"github.com/cortezaproject/corteza-server/pkg/label"
 	"github.com/cortezaproject/corteza-server/pkg/payload"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -477,7 +477,7 @@ func (r WorkflowCreate) GetOwnedBy() uint64 {
 // Fill processes request and fills internal variables
 func (r *WorkflowCreate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -485,6 +485,117 @@ func (r *WorkflowCreate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["handle"]; ok && len(val) > 0 {
+				r.Handle, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["meta[]"]; ok {
+				r.Meta, err = types.ParseWorkflowMeta(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["meta"]; ok {
+				r.Meta, err = types.ParseWorkflowMeta(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["enabled"]; ok && len(val) > 0 {
+				r.Enabled, err = payload.ParseBool(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["trace"]; ok && len(val) > 0 {
+				r.Trace, err = payload.ParseBool(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["keepSessions"]; ok && len(val) > 0 {
+				r.KeepSessions, err = payload.ParseInt(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["scope[]"]; ok {
+				r.Scope, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["scope"]; ok {
+				r.Scope, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["steps[]"]; ok {
+				r.Steps, err = types.ParseWorkflowStepSet(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["steps"]; ok {
+				r.Steps, err = types.ParseWorkflowStepSet(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["paths[]"]; ok {
+				r.Paths, err = types.ParseWorkflowPathSet(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["paths"]; ok {
+				r.Paths, err = types.ParseWorkflowPathSet(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["runAs"]; ok && len(val) > 0 {
+				r.RunAs, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["ownedBy"]; ok && len(val) > 0 {
+				r.OwnedBy, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -687,7 +798,7 @@ func (r WorkflowUpdate) GetOwnedBy() uint64 {
 // Fill processes request and fills internal variables
 func (r *WorkflowUpdate) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -695,6 +806,117 @@ func (r *WorkflowUpdate) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["handle"]; ok && len(val) > 0 {
+				r.Handle, err = val[0], nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["labels[]"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["labels"]; ok {
+				r.Labels, err = label.ParseStrings(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["meta[]"]; ok {
+				r.Meta, err = types.ParseWorkflowMeta(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["meta"]; ok {
+				r.Meta, err = types.ParseWorkflowMeta(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["enabled"]; ok && len(val) > 0 {
+				r.Enabled, err = payload.ParseBool(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["trace"]; ok && len(val) > 0 {
+				r.Trace, err = payload.ParseBool(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["keepSessions"]; ok && len(val) > 0 {
+				r.KeepSessions, err = payload.ParseInt(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["scope[]"]; ok {
+				r.Scope, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["scope"]; ok {
+				r.Scope, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["steps[]"]; ok {
+				r.Steps, err = types.ParseWorkflowStepSet(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["steps"]; ok {
+				r.Steps, err = types.ParseWorkflowStepSet(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["paths[]"]; ok {
+				r.Paths, err = types.ParseWorkflowPathSet(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["paths"]; ok {
+				r.Paths, err = types.ParseWorkflowPathSet(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["runAs"]; ok && len(val) > 0 {
+				r.RunAs, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["ownedBy"]; ok && len(val) > 0 {
+				r.OwnedBy, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -960,7 +1182,7 @@ func (r WorkflowTest) GetRunAs() bool {
 // Fill processes request and fills internal variables
 func (r *WorkflowTest) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -968,6 +1190,34 @@ func (r *WorkflowTest) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["scope[]"]; ok {
+				r.Scope, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["scope"]; ok {
+				r.Scope, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["runAs"]; ok && len(val) > 0 {
+				r.RunAs, err = payload.ParseBool(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 
@@ -1063,7 +1313,7 @@ func (r WorkflowExec) GetAsync() bool {
 // Fill processes request and fills internal variables
 func (r *WorkflowExec) Fill(req *http.Request) (err error) {
 
-	if strings.ToLower(req.Header.Get("content-type")) == "application/json" {
+	if strings.HasPrefix(strings.ToLower(req.Header.Get("content-type")), "application/json") {
 		err = json.NewDecoder(req.Body).Decode(r)
 
 		switch {
@@ -1071,6 +1321,55 @@ func (r *WorkflowExec) Fill(req *http.Request) (err error) {
 			err = nil
 		case err != nil:
 			return fmt.Errorf("error parsing http request body: %w", err)
+		}
+	}
+
+	{
+		// Caching 32MB to memory, the rest to disk
+		if err = req.ParseMultipartForm(32 << 20); err != nil && err != http.ErrNotMultipart {
+			return err
+		} else if err == nil {
+			// Multipart params
+
+			if val, ok := req.MultipartForm.Value["stepID"]; ok && len(val) > 0 {
+				r.StepID, err = payload.ParseUint64(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["input[]"]; ok {
+				r.Input, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			} else if val, ok := req.MultipartForm.Value["input"]; ok {
+				r.Input, err = types.ParseWorkflowVariables(val)
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["trace"]; ok && len(val) > 0 {
+				r.Trace, err = payload.ParseBool(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["wait"]; ok && len(val) > 0 {
+				r.Wait, err = payload.ParseBool(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
+
+			if val, ok := req.MultipartForm.Value["async"]; ok && len(val) > 0 {
+				r.Async, err = payload.ParseBool(val[0]), nil
+				if err != nil {
+					return err
+				}
+			}
 		}
 	}
 

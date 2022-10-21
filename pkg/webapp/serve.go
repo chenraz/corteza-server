@@ -12,7 +12,7 @@ import (
 
 	"github.com/cortezaproject/corteza-server/pkg/logger"
 	"github.com/cortezaproject/corteza-server/pkg/options"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
@@ -20,10 +20,11 @@ var (
 	baseHrefMatcher = regexp.MustCompile(`<base\s+href="?.+?"?\s*\/?>`)
 )
 
-func MakeWebappServer(log *zap.Logger, httpSrvOpt options.HTTPServerOpt, authOpt options.AuthOpt) func(r chi.Router) {
+func MakeWebappServer(log *zap.Logger, httpSrvOpt options.HttpServerOpt, authOpt options.AuthOpt, discoveryOpt options.DiscoveryOpt) func(r chi.Router) {
 	var (
-		apiBaseUrl = options.CleanBase(httpSrvOpt.BaseUrl, httpSrvOpt.ApiBaseUrl)
-		apps       = strings.Split(httpSrvOpt.WebappList, ",")
+		apiBaseUrl          = options.CleanBase(httpSrvOpt.BaseUrl, httpSrvOpt.ApiBaseUrl)
+		discoveryApiBaseUrl = discoveryOpt.BaseUrl
+		apps                = strings.Split(httpSrvOpt.WebappList, ",")
 
 		appIndexHTMLs = make(map[string][]byte)
 
@@ -48,18 +49,18 @@ func MakeWebappServer(log *zap.Logger, httpSrvOpt options.HTTPServerOpt, authOpt
 
 		for _, app := range apps {
 			webBaseUrl = options.CleanBase(httpSrvOpt.WebappBaseUrl, app)
-			serveConfig(r, webBaseUrl, apiBaseUrl, authOpt.BaseURL, httpSrvOpt.BaseUrl)
+			serveConfig(r, webBaseUrl, apiBaseUrl, authOpt.BaseURL, httpSrvOpt.BaseUrl, discoveryApiBaseUrl)
 			r.Get(webBaseUrl+"*", serveIndex(httpSrvOpt, appIndexHTMLs[app], fs))
 		}
 
 		webBaseUrl = options.CleanBase(httpSrvOpt.WebappBaseUrl)
-		serveConfig(r, webBaseUrl, apiBaseUrl, authOpt.BaseURL, httpSrvOpt.BaseUrl)
+		serveConfig(r, webBaseUrl, apiBaseUrl, authOpt.BaseURL, httpSrvOpt.BaseUrl, discoveryApiBaseUrl)
 		r.Get(webBaseUrl+"*", serveIndex(httpSrvOpt, appIndexHTMLs[""], fs))
 	}
 }
 
 // Serves index.html in case the requested file isn't found (or some other os.Stat error)
-func serveIndex(opt options.HTTPServerOpt, indexHTML []byte, serve http.Handler) http.HandlerFunc {
+func serveIndex(opt options.HttpServerOpt, indexHTML []byte, serve http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		requestedFile := path.Join(
@@ -94,12 +95,15 @@ func serveIndex(opt options.HTTPServerOpt, indexHTML []byte, serve http.Handler)
 	}
 }
 
-func serveConfig(r chi.Router, appUrl, apiBaseUrl, authBaseUrl, webappBaseUrl string) {
+func serveConfig(r chi.Router, appUrl, apiBaseUrl, authBaseUrl, webappBaseUrl, discoveryApiBaseUrl string) {
 	r.Get(options.CleanBase(appUrl, "config.js"), func(w http.ResponseWriter, r *http.Request) {
 		const line = "window.%s = '%s';\n"
 		_, _ = fmt.Fprintf(w, line, "CortezaAPI", apiBaseUrl)
 		_, _ = fmt.Fprintf(w, line, "CortezaAuth", authBaseUrl)
 		_, _ = fmt.Fprintf(w, line, "CortezaWebapp", webappBaseUrl)
+		if len(discoveryApiBaseUrl) > 0 {
+			_, _ = fmt.Fprintf(w, line, "CortezaDiscoveryAPI", discoveryApiBaseUrl)
+		}
 	})
 }
 

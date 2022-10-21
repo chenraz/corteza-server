@@ -44,6 +44,8 @@ func testComposeRecords(t *testing.T, s store.ComposeRecords) {
 				&types.ModuleField{Kind: "DateTime", Name: "datetime1"},
 				&types.ModuleField{Kind: "DateTime", Name: "datetime2"},
 				&types.ModuleField{Kind: "DateTime", Name: "datetime3"},
+				&types.ModuleField{Kind: "DateTime", Name: "date1", Options: map[string]interface{}{"onlyDate": true}},
+				&types.ModuleField{Kind: "DateTime", Name: "time1", Options: map[string]interface{}{"onlyTime": true}},
 
 				&types.ModuleField{Kind: "Email", Name: "email1"},
 				&types.ModuleField{Kind: "Email", Name: "email2"},
@@ -1567,35 +1569,48 @@ func testComposeRecords(t *testing.T, s store.ComposeRecords) {
 			report []map[string]interface{}
 		)
 
-		report, err = s.ComposeRecordReport(ctx, mod, "MAX(num1)", "QUARTER(dt1)", "")
-		req.NoError(err)
-		req.Len(report, 3)
+		t.Run("base", func(t *testing.T) {
+			report, err = s.ComposeRecordReport(ctx, mod, "MAX(num1)", "QUARTER(dt1)", "")
+			req.NoError(err)
+			req.Len(report, 3)
 
-		// @todo find a way to compare the results
+			// @todo find a way to compare the results
 
-		//expected := []map[string]interface{}{
-		//	{"count": 3, "dimension_0": 1, "metric_0": 3},
-		//	{"count": 2, "dimension_0": 2, "metric_0": 5},
-		//	{"count": 1, "dimension_0": nil, "metric_0": nil},
-		//}
-		//
-		//req.True(
-		//	reflect.DeepEqual(report, expected),
-		//	"report does not match expected results:\n%#v\n%#v", report, expected)
+			//expected := []map[string]interface{}{
+			//	{"count": 3, "dimension_0": 1, "metric_0": 3},
+			//	{"count": 2, "dimension_0": 2, "metric_0": 5},
+			//	{"count": 1, "dimension_0": nil, "metric_0": nil},
+			//}
+			//
+			//req.True(
+			//	reflect.DeepEqual(report, expected),
+			//	"report does not match expected results:\n%#v\n%#v", report, expected)
 
-		report, err = s.ComposeRecordReport(ctx, mod, "COUNT(num1)", "YEAR(dt1)", "")
-		req.NoError(err)
+			report, err = s.ComposeRecordReport(ctx, mod, "COUNT(num1)", "YEAR(dt1)", "")
+			req.NoError(err)
 
-		report, err = s.ComposeRecordReport(ctx, mod, "SUM(num1)", "DATE(dt1)", "")
-		req.NoError(err)
+			report, err = s.ComposeRecordReport(ctx, mod, "SUM(num1)", "DATE(dt1)", "")
+			req.NoError(err)
 
-		report, err = s.ComposeRecordReport(ctx, mod, "MIN(num1)", "DATE(NOW())", "")
-		req.NoError(err)
+			report, err = s.ComposeRecordReport(ctx, mod, "MIN(num1)", "DATE(NOW())", "")
+			req.NoError(err)
 
-		report, err = s.ComposeRecordReport(ctx, mod, "AVG(num1)", "DATE(NOW())", "")
-		req.NoError(err)
+			report, err = s.ComposeRecordReport(ctx, mod, "AVG(num1)", "DATE(NOW())", "")
+			req.NoError(err)
 
-		// Note that not all functions are compatible across all backends
+			// Note that not all functions are compatible across all backends
+		})
+
+		t.Run("date formatting", func(t *testing.T) {
+			report, err = s.ComposeRecordReport(ctx, mod, "MAX(num1)", "DATE_FORMAT(dt1, '%Y-%m-01')", "")
+			req.NoError(err)
+			req.Len(report, 3)
+
+			report, err = s.ComposeRecordReport(ctx, mod, "MAX(num1)", "DATE_FORMAT(dt1, '%Y; %j @ %H %i')", "")
+			req.NoError(err)
+			req.Len(report, 3)
+		})
+
 	})
 
 	t.Run("partial value update", func(t *testing.T) {
@@ -1621,5 +1636,57 @@ func testComposeRecords(t *testing.T, s store.ComposeRecords) {
 		req.NoError(err)
 		req.Equal("1st,1;2nd,22;3rd,3", stringifyValues(set, "str1", "num1"))
 
+	})
+
+	t.Run("date-time filtering", func(t *testing.T) {
+		var (
+			err error
+			set types.RecordSet
+
+			req, _ = truncAndCreate(t,
+				makeNew(&types.RecordValue{Name: "num1", Value: "1001"}, &types.RecordValue{Name: "datetime1", Value: "2020-10-01T00:00:01"}),
+				makeNew(&types.RecordValue{Name: "num1", Value: "1002"}, &types.RecordValue{Name: "datetime1", Value: "2020-10-02T00:00:02"}),
+				makeNew(&types.RecordValue{Name: "num1", Value: "1003"}, &types.RecordValue{Name: "datetime1", Value: "2020-10-03T00:00:03"}),
+				makeNew(&types.RecordValue{Name: "num1", Value: "1004"}, &types.RecordValue{Name: "datetime1", Value: "2020-10-04T00:00:03"}),
+
+				makeNew(&types.RecordValue{Name: "num1", Value: "2001"}, &types.RecordValue{Name: "date1", Value: "2020-10-01"}),
+				makeNew(&types.RecordValue{Name: "num1", Value: "2002"}, &types.RecordValue{Name: "date1", Value: "2020-10-02"}),
+				makeNew(&types.RecordValue{Name: "num1", Value: "2003"}, &types.RecordValue{Name: "date1", Value: "2020-10-03"}),
+				makeNew(&types.RecordValue{Name: "num1", Value: "2004"}, &types.RecordValue{Name: "date1", Value: "2020-10-04"}),
+
+				makeNew(&types.RecordValue{Name: "num1", Value: "3001"}, &types.RecordValue{Name: "time1", Value: "01:00:00"}),
+				makeNew(&types.RecordValue{Name: "num1", Value: "3002"}, &types.RecordValue{Name: "time1", Value: "02:00:00"}),
+				makeNew(&types.RecordValue{Name: "num1", Value: "3003"}, &types.RecordValue{Name: "time1", Value: "03:00:00"}),
+				makeNew(&types.RecordValue{Name: "num1", Value: "3004"}, &types.RecordValue{Name: "time1", Value: "04:00:00"}),
+			)
+
+			cases = []struct {
+				query  string
+				result string
+			}{
+				{"datetime1 = '2020-10-02T00:00:02'", "1002"},
+				{"TIMESTAMP(datetime1) = TIMESTAMP('2020-10-02T00:00:02')", "1002"},
+				{"date1 = '2020-10-02'", "2002"},
+				{"DATE(date1) = DATE('2020-10-02')", "2002"},
+				{"time1 = '02:00:00'", "3002"},
+				{"TIME(time1) = TIME('02:00:00')", "3002"},
+				{"datetime1 <= '2020-10-02T00:00:02'", "1001;1002"},
+				{"date1 <= '2020-10-02'", "2001;2002"},
+				{"time1 <= '02:00:00'", "3001;3002"},
+				{"datetime1 > '2020-10-02T00:00:02'", "1003;1004"},
+				{"date1 > '2020-10-02'", "2003;2004"},
+				{"time1 > '02:00:00'", "3003;3004"},
+				{"(TIMESTAMP(DATE_FORMAT(datetime1, '%Y-%m-%dT%H:%i:00Z')) = TIMESTAMP(DATE_FORMAT('2020-10-02T00:00:02', '%Y-%m-%dT%H:%i:00Z')))", "1002"},
+			}
+		)
+
+		for _, c := range cases {
+			t.Run(c.query, func(t *testing.T) {
+				req = require.New(t)
+				set, _, err = s.SearchComposeRecords(ctx, mod, types.RecordFilter{Query: c.query})
+				req.NoError(err)
+				req.Equal(c.result, stringifyValues(set, "num1"))
+			})
+		}
 	})
 }
