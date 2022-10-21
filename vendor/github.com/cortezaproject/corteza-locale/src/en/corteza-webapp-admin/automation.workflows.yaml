@@ -28,8 +28,7 @@ list:
     actions: ""
     createdAt: Created
     enabled: Enabled
-    handle: Handle
-    name: Name
+    handle: Name
   filterForm:
     deleted:
       label: deleted workflows

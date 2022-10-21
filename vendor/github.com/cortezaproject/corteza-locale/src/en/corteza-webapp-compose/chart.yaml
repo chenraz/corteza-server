@@ -11,7 +11,7 @@ general:
   value: Value
   placeholder:
     handle: handle (a - z, 0 - 9, underscore, dash)
-    invalid-handle-characters: Should be at least 2 characters long and start with a letter. Can contain only letters, numbers, dashes, underscores and dots
+  invalid-handle-characters: Should be al least 2 characters long and start with a letter. Can contains only letters, numbers, dash, underscore and dot
 edit:
   dimension:
     calculateLabelCount: Calculate how many labels can be shown
@@ -31,13 +31,6 @@ edit:
     gaugeSteps: Steps
     label: Dimensions
     skipMissingValues: Skip missing values
-    optionsPicker:
-      searchPlaceholder: Type here to search among select options
-      availableItems: Available options
-      selectAllItems: Select all
-      selectedItems: Selected options
-      unselectAllItems: Unselect all
-      noItemsFound: No options found
   filter:
     customize: Customize filter
     label: Filters
@@ -57,6 +50,7 @@ edit:
     fixTooltips: Always show tooltips
     function:
       avg: AVG
+      countd: COUNTD
       label: Function
       max: MAX
       min: MIN
@@ -93,7 +87,6 @@ edit:
       placeholder: Select metric output
     relative: Show relative value
     relativePrecision: 'Precision:'
-    cumulative: Cumulative
     title: Metrics
   module:
     label: Module
@@ -123,4 +116,3 @@ notification:
   deleted: Chart deleted
 searchPlaceholder: Type here to search all charts in this namespace
 title: List of Charts
-undefined: undefined

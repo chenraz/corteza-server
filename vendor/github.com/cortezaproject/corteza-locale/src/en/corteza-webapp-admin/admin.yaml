@@ -76,7 +76,6 @@ general:
     "no": "No"
     submit: Submit
     "yes": "Yes"
-    selectOption: "Please select an option"
   logout: Logout
   noAccess: You do not have permissions to access Admin panel
   pagination:

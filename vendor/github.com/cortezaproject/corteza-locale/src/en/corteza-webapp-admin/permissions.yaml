@@ -31,12 +31,6 @@ ui:
     compose: Compose permissions
     federation: Federation permissions
 
-  clone:
-    clone: Clone
-    label: Clone permissions
-    title: Clone permissions to
-    description: This will clone all the permissions of the current role and apply them  to the selected
-
 resources:
   automation:
     component:
@@ -234,27 +228,27 @@ resources:
         delete:
           description: 'Default: deny'
           specific: Delete {{target}}
-          title: Delete any queue
+          title: Delete any role
         members.manage:
           description: 'Default: deny'
           specific: Manage members for {{target}}
-          title: Manage members for any queue
+          title: Manage members for any role
         read:
           description: 'Default: deny'
           specific: Read {{target}}
-          title: Read any queue
+          title: Read any role
         update:
           description: 'Default: deny'
           specific: Update {{target}}
-          title: Update any queue
+          title: Update any role
         queue.read:
           description: 'Default: deny'
           specific: Read messages from {{target}}
-          title: Read messages from any queue
+          title: Read messages from any role
         queue.write:
           description: 'Default: deny'
           specific: Write messages to {{target}}
-          title: Write messages to any queue
+          title: Write messages to any role
 
     template:
       label: Templates
