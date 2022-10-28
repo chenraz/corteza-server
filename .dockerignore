@@ -2,7 +2,7 @@ webconsole/dist
 webconsole/node_modules
 .idea
 .dev
-build
+#build
 codegen
 var
-webapp
+#webapp
